@@ -10,10 +10,10 @@ export function Sidebar() {
   element.style.zIndex = '50';
   element.style.background = 'var(--bg-panel)';
 
-  // Logo KreateIA (Inyectado como SVG puro)
+  // Logo KreateIA (Inyectado como SVG puro con tus colores)
   const logo = document.createElement('div');
   logo.innerHTML = `
-    <svg width="32" height="32" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" class="drop-shadow-[0_0_15px_rgba(59,130,246,0.5)]">
+    <svg width="36" height="36" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0px 0px 10px rgba(59,130,246,0.6));">
       <circle cx="50" cy="50" r="40" stroke="currentColor" stroke-width="2" stroke-dasharray="15 10" opacity="0.2" />
       <circle cx="50" cy="50" r="12" fill="currentColor" />
       <circle cx="80" cy="50" r="6" fill="#FFB000">
@@ -23,9 +23,10 @@ export function Sidebar() {
       <path d="M80 50C80 66.5685 66.5685 80 50 80C33.4315 80 20 66.5685 20 50" stroke="#FF6B00" stroke-width="6" stroke-linecap="round" />
     </svg>
   `;
-  logo.className = 'mb-10 text-white cursor-pointer hover:scale-105 transition-transform duration-300';
+  logo.className = 'mb-10 text-white cursor-pointer hover:scale-110 transition-transform duration-300';
   element.appendChild(logo);
 
+  // Textos traducidos a tu plataforma
   const navItems = [
     { id: 'image', icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>', label: 'Estudio' },
     { id: 'video', icon: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>', label: 'Vídeo' },
