@@ -36,12 +36,13 @@ export function Header(navigate) {
     const menu = document.createElement('nav');
     menu.className = 'hidden lg:flex items-center gap-6 text-[13px] font-bold text-white/50';
     
-    // Rutas y traducciones
+    // Rutas y traducciones (Academia de IA añadida aquí)
     const items = [
         { id: 'image', label: 'Estudio de Imagen' },
         { id: 'video', label: 'Estudio de Vídeo' },
         { id: 'lipsync', label: 'Lip Sync' },
-        { id: 'cinema', label: 'Modo Cine' }
+        { id: 'cinema', label: 'Modo Cine' },
+        { id: 'academy', label: 'Academia de IA' }
     ];
 
     items.forEach(item => {
