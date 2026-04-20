@@ -1,4 +1,3 @@
-
 import { muapi } from '../lib/muapi.js';
 import { CameraControls } from './CameraControls.js';
 import { buildNanoBananaPrompt, CAMERA_MAP, LENS_MAP, FOCAL_PERSPECTIVE, APERTURE_EFFECT } from '../lib/promptUtils.js';
@@ -6,7 +5,7 @@ import { AuthModal } from './AuthModal.js';
 
 export function CinemaStudio() {
     const container = document.createElement('div');
-    container.className = 'w-full h-full flex flex-col items-center justify-center bg-black relative overflow-hidden';
+    container.className = 'w-full h-full flex flex-col items-center justify-center bg-[#050505] relative overflow-hidden';
 
     // --- State ---
     const currentSettings = {
@@ -18,7 +17,6 @@ export function CinemaStudio() {
         aperture: "f/1.4"
     };
     
-    // Camera builder panel state
     let showCameraBuilder = false;
 
     // ==========================================
@@ -27,9 +25,9 @@ export function CinemaStudio() {
     const heroSection = document.createElement('div');
     heroSection.className = 'flex flex-col items-center justify-center text-center px-4 animate-fade-in-up';
     heroSection.innerHTML = `
-        <div class="mb-4 text-xs font-bold text-white/40 tracking-[0.2em] uppercase">Cinema Studio 2.0</div>
+        <div class="mb-4 text-xs font-bold text-[#FFB000]/60 tracking-[0.2em] uppercase">Modo Cine</div>
         <h1 class="text-4xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-b from-white to-white/50 tracking-tight leading-tight mb-2">
-            What would you shoot<br>with infinite budget?
+            ¿Qué rodarías<br>con presupuesto infinito?
         </h1>
     `;
     container.appendChild(heroSection);
@@ -38,10 +36,9 @@ export function CinemaStudio() {
     // 2. CAMERA CONTROLS OVERLAY
     // ==========================================
     const overlayBackdrop = document.createElement('div');
-    overlayBackdrop.className = 'fixed inset-0 bg-black/80 backdrop-blur-md z-40 opacity-0 pointer-events-none transition-opacity duration-300 flex items-center justify-center';
+    overlayBackdrop.className = 'fixed inset-0 bg-black/80 backdrop-blur-md z-50 opacity-0 pointer-events-none transition-opacity duration-300 flex items-center justify-center';
 
     const overlayContent = document.createElement('div');
-    // Reduced padding for mobile (p-4) and added max-height/overflow handling
     overlayContent.className = 'w-full max-w-4xl bg-[#141414] border border-white/10 rounded-3xl p-4 md:p-8 shadow-2xl transform scale-95 transition-transform duration-300 flex flex-col max-h-[90vh]';
     overlayBackdrop.appendChild(overlayContent);
 
@@ -50,7 +47,7 @@ export function CinemaStudio() {
     overlayHeader.className = 'flex items-center justify-between mb-8';
     overlayHeader.innerHTML = `
         <div class="flex gap-4">
-            <button class="px-4 py-2 bg-white text-black text-xs font-bold rounded-full">All</button>
+            <button class="px-4 py-2 bg-[#FFB000] text-black text-xs font-bold rounded-full">Todo</button>
         </div>
         <button id="close-overlay-btn" class="text-white/50 hover:text-white transition-colors">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
@@ -68,7 +65,7 @@ export function CinemaStudio() {
     });
     overlayContent.appendChild(cameraControls);
 
-    document.body.appendChild(overlayBackdrop); // Append to body to sit above everything
+    document.body.appendChild(overlayBackdrop);
 
     // Overlay Logic
     const openOverlay = () => {
@@ -84,7 +81,6 @@ export function CinemaStudio() {
     overlayContent.querySelector('#close-overlay-btn').onclick = closeOverlay;
     overlayBackdrop.onclick = (e) => { if (e.target === overlayBackdrop) closeOverlay(); };
 
-
     // ==========================================
     // 3. FLOATING PROMPT BAR
     // ==========================================
@@ -94,36 +90,29 @@ export function CinemaStudio() {
     const promptBar = document.createElement('div');
     promptBar.className = 'bg-[#1a1a1a] border border-white/10 rounded-[2rem] p-4 flex justify-between shadow-3xl items-end relative';
 
-    // --- LEFT COLUMN (Input + Settings) ---
+    // --- LEFT COLUMN ---
     const leftColumn = document.createElement('div');
     leftColumn.className = 'flex-1 flex flex-col gap-3 min-h-[80px] justify-between py-1 px-1';
 
-    // 1. Input Area
     const inputRow = document.createElement('div');
     inputRow.className = 'flex items-start gap-3 w-full';
 
-
-
-    // Textarea
     const textarea = document.createElement('textarea');
-    textarea.placeholder = 'Describe your scene - use @ to add characters & props';
-    textarea.className = 'flex-1 bg-transparent border-none text-white text-lg font-medium placeholder:text-white/20 focus:outline-none resize-none h-[28px] leading-relaxed overflow-hidden';
-    textarea.style.height = 'auto'; // Auto-grow check
+    textarea.placeholder = 'Describe tu escena (usa @ para añadir personajes y props)';
+    textarea.className = 'flex-1 bg-transparent border-none text-white text-lg font-medium placeholder:text-white/30 focus:outline-none resize-none h-[28px] leading-relaxed overflow-hidden custom-scrollbar';
+    textarea.style.height = 'auto';
     textarea.rows = 1;
     textarea.oninput = function () {
         this.style.height = 'auto';
         this.style.height = (this.scrollHeight) + 'px';
     };
     inputRow.appendChild(textarea);
-
     leftColumn.appendChild(inputRow);
 
-    // 2. Settings Toolbar (Bottom Left)
-    // 2. Settings Toolbar (Bottom Left)
+    // Settings Toolbar
     const settingsToolbar = document.createElement('div');
-    settingsToolbar.className = 'flex items-center gap-3'; // Removed pl-11 to align left
+    settingsToolbar.className = 'flex items-center gap-3';
 
-    // Helper: Create Dropdown
     const createDropdown = (items, selected, onSelect, trigger) => {
         const existing = document.querySelectorAll('.custom-dropdown');
         existing.forEach(el => el.remove());
@@ -136,7 +125,7 @@ export function CinemaStudio() {
 
         items.forEach(item => {
             const btn = document.createElement('button');
-            btn.className = `px-3 py-2 text-xs font-bold text-left hover:bg-white/10 transition-colors ${item === selected ? 'text-primary' : 'text-white'}`;
+            btn.className = `px-3 py-2 text-xs font-bold text-left hover:bg-white/10 transition-colors ${item === selected ? 'text-[#FFB000]' : 'text-white'}`;
             btn.textContent = item;
             btn.onclick = (e) => {
                 e.stopPropagation();
@@ -184,30 +173,24 @@ export function CinemaStudio() {
     };
     settingsToolbar.appendChild(resBtn);
     
-    // Camera Builder Toggle Button
+    // Camera Builder Toggle
     const cameraBuilderBtn = document.createElement('button');
     cameraBuilderBtn.className = 'flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold text-white/50 hover:text-white transition-colors bg-white/5 hover:bg-white/10 rounded-lg border border-white/5';
-    cameraBuilderBtn.setAttribute('data-tooltip', 'Quick camera builder');
-    cameraBuilderBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/></svg> Builder`;
+    cameraBuilderBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/></svg> Constructor`;
     settingsToolbar.appendChild(cameraBuilderBtn);
 
     leftColumn.appendChild(settingsToolbar);
     promptBar.appendChild(leftColumn);
 
-
-    // --- RIGHT GROUP (Summary + Generate) ---
+    // --- RIGHT GROUP ---
     const rightGroup = document.createElement('div');
     rightGroup.className = 'flex items-center gap-2 h-full self-end mb-1';
 
-    // Summary Card (Triggers Overlay)
     const summaryCard = document.createElement('button');
-    // Removed 'hidden' class, added 'flex' and refined width constraints for mobile
     summaryCard.className = 'flex flex-col items-start justify-center px-4 py-2 bg-[#2a2a2a] rounded-xl border border-white/5 hover:border-white/20 transition-colors text-left flex-1 min-w-[100px] md:min-w-[140px] max-w-[240px] h-[56px] relative group overflow-hidden';
-    summaryCard.setAttribute('data-tooltip', 'Open camera settings');
-
-    // Dot indicator
+    
     const dot = document.createElement('div');
-    dot.className = 'absolute top-2 right-2 w-2 h-2 bg-primary rounded-full shadow-glow-sm';
+    dot.className = 'absolute top-2 right-2 w-2 h-2 bg-[#FFB000] rounded-full shadow-[0_0_8px_rgba(255,176,0,0.8)]';
     summaryCard.appendChild(dot);
 
     const summaryTitle = document.createElement('span');
@@ -220,7 +203,6 @@ export function CinemaStudio() {
 
     summaryCard.appendChild(summaryTitle);
     summaryCard.appendChild(summaryValue);
-
     summaryCard.onclick = openOverlay;
 
     function formatSummaryValue() {
@@ -232,11 +214,9 @@ export function CinemaStudio() {
         summaryValue.textContent = formatSummaryValue();
     }
 
-    // Generate Button
     const generateBtn = document.createElement('button');
-    generateBtn.className = 'h-[56px] px-8 bg-[#d9ff00] text-black rounded-xl font-black text-xs uppercase hover:bg-white transition-colors shadow-lg disabled:opacity-50 disabled:cursor-not-allowed';
-    generateBtn.setAttribute('data-tooltip', 'Generate cinema shot');
-    generateBtn.innerHTML = `GENERATE ✨`;
+    generateBtn.className = 'h-[56px] px-8 bg-[#FFB000] text-black rounded-xl font-black text-xs uppercase hover:shadow-[0_0_15px_rgba(255,176,0,0.5)] transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed';
+    generateBtn.innerHTML = `GENERAR ✨`;
 
     rightGroup.appendChild(summaryCard);
     rightGroup.appendChild(generateBtn);
@@ -246,18 +226,18 @@ export function CinemaStudio() {
     container.appendChild(promptBarWrapper);
 
     // ==========================================
-    // 3B. CAMERA BUILDER PANEL (Collapsible)
+    // 3B. CAMERA BUILDER PANEL
     // ==========================================
     const cameraBuilderPanel = document.createElement('div');
     cameraBuilderPanel.className = 'absolute bottom-8 left-4 right-4 md:left-1/2 md:-translate-x-1/2 md:w-full md:max-w-4xl z-20';
-    cameraBuilderPanel.style.display = 'none'; // Hidden by default
+    cameraBuilderPanel.style.display = 'none';
     
     const builderCard = document.createElement('div');
     builderCard.className = 'bg-[#1a1a1a] border border-white/10 rounded-2xl p-4 shadow-3xl';
     
     builderCard.innerHTML = `
         <div class="flex items-center justify-between mb-4">
-            <h4 class="text-xs font-bold text-white">Camera Builder</h4>
+            <h4 class="text-xs font-bold text-white">Constructor de Cámara</h4>
             <button id="close-builder-btn" class="text-white/40 hover:text-white transition-colors">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
             </button>
@@ -265,36 +245,36 @@ export function CinemaStudio() {
         
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
             <div class="flex flex-col gap-1.5">
-                <label class="text-[10px] font-bold text-muted uppercase">Camera</label>
-                <select id="builder-camera" class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-primary/50">
+                <label class="text-[10px] font-bold text-white/40 uppercase">Cámara</label>
+                <select id="builder-camera" class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-[#FFB000]/50">
                     ${Object.keys(CAMERA_MAP).map(c => `<option value="${c}" ${c === currentSettings.camera ? 'selected' : ''}>${c}</option>`).join('')}
                 </select>
             </div>
             <div class="flex flex-col gap-1.5">
-                <label class="text-[10px] font-bold text-muted uppercase">Lens</label>
-                <select id="builder-lens" class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-primary/50">
+                <label class="text-[10px] font-bold text-white/40 uppercase">Lente</label>
+                <select id="builder-lens" class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-[#FFB000]/50">
                     ${Object.keys(LENS_MAP).map(l => `<option value="${l}" ${l === currentSettings.lens ? 'selected' : ''}>${l}</option>`).join('')}
                 </select>
             </div>
             <div class="flex flex-col gap-1.5">
-                <label class="text-[10px] font-bold text-muted uppercase">Focal</label>
-                <select id="builder-focal" class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-primary/50">
+                <label class="text-[10px] font-bold text-white/40 uppercase">Focal</label>
+                <select id="builder-focal" class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-[#FFB000]/50">
                     ${Object.keys(FOCAL_PERSPECTIVE).map(f => `<option value="${f}" ${f === currentSettings.focal ? 'selected' : ''}>${f}mm</option>`).join('')}
                 </select>
             </div>
             <div class="flex flex-col gap-1.5">
-                <label class="text-[10px] font-bold text-muted uppercase">Aperture</label>
-                <select id="builder-aperture" class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-primary/50">
+                <label class="text-[10px] font-bold text-white/40 uppercase">Apertura</label>
+                <select id="builder-aperture" class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-[#FFB000]/50">
                     ${Object.keys(APERTURE_EFFECT).map(a => `<option value="${a}" ${a === currentSettings.aperture ? 'selected' : ''}>${a}</option>`).join('')}
                 </select>
             </div>
         </div>
         
         <div class="flex flex-col gap-2">
-            <label class="text-[10px] font-bold text-muted uppercase">Preview</label>
-            <div id="builder-preview" class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-white text-xs min-h-[40px]"></div>
-            <button id="apply-builder-btn" class="px-4 py-2 bg-primary text-black rounded-lg text-xs font-bold hover:shadow-glow transition-all">
-                Use This Setup
+            <label class="text-[10px] font-bold text-white/40 uppercase">Vista Previa del Prompt</label>
+            <div id="builder-preview" class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-white/70 text-xs min-h-[40px]"></div>
+            <button id="apply-builder-btn" class="px-4 py-2 bg-[#FFB000] text-black rounded-lg text-xs font-bold hover:shadow-[0_0_10px_rgba(255,176,0,0.4)] transition-all">
+                Usar esta Configuración
             </button>
         </div>
     `;
@@ -302,7 +282,6 @@ export function CinemaStudio() {
     cameraBuilderPanel.appendChild(builderCard);
     container.appendChild(cameraBuilderPanel);
     
-    // Camera Builder toggle logic
     cameraBuilderBtn.onclick = () => {
         showCameraBuilder = !showCameraBuilder;
         cameraBuilderPanel.style.display = showCameraBuilder ? 'block' : 'none';
@@ -315,7 +294,6 @@ export function CinemaStudio() {
         cameraBuilderPanel.style.display = 'none';
     };
     
-    // Update builder preview
     const updateBuilderPreview = () => {
         const camera = builderCard.querySelector('#builder-camera')?.value || currentSettings.camera;
         const lens = builderCard.querySelector('#builder-lens')?.value || currentSettings.lens;
@@ -325,11 +303,10 @@ export function CinemaStudio() {
         const preview = buildNanoBananaPrompt('', camera, lens, focal, aperture);
         const previewEl = builderCard.querySelector('#builder-preview');
         if (previewEl) {
-            previewEl.textContent = preview || 'Select camera settings to see preview...';
+            previewEl.textContent = preview || 'Selecciona ajustes para ver la vista previa...';
         }
     };
     
-    // Builder event listeners
     const builderCamera = builderCard.querySelector('#builder-camera');
     const builderLens = builderCard.querySelector('#builder-lens');
     const builderFocal = builderCard.querySelector('#builder-focal');
@@ -353,19 +330,17 @@ export function CinemaStudio() {
         };
     }
 
-
     // ==========================================
-    // 3. HISTORY SIDEBAR
+    // 4. HISTORY SIDEBAR
     // ==========================================
     const generationHistory = [];
 
-    // History Sidebar - VISIBLE BY DEFAULT (removed translate-x-full opacity-0)
     const historySidebar = document.createElement('div');
-    historySidebar.className = 'fixed right-0 top-0 h-full w-20 md:w-24 bg-black/60 backdrop-blur-xl border-l border-white/5 z-50 flex flex-col items-center py-4 gap-3 overflow-y-auto transition-all duration-500';
+    historySidebar.className = 'fixed right-0 top-0 h-full w-20 md:w-24 bg-black/60 backdrop-blur-xl border-l border-white/5 z-40 flex flex-col items-center py-4 gap-3 overflow-y-auto transition-all duration-500';
 
     const historyLabel = document.createElement('div');
     historyLabel.className = 'text-[9px] font-bold text-white/40 uppercase tracking-widest mb-2';
-    historyLabel.textContent = 'History';
+    historyLabel.textContent = 'Historial';
     historySidebar.appendChild(historyLabel);
 
     const historyList = document.createElement('div');
@@ -375,7 +350,7 @@ export function CinemaStudio() {
     container.appendChild(historySidebar);
 
     // ==========================================
-    // 4. CANVAS AREA (Result View)
+    // 5. CANVAS AREA (Result View)
     // ==========================================
     const canvas = document.createElement('div');
     canvas.className = 'absolute inset-0 flex flex-col items-center justify-center p-4 min-[800px]:p-16 z-30 opacity-0 pointer-events-none transition-all duration-1000 translate-y-10 scale-95 bg-black/90 backdrop-blur-3xl';
@@ -388,22 +363,21 @@ export function CinemaStudio() {
     imageContainer.appendChild(resultImg);
     canvas.appendChild(imageContainer);
 
-    // Canvas Controls
     const canvasControls = document.createElement('div');
     canvasControls.className = 'mt-8 flex gap-3 opacity-0 transition-opacity delay-500 duration-500 justify-center';
 
     const createActionBtn = (label, primary = false) => {
         const btn = document.createElement('button');
         btn.className = primary
-            ? 'bg-[#d9ff00] text-black px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wide hover:bg-white transition-colors shadow-glow-sm hover:scale-105 active:scale-95'
+            ? 'bg-[#FFB000] text-black px-6 py-2.5 rounded-xl text-xs font-black uppercase tracking-wide hover:bg-white hover:text-black transition-colors shadow-[0_0_15px_rgba(255,176,0,0.4)] hover:scale-105 active:scale-95'
             : 'bg-white/10 hover:bg-white/20 px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wide transition-all border border-white/5 backdrop-blur-lg text-white hover:border-white/20';
         btn.textContent = label;
         return btn;
     };
 
-    const regenerateBtn = createActionBtn('↻ Regenerate');
-    const downloadBtn = createActionBtn('↓ Download', true);
-    const newPromptBtn = createActionBtn('+ New Shot');
+    const regenerateBtn = createActionBtn('↻ Regenerar');
+    const downloadBtn = createActionBtn('↓ Descargar', true);
+    const newPromptBtn = createActionBtn('+ Nuevo');
 
     canvasControls.appendChild(regenerateBtn);
     canvasControls.appendChild(downloadBtn);
@@ -412,17 +386,16 @@ export function CinemaStudio() {
 
     container.appendChild(canvas);
 
-    // --- History Logic ---
     const renderHistory = () => {
         historyList.innerHTML = '';
         generationHistory.forEach((entry, idx) => {
             const thumb = document.createElement('div');
-            thumb.className = `relative group/thumb cursor-pointer rounded-lg overflow-hidden border-2 transition-all duration-300 aspect-square ${idx === 0 ? 'border-[#d9ff00] shadow-glow-sm' : 'border-white/10 hover:border-white/30'}`;
+            thumb.className = `relative group/thumb cursor-pointer rounded-lg overflow-hidden border-2 transition-all duration-300 aspect-square ${idx === 0 ? 'border-[#FFB000] shadow-[0_0_10px_rgba(255,176,0,0.4)]' : 'border-white/10 hover:border-white/30'}`;
 
             thumb.innerHTML = `
                 <img src="${entry.url}" class="w-full h-full object-cover opacity-80 group-hover/thumb:opacity-100 transition-opacity">
                 <div class="absolute inset-0 bg-black/50 opacity-0 group-hover/thumb:opacity-100 transition-opacity flex items-center justify-center">
-                    <span class="text-[8px] font-bold text-white uppercase">Load</span>
+                    <span class="text-[8px] font-bold text-white uppercase">Cargar</span>
                 </div>
             `;
 
@@ -438,7 +411,6 @@ export function CinemaStudio() {
     };
 
     const loadHistoryItem = (entry, thumbElement) => {
-        // Restore Settings
         if (entry.settings) {
             currentSettings.camera = entry.settings.camera;
             currentSettings.lens = entry.settings.lens;
@@ -446,7 +418,6 @@ export function CinemaStudio() {
             currentSettings.aperture = entry.settings.aperture;
             currentSettings.aspect_ratio = entry.settings.aspect_ratio;
 
-            // Update UI elements
             textarea.value = entry.settings.prompt || '';
             updateSummaryCard();
             updateArBtn();
@@ -455,25 +426,21 @@ export function CinemaStudio() {
 
         showCanvas(entry.url);
 
-        // Highlight active history item
         if (thumbElement) {
             historyList.querySelectorAll('div').forEach(t => {
-                t.classList.remove('border-[#d9ff00]', 'shadow-glow-sm');
+                t.classList.remove('border-[#FFB000]', 'shadow-[0_0_10px_rgba(255,176,0,0.4)]');
                 t.classList.add('border-white/10');
             });
             thumbElement.classList.remove('border-white/10');
-            thumbElement.classList.add('border-[#d9ff00]', 'shadow-glow-sm');
+            thumbElement.classList.add('border-[#FFB000]', 'shadow-[0_0_10px_rgba(255,176,0,0.4)]');
         }
     };
 
     const showCanvas = (url) => {
         resultImg.src = url;
-
-        // Hide Input UI
         heroSection.classList.add('opacity-0', 'pointer-events-none', 'scale-95');
         promptBarWrapper.classList.add('opacity-0', 'pointer-events-none', 'translate-y-20');
 
-        // Show Canvas
         canvas.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-10', 'scale-95');
         canvas.classList.add('opacity-100', 'translate-y-0', 'scale-100');
         canvasControls.classList.remove('opacity-0');
@@ -481,20 +448,16 @@ export function CinemaStudio() {
     };
 
     const resetToPrompt = () => {
-        // Hide Canvas
         canvas.classList.add('opacity-0', 'pointer-events-none', 'translate-y-10', 'scale-95');
         canvas.classList.remove('opacity-100', 'translate-y-0', 'scale-100');
 
-        // Show Input UI
         heroSection.classList.remove('opacity-0', 'pointer-events-none', 'scale-95');
         promptBarWrapper.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-20');
 
-        // Clear prompt for new shot?
         textarea.value = '';
         textarea.focus();
     };
 
-    // Load saved history
     try {
         const saved = JSON.parse(localStorage.getItem('cinema_history') || '[]');
         if (saved.length > 0) {
@@ -503,7 +466,6 @@ export function CinemaStudio() {
         }
     } catch (e) { }
 
-    // Actions
     newPromptBtn.onclick = resetToPrompt;
 
     regenerateBtn.onclick = () => {
@@ -520,7 +482,7 @@ export function CinemaStudio() {
             const blobUrl = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = blobUrl;
-            a.download = `cinema-shot-${Date.now()}.jpg`;
+            a.download = `kreateia-cinema-${Date.now()}.jpg`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -531,7 +493,7 @@ export function CinemaStudio() {
     };
 
     // ==========================================
-    // 5. GENERATION LOGIC UPDATE
+    // 6. GENERATION LOGIC
     // ==========================================
     generateBtn.onclick = async () => {
         const basePrompt = textarea.value.trim();
@@ -544,9 +506,8 @@ export function CinemaStudio() {
         }
 
         generateBtn.disabled = true;
-        generateBtn.innerHTML = "SHOOTING...";
+        generateBtn.innerHTML = "RODANDO...";
 
-        // Compile Prompt
         const finalPrompt = buildNanoBananaPrompt(
             basePrompt,
             currentSettings.camera,
@@ -565,7 +526,6 @@ export function CinemaStudio() {
             });
 
             if (res && res.url) {
-                // Save to history
                 addToHistory({
                     url: res.url,
                     timestamp: Date.now(),
@@ -575,18 +535,16 @@ export function CinemaStudio() {
                         resolution: resBtn.dataset.value
                     }
                 });
-
                 showCanvas(res.url);
             } else {
-                throw new Error('No Data');
+                throw new Error('Sin datos de imagen');
             }
-
         } catch (e) {
             console.error(e);
-            alert('Generation Failed: ' + e.message);
+            alert('Fallo en la generación: ' + e.message);
         } finally {
             generateBtn.disabled = false;
-            generateBtn.innerHTML = `GENERATE ✨`;
+            generateBtn.innerHTML = `GENERAR ✨`;
         }
     };
 
