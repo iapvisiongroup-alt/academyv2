@@ -1,75 +1,118 @@
 import { getModelById, getVideoModelById, getI2IModelById, getI2VModelById, getV2VModelById, getLipSyncModelById } from './models.js';
+import { auth, db, APP_ID } from './firebase.js';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
+
+// ==========================================
+// CONFIGURACIÓN MAESTRA DE KREATEIA
+// ==========================================
+// ⚠️ ESTA ES TU CLAVE PRIVADA DE MUAPI (O DE LA API QUE USES).
+// En un entorno de producción estricto, esta clave no debería estar en el frontend,
+// sino que tu frontend llamaría a tu backend (ej. Cloudflare Workers) y este a Muapi.
+// Para esta fase, la usaremos directamente aquí para que funcione de inmediato.
+const MASTER_API_KEY = "PON_AQUI_TU_CLAVE_SECRETA_DE_MUAPI"; 
+
+// ==========================================
+// SISTEMA DE PRECIOS (CRÉDITOS)
+// ==========================================
+const COST_MAP = {
+    'image': 5,          // Crear una imagen = 5 créditos
+    'video': 30,         // Crear un vídeo = 30 créditos
+    'lipsync': 20,       // Hacer LipSync = 20 créditos
+    'nano-banana-pro': 15 // Modo cine = 15 créditos
+};
 
 export class MuapiClient {
     constructor() {
-        // Ideally user provides this in settings
         this.baseUrl = import.meta.env.DEV ? '' : 'https://api.muapi.ai';
     }
 
+    /**
+     * Valida que el usuario tenga sesión iniciada, tenga suficientes créditos
+     * y le descuenta el coste de la acción. Si todo es correcto, devuelve true.
+     */
+    async chargeCredits(actionType, modelId = null) {
+        const user = auth.currentUser;
+        if (!user) {
+            throw new Error("Debes iniciar sesión para generar contenido.");
+        }
+
+        // Si es el modo cine, usamos su coste específico
+        let cost = COST_MAP[actionType] || 10;
+        if (modelId === 'nano-banana-pro') {
+            cost = COST_MAP['nano-banana-pro'];
+        }
+
+        try {
+            const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', user.uid);
+            const userSnap = await getDoc(userRef);
+
+            if (!userSnap.exists()) {
+                throw new Error("Perfil de usuario no encontrado.");
+            }
+
+            const currentCredits = userSnap.data().credits || 0;
+            const isAdmin = userSnap.data().role === 'admin';
+
+            // Los admins tienen créditos infinitos (o no se les bloquea)
+            if (!isAdmin && currentCredits < cost) {
+                throw new Error(`Créditos insuficientes. Necesitas ${cost} CR, pero tienes ${currentCredits} CR.`);
+            }
+
+            // Descontar créditos (incluso al admin para que vea el gasto, aunque no se le bloquee)
+            await updateDoc(userRef, {
+                credits: Math.max(0, currentCredits - cost)
+            });
+
+            console.log(`[KreateIA Billing] Cobrados ${cost} CR. Saldo restante: ${Math.max(0, currentCredits - cost)} CR`);
+            return true;
+
+        } catch (error) {
+            console.error("[KreateIA Billing Error]", error);
+            throw error;
+        }
+    }
+
+    // Ya no necesitamos getKey() del usuario. Usamos la MASTER_API_KEY.
     getKey() {
-        const key = window.__MUAPI_KEY__ || localStorage.getItem('muapi_key');
-        if (!key) throw new Error('API Key missing. Please set it in Settings.');
-        return key;
+        if (!MASTER_API_KEY || MASTER_API_KEY === "PON_AQUI_TU_CLAVE_SECRETA_DE_MUAPI") {
+            console.warn("⚠️ ALERTA: No has configurado tu MASTER_API_KEY en muapi.js");
+            // Fallback temporal al localStorage por si estás probando
+            return localStorage.getItem('muapi_key') || ''; 
+        }
+        return MASTER_API_KEY;
     }
 
     /**
      * Generates an image (Text-to-Image or Image-to-Image)
-     * @param {Object} params
-     * @param {string} params.model
-     * @param {string} params.prompt
-     * @param {string} params.negative_prompt
-     * @param {string} params.aspect_ratio
-     * @param {number} params.steps
-     * @param {number} params.guidance_scale
-     * @param {number} params.seed
-     * @param {string} [params.image_url] - If present, treats as Image-to-Image
      */
     async generateImage(params) {
-        const key = this.getKey();
+        // 1. COBRO DE CRÉDITOS ANTES DE HACER NADA
+        await this.chargeCredits('image', params.model);
 
-        // Resolve endpoint from model definition
-        const modelInfo = getModelById(params.model);
-        const endpoint = modelInfo?.endpoint || params.model;
+        const key = this.getKey();
+        if (!key) throw new Error("Falta la clave maestra de la API.");
+
+        const modelInfo = getModelById(params.model) || { endpoint: params.model };
+        // Excepción para el modo cine que usa nano-banana-pro
+        const endpoint = params.model === 'nano-banana-pro' ? 'nano-banana-pro' : (modelInfo?.endpoint || params.model);
         const url = `${this.baseUrl}/api/v1/${endpoint}`;
 
-        // Build payload matching the API's expected format
-        const finalPayload = {
-            prompt: params.prompt,
-        };
+        const finalPayload = { prompt: params.prompt };
+        if (params.aspect_ratio) finalPayload.aspect_ratio = params.aspect_ratio;
+        if (params.resolution) finalPayload.resolution = params.resolution;
+        if (params.quality) finalPayload.quality = params.quality;
+        if (params.negative_prompt) finalPayload.negative_prompt = params.negative_prompt;
 
-        // Aspect ratio (send as string, the API handles it)
-        if (params.aspect_ratio) {
-            finalPayload.aspect_ratio = params.aspect_ratio;
-        }
-
-        // Resolution
-        if (params.resolution) {
-            finalPayload.resolution = params.resolution;
-        }
-
-        // Quality (used by seedream and similar models)
-        if (params.quality) {
-            finalPayload.quality = params.quality;
-        }
-
-        // Image-to-Image
         if (params.image_url) {
             finalPayload.image_url = params.image_url;
             finalPayload.strength = params.strength || 0.6;
-        } else {
-            finalPayload.image_url = null;
         }
 
-        // Optional params if supported by model
-        if (params.seed && params.seed !== -1) {
-            finalPayload.seed = params.seed;
-        }
+        if (params.seed && params.seed !== -1) finalPayload.seed = params.seed;
 
         console.log('[Muapi] Requesting:', url);
-        console.log('[Muapi] Payload:', finalPayload);
 
         try {
-            // Step 1: Submit the task
             const response = await fetch(url, {
                 method: 'POST',
                 headers: {
@@ -81,30 +124,17 @@ export class MuapiClient {
 
             if (!response.ok) {
                 const errText = await response.text();
-                console.error('[Muapi] API Error Body:', errText);
-                throw new Error(`API Request Failed: ${response.status} ${response.statusText} - ${errText.slice(0, 100)}`);
+                throw new Error(`API Request Failed: ${response.status} - ${errText.slice(0, 100)}`);
             }
 
             const submitData = await response.json();
-            console.log('[Muapi] Submit Response:', submitData);
-
-            // Extract request_id for polling
             const requestId = submitData.request_id || submitData.id;
-            if (!requestId) {
-                // Some endpoints return the result directly
-                return submitData;
-            }
-
-            // Notify caller of requestId so they can persist it before polling begins
+            
+            if (!requestId) return submitData;
             if (params.onRequestId) params.onRequestId(requestId);
 
-            // Step 2: Poll for results
-            console.log('[Muapi] Polling for results, request_id:', requestId);
             const result = await this.pollForResult(requestId, key);
-
-            // Normalize: extract image URL from outputs array
             const imageUrl = result.outputs?.[0] || result.url || result.output?.url;
-            console.log('[Muapi] Image URL:', imageUrl);
             return { ...result, url: imageUrl };
 
         } catch (error) {
@@ -114,61 +144,42 @@ export class MuapiClient {
     }
 
     /**
-     * Polls the predictions endpoint until the result is ready.
-     * @param {string} requestId - The request ID from the submit response
-     * @param {string} key - The API key
-     * @param {number} maxAttempts - Maximum polling attempts (default 60 = ~2 min)
-     * @param {number} interval - Polling interval in ms (default 2000)
+     * Polls the predictions endpoint
      */
     async pollForResult(requestId, key, maxAttempts = 60, interval = 2000) {
         const pollUrl = `${this.baseUrl}/api/v1/predictions/${requestId}/result`;
 
         for (let attempt = 1; attempt <= maxAttempts; attempt++) {
             await new Promise(resolve => setTimeout(resolve, interval));
-
-            console.log(`[Muapi] Polling attempt ${attempt}/${maxAttempts}...`);
-
             try {
                 const response = await fetch(pollUrl, {
                     method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'x-api-key': key
-                    }
+                    headers: { 'Content-Type': 'application/json', 'x-api-key': key }
                 });
 
                 if (!response.ok) {
-                    const errText = await response.text();
-                    console.warn(`[Muapi] Poll error (${response.status}):`, errText);
-                    // Continue polling on non-fatal errors
                     if (response.status >= 500) continue;
-                    throw new Error(`Poll Failed: ${response.status} - ${errText.slice(0, 100)}`);
+                    throw new Error(`Poll Failed: ${response.status}`);
                 }
 
                 const data = await response.json();
-                console.log('[Muapi] Poll Response:', data);
-
                 const status = data.status?.toLowerCase();
 
                 if (status === 'completed' || status === 'succeeded' || status === 'success') {
                     return data;
                 }
-
                 if (status === 'failed' || status === 'error') {
                     throw new Error(`Generation failed: ${data.error || 'Unknown error'}`);
                 }
-
-                // Otherwise (processing, pending, etc.) keep polling
             } catch (error) {
                 if (attempt === maxAttempts) throw error;
-                console.warn('[Muapi] Poll attempt failed, retrying...', error.message);
             }
         }
-
         throw new Error('Generation timed out after polling.');
     }
 
     async generateVideo(params) {
+        await this.chargeCredits('video');
         const key = this.getKey();
 
         const modelInfo = getVideoModelById(params.model);
@@ -176,7 +187,6 @@ export class MuapiClient {
         const url = `${this.baseUrl}/api/v1/${endpoint}`;
 
         const finalPayload = {};
-
         if (params.prompt) finalPayload.prompt = params.prompt;
         if (params.request_id) finalPayload.request_id = params.request_id;
         if (params.aspect_ratio) finalPayload.aspect_ratio = params.aspect_ratio;
@@ -186,84 +196,47 @@ export class MuapiClient {
         if (params.mode) finalPayload.mode = params.mode;
         if (params.image_url) finalPayload.image_url = params.image_url;
 
-        console.log('[Muapi] Video Request:', url);
-        console.log('[Muapi] Video Payload:', finalPayload);
-
         try {
             const response = await fetch(url, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-api-key': key
-                },
+                headers: { 'Content-Type': 'application/json', 'x-api-key': key },
                 body: JSON.stringify(finalPayload)
             });
 
-            if (!response.ok) {
-                const errText = await response.text();
-                console.error('[Muapi] API Error Body:', errText);
-                throw new Error(`API Request Failed: ${response.status} ${response.statusText} - ${errText.slice(0, 100)}`);
-            }
-
+            if (!response.ok) throw new Error(`API Request Failed: ${response.status}`);
             const submitData = await response.json();
-            console.log('[Muapi] Video Submit Response:', submitData);
-
             const requestId = submitData.request_id || submitData.id;
+            
             if (!requestId) return submitData;
-
             if (params.onRequestId) params.onRequestId(requestId);
 
-            console.log('[Muapi] Polling for video results, request_id:', requestId);
             const result = await this.pollForResult(requestId, key, 900, 2000);
-
             const videoUrl = result.outputs?.[0] || result.url || result.output?.url;
-            console.log('[Muapi] Video URL:', videoUrl);
             return { ...result, url: videoUrl };
-
         } catch (error) {
-            console.error("Muapi Video Client Error:", error);
             throw error;
         }
     }
 
-    /**
-     * Generates an image using an Image-to-Image model.
-     * The model's imageField determines which payload key receives the uploaded image URL.
-     * @param {Object} params
-     * @param {string} params.model - i2iModel id
-     * @param {string} params.image_url - The uploaded reference image URL
-     * @param {string} [params.prompt] - Optional text prompt
-     * @param {string} [params.aspect_ratio]
-     * @param {string} [params.resolution]
-     */
     async generateI2I(params) {
+        await this.chargeCredits('image');
         const key = this.getKey();
         const modelInfo = getI2IModelById(params.model);
         const endpoint = modelInfo?.endpoint || params.model;
         const url = `${this.baseUrl}/api/v1/${endpoint}`;
 
-        const finalPayload = {};
-
-        // Only include prompt if the model supports it and one was provided
-        finalPayload.prompt = params.prompt || '';
-
-        // Place the uploaded image(s) in the correct field for this model
+        const finalPayload = { prompt: params.prompt || '' };
         const imageField = modelInfo?.imageField || 'image_url';
         const imagesList = params.images_list?.length > 0 ? params.images_list : (params.image_url ? [params.image_url] : null);
+        
         if (imagesList) {
-            if (imageField === 'images_list') {
-                finalPayload.images_list = imagesList;
-            } else {
-                finalPayload[imageField] = imagesList[0];
-            }
+            if (imageField === 'images_list') finalPayload.images_list = imagesList;
+            else finalPayload[imageField] = imagesList[0];
         }
 
         if (params.aspect_ratio) finalPayload.aspect_ratio = params.aspect_ratio;
         if (params.resolution) finalPayload.resolution = params.resolution;
         if (params.quality) finalPayload.quality = params.quality;
-
-        console.log('[Muapi] I2I Request:', url);
-        console.log('[Muapi] I2I Payload:', finalPayload);
 
         try {
             const response = await fetch(url, {
@@ -272,58 +245,35 @@ export class MuapiClient {
                 body: JSON.stringify(finalPayload)
             });
 
-            if (!response.ok) {
-                const errText = await response.text();
-                throw new Error(`API Request Failed: ${response.status} ${response.statusText} - ${errText.slice(0, 100)}`);
-            }
-
+            if (!response.ok) throw new Error(`API Request Failed: ${response.status}`);
             const submitData = await response.json();
-            console.log('[Muapi] I2I Submit Response:', submitData);
-
             const requestId = submitData.request_id || submitData.id;
+            
             if (!requestId) return submitData;
-
             if (params.onRequestId) params.onRequestId(requestId);
 
             const result = await this.pollForResult(requestId, key);
             const imageUrl = result.outputs?.[0] || result.url || result.output?.url;
-            console.log('[Muapi] I2I Result URL:', imageUrl);
             return { ...result, url: imageUrl };
         } catch (error) {
-            console.error('Muapi I2I Error:', error);
             throw error;
         }
     }
 
-    /**
-     * Generates a video using an Image-to-Video model.
-     * @param {Object} params
-     * @param {string} params.model - i2vModel id
-     * @param {string} params.image_url - The uploaded start frame image URL
-     * @param {string} [params.prompt]
-     * @param {string} [params.aspect_ratio]
-     * @param {string} [params.resolution]
-     * @param {number} [params.duration]
-     * @param {string} [params.quality]
-     */
     async generateI2V(params) {
+        await this.chargeCredits('video');
         const key = this.getKey();
         const modelInfo = getI2VModelById(params.model);
         const endpoint = modelInfo?.endpoint || params.model;
         const url = `${this.baseUrl}/api/v1/${endpoint}`;
 
         const finalPayload = {};
-
         if (params.prompt) finalPayload.prompt = params.prompt;
 
-        // Place image in the correct field for this model
         const imageField = modelInfo?.imageField || 'image_url';
         if (params.image_url) {
-            if (imageField === 'images_list') {
-                finalPayload.images_list = [params.image_url];
-            } else {
-                finalPayload[imageField] = params.image_url;
-            }
+            if (imageField === 'images_list') finalPayload.images_list = [params.image_url];
+            else finalPayload[imageField] = params.image_url;
         }
 
         if (params.aspect_ratio) finalPayload.aspect_ratio = params.aspect_ratio;
@@ -333,9 +283,6 @@ export class MuapiClient {
         if (params.mode) finalPayload.mode = params.mode;
         if (params.name) finalPayload.name = params.name;
 
-        console.log('[Muapi] I2V Request:', url);
-        console.log('[Muapi] I2V Payload:', finalPayload);
-
         try {
             const response = await fetch(url, {
                 method: 'POST',
@@ -343,42 +290,26 @@ export class MuapiClient {
                 body: JSON.stringify(finalPayload)
             });
 
-            if (!response.ok) {
-                const errText = await response.text();
-                throw new Error(`API Request Failed: ${response.status} ${response.statusText} - ${errText.slice(0, 100)}`);
-            }
-
+            if (!response.ok) throw new Error(`API Request Failed: ${response.status}`);
             const submitData = await response.json();
-            console.log('[Muapi] I2V Submit Response:', submitData);
-
             const requestId = submitData.request_id || submitData.id;
+            
             if (!requestId) return submitData;
-
             if (params.onRequestId) params.onRequestId(requestId);
 
             const result = await this.pollForResult(requestId, key, 900, 2000);
             const videoUrl = result.outputs?.[0] || result.url || result.output?.url;
-            console.log('[Muapi] I2V Result URL:', videoUrl);
             return { ...result, url: videoUrl };
         } catch (error) {
-            console.error('Muapi I2V Error:', error);
             throw error;
         }
     }
 
-    /**
-     * Uploads a file to muapi and returns the hosted URL.
-     * @param {File} file - The image file to upload
-     * @returns {Promise<string>} The hosted URL of the uploaded file
-     */
     async uploadFile(file) {
         const key = this.getKey();
         const url = `${this.baseUrl}/api/v1/upload_file`;
-
         const formData = new FormData();
         formData.append('file', file);
-
-        console.log('[Muapi] Uploading file:', file.name);
 
         const response = await fetch(url, {
             method: 'POST',
@@ -386,26 +317,15 @@ export class MuapiClient {
             body: formData
         });
 
-        if (!response.ok) {
-            const errText = await response.text();
-            throw new Error(`File upload failed: ${response.status} - ${errText.slice(0, 100)}`);
-        }
-
+        if (!response.ok) throw new Error(`File upload failed: ${response.status}`);
         const data = await response.json();
-        console.log('[Muapi] Upload response:', data);
-
         const fileUrl = data.url || data.file_url || data.data?.url;
         if (!fileUrl) throw new Error('No URL returned from file upload');
         return fileUrl;
     }
 
-    /**
-     * Processes a video through a Video-to-Video model (e.g. watermark remover).
-     * @param {Object} params
-     * @param {string} params.model - v2vModel id
-     * @param {string} params.video_url - The uploaded video URL
-     */
     async processV2V(params) {
+        await this.chargeCredits('video');
         const key = this.getKey();
         const modelInfo = getV2VModelById(params.model);
         const endpoint = modelInfo?.endpoint || params.model;
@@ -414,9 +334,6 @@ export class MuapiClient {
         const videoField = modelInfo?.videoField || 'video_url';
         const finalPayload = { [videoField]: params.video_url };
 
-        console.log('[Muapi] V2V Request:', url);
-        console.log('[Muapi] V2V Payload:', finalPayload);
-
         try {
             const response = await fetch(url, {
                 method: 'POST',
@@ -424,50 +341,29 @@ export class MuapiClient {
                 body: JSON.stringify(finalPayload)
             });
 
-            if (!response.ok) {
-                const errText = await response.text();
-                throw new Error(`API Request Failed: ${response.status} ${response.statusText} - ${errText.slice(0, 100)}`);
-            }
-
+            if (!response.ok) throw new Error(`API Request Failed: ${response.status}`);
             const submitData = await response.json();
-            console.log('[Muapi] V2V Submit Response:', submitData);
-
             const requestId = submitData.request_id || submitData.id;
+            
             if (!requestId) return submitData;
-
             if (params.onRequestId) params.onRequestId(requestId);
 
             const result = await this.pollForResult(requestId, key, 900, 2000);
             const videoUrl = result.outputs?.[0] || result.url || result.output?.url;
-            console.log('[Muapi] V2V Result URL:', videoUrl);
             return { ...result, url: videoUrl };
         } catch (error) {
-            console.error('Muapi V2V Error:', error);
             throw error;
         }
     }
 
-    /**
-     * Processes lipsync / speech-to-video generation.
-     * Supports image+audio → video and video+audio → video models.
-     * @param {Object} params
-     * @param {string} params.model - lipsyncModel id
-     * @param {string} [params.image_url] - Portrait image URL (image-based models)
-     * @param {string} [params.video_url] - Source video URL (video-based models)
-     * @param {string} params.audio_url - Audio file URL
-     * @param {string} [params.prompt] - Optional prompt (for models that support it)
-     * @param {string} [params.resolution] - Output resolution
-     * @param {number} [params.seed] - Optional seed (-1 for random)
-     * @param {Function} [params.onRequestId] - Called when request_id is received
-     */
     async processLipSync(params) {
+        await this.chargeCredits('lipsync');
         const key = this.getKey();
         const modelInfo = getLipSyncModelById(params.model);
         const endpoint = modelInfo?.endpoint || params.model;
         const url = `${this.baseUrl}/api/v1/${endpoint}`;
 
         const finalPayload = {};
-
         if (params.audio_url) finalPayload.audio_url = params.audio_url;
         if (params.image_url) finalPayload.image_url = params.image_url;
         if (params.video_url) finalPayload.video_url = params.video_url;
@@ -475,9 +371,6 @@ export class MuapiClient {
         if (params.resolution) finalPayload.resolution = params.resolution;
         if (params.seed !== undefined && params.seed !== -1) finalPayload.seed = params.seed;
 
-        console.log('[Muapi] LipSync Request:', url);
-        console.log('[Muapi] LipSync Payload:', finalPayload);
-
         try {
             const response = await fetch(url, {
                 method: 'POST',
@@ -485,40 +378,18 @@ export class MuapiClient {
                 body: JSON.stringify(finalPayload)
             });
 
-            if (!response.ok) {
-                const errText = await response.text();
-                console.error('[Muapi] LipSync API Error:', errText);
-                throw new Error(`API Request Failed: ${response.status} ${response.statusText} - ${errText.slice(0, 100)}`);
-            }
-
+            if (!response.ok) throw new Error(`API Request Failed: ${response.status}`);
             const submitData = await response.json();
-            console.log('[Muapi] LipSync Submit Response:', submitData);
-
             const requestId = submitData.request_id || submitData.id;
+            
             if (!requestId) return submitData;
-
             if (params.onRequestId) params.onRequestId(requestId);
 
             const result = await this.pollForResult(requestId, key, 900, 2000);
             const videoUrl = result.outputs?.[0] || result.url || result.output?.url;
-            console.log('[Muapi] LipSync Result URL:', videoUrl);
             return { ...result, url: videoUrl };
         } catch (error) {
-            console.error('Muapi LipSync Error:', error);
             throw error;
-        }
-    }
-
-    getDimensionsFromAR(ar) {
-        // Base unit 1024 (Flux standard)
-        switch (ar) {
-            case '1:1': return [1024, 1024];
-            case '16:9': return [1280, 720]; // 1024*1024 area approx
-            case '9:16': return [720, 1280];
-            case '4:3': return [1152, 864];
-            case '3:2': return [1216, 832];
-            case '21:9': return [1536, 640];
-            default: return [1024, 1024];
         }
     }
 }
