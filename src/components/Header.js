@@ -1,5 +1,6 @@
 import { SettingsModal } from './SettingsModal.js';
 import { AuthModal } from './AuthModal.js';
+import { AdminPanel } from './AdminPanel.js';
 import { auth, db, APP_ID } from '../lib/firebase.js';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
@@ -91,8 +92,8 @@ export function Header(navigate) {
 
     let unsubscribeSnapshot = null;
 
-    // Función para repintar la parte derecha según si hay usuario o no
-    const updateRightUI = (user, credits = '...') => {
+    // Función para repintar la parte derecha según si hay usuario o no, y su rol
+    const updateRightUI = (user, credits = '...', role = 'user') => {
         rightPart.innerHTML = '';
 
         if (!user) {
@@ -111,21 +112,31 @@ export function Header(navigate) {
         } else {
             // --- ESTADO: LOGUEADO ---
             
-            // 1. Mostrar Créditos
+            // 1. SI ES ADMIN: Añadimos el botón de la corona
+            if (role === 'admin') {
+                const adminBtn = document.createElement('button');
+                adminBtn.className = 'w-9 h-9 rounded-xl bg-gradient-to-br from-[#FFB000]/20 to-transparent border border-[#FFB000]/50 flex items-center justify-center text-xl shadow-[0_0_15px_rgba(255,176,0,0.2)] hover:scale-105 transition-transform mr-1 md:mr-2';
+                adminBtn.title = 'Panel de Control Maestro';
+                adminBtn.textContent = '👑';
+                adminBtn.onclick = () => {
+                    document.body.appendChild(AdminPanel());
+                };
+                rightPart.appendChild(adminBtn);
+            }
+
+            // 2. Mostrar Créditos
             const creditsBadge = document.createElement('div');
             creditsBadge.className = 'flex items-center gap-1.5 bg-white/5 border border-white/10 px-3 py-1.5 rounded-xl cursor-pointer hover:bg-white/10 transition-colors shadow-inner';
             creditsBadge.title = 'Ir a recargar créditos';
-            // Al hacer clic, por ahora mostramos un alert, luego lo conectarás a tu pasarela de Stripe
             creditsBadge.onclick = () => alert('Próximamente: Redirección a la tabla de precios para recargar créditos.');
             creditsBadge.innerHTML = `
                 <span class="text-sm">🪙</span>
                 <span class="text-white font-bold text-xs md:text-sm font-mono tracking-tight">${credits}</span>
             `;
 
-            // 2. Botón de Usuario (Ajustes)
+            // 3. Botón de Usuario (Ajustes)
             const userBtn = document.createElement('button');
             userBtn.className = 'w-9 h-9 rounded-xl bg-gradient-to-tr from-[#3B82F6] to-[#FFB000] flex items-center justify-center text-black font-black text-sm uppercase shadow-[0_0_10px_rgba(255,176,0,0.4)] hover:scale-105 transition-transform border border-white/20';
-            // Sacamos la primera letra del email para el icono
             const initial = user.email ? user.email.charAt(0) : 'U';
             userBtn.textContent = initial;
             userBtn.onclick = () => {
@@ -145,21 +156,18 @@ export function Header(navigate) {
     // ==========================================
     onAuthStateChanged(auth, (user) => {
         if (user) {
-            // Usuario conectado: Renderizamos la UI base mientras llegan los datos
             updateRightUI(user, '...');
             
-            // Nos conectamos al documento del usuario para escuchar sus créditos en vivo
             const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', user.uid);
             unsubscribeSnapshot = onSnapshot(userRef, (docSnap) => {
                 if (docSnap.exists()) {
                     const data = docSnap.data();
                     const currentCredits = data.credits !== undefined ? data.credits : 0;
-                    // Actualizamos la interfaz con los créditos exactos
-                    updateRightUI(user, currentCredits);
+                    const role = data.role || 'user'; // Leemos el rol de la base de datos
+                    updateRightUI(user, currentCredits, role);
                 }
             });
         } else {
-            // Usuario desconectado: matamos el listener si existía y mostramos botón de login
             if (unsubscribeSnapshot) {
                 unsubscribeSnapshot();
                 unsubscribeSnapshot = null;
