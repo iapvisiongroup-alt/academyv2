@@ -6,10 +6,10 @@ import {
 } from '../lib/models.js';
 import { AuthModal } from './AuthModal.js';
 import { createUploadPicker } from './UploadPicker.js';
-import { savePendingJob, removePendingJob, getPendingJobs } from '../lib/pendingJobs.js';
 
+// IMPORTANTE: Hemos añadido getDoc, updateDoc, increment y doc para cobrar los créditos
 import { auth, db, APP_ID } from '../lib/firebase.js';
-import { collection, addDoc, query, orderBy, limit, getDocs, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, query, orderBy, limit, getDocs, serverTimestamp, doc, getDoc, updateDoc, increment } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 
 function createInlineInstructions(type) {
@@ -23,7 +23,15 @@ function createInlineInstructions(type) {
     return el;
 }
 
-// FILTRO ESTRICTO Y MARCA BLANCA: Respeta la lista de modelos pero les cambia el nombre
+// SISTEMA DE PRECIOS DINÁMICO (Margen x2)
+const getModelCost = (modelId) => {
+    if (modelId === 'nano-banana-2') return 24;                 // $0.12 coste -> 24 créditos
+    if (modelId.includes('nano-banana-2-edit')) return 12;      // $0.06 coste -> 12 créditos
+    if (modelId.includes('pro')) return 12;                     // Estimación Pro -> 12 créditos
+    return 6;                                                   // Base ($0.03) -> 6 créditos
+};
+
+// FILTRO ESTRICTO Y MARCA BLANCA
 const filterAndRenameModels = (modelsList, isI2I) => {
     if (isI2I) {
         const allowedIds = ['nano-banana-edit', 'nano-banana-effects', 'nano-banana-pro-edit', 'nano-banana-2-edit'];
@@ -100,7 +108,7 @@ export function ImageStudio() {
     `;
     container.appendChild(hero);
 
-    // --- PROMPT BAR ---
+    // --- PROMPT BAR Y BOTÓN DE GENERAR PRE-DECLARADO ---
     const promptWrapper = document.createElement('div');
     promptWrapper.className = 'w-full max-w-4xl relative z-40 animate-fade-in-up shrink-0 px-2 md:px-0';
     promptWrapper.style.animationDelay = '0.2s';
@@ -110,6 +118,10 @@ export function ImageStudio() {
 
     const topRow = document.createElement('div');
     topRow.className = 'flex items-start gap-3 md:gap-5 px-1 md:px-2';
+
+    // Declaramos el botón aquí para poder actualizar su coste desde updateControlsForMode
+    const generateBtn = document.createElement('button');
+    generateBtn.className = 'bg-[#FFB000] text-black px-6 md:px-8 py-3 md:py-3.5 rounded-xl md:rounded-[1.5rem] font-black text-sm md:text-base hover:shadow-[0_0_20px_rgba(255,176,0,0.4)] active:scale-95 transition-all flex items-center justify-center gap-1.5 md:gap-2.5 w-full sm:w-auto shadow-lg shrink-0 mt-2 sm:mt-0';
 
     const updateControlsForMode = () => {
         const availableArs = getCurrentAspectRatios(selectedModel);
@@ -123,6 +135,10 @@ export function ImageStudio() {
             qualityBtnEl.style.display = validResolutions.length > 0 ? 'flex' : 'none';
             if (validResolutions.length > 0) document.getElementById('quality-btn-label').textContent = validResolutions[0];
         }
+
+        // Actualizamos el botón de generar con el precio correspondiente
+        const cost = getModelCost(selectedModel);
+        generateBtn.innerHTML = `Generar ✨ <span class="bg-black/20 px-2 py-0.5 rounded-md text-[10px] md:text-xs font-mono ml-1 shadow-inner border border-black/10">${cost} 🪙</span>`;
     };
 
     const picker = createUploadPicker({
@@ -214,15 +230,14 @@ export function ImageStudio() {
     `, 'Avanzado', 'advanced-btn');
     controlsLeft.appendChild(advancedBtn);
 
-    const generateBtn = document.createElement('button');
-    generateBtn.className = 'bg-[#FFB000] text-black px-6 md:px-8 py-3 md:py-3.5 rounded-xl md:rounded-[1.5rem] font-black text-sm md:text-base hover:shadow-[0_0_20px_rgba(255,176,0,0.4)] active:scale-95 transition-all flex items-center justify-center gap-2.5 w-full sm:w-auto shadow-lg shrink-0 mt-2 sm:mt-0';
-    generateBtn.innerHTML = `Generar ✨`;
-
     bottomRow.appendChild(controlsLeft);
     bottomRow.appendChild(generateBtn);
     bar.appendChild(bottomRow);
     promptWrapper.appendChild(bar);
     container.appendChild(promptWrapper);
+
+    // Inicializamos el precio del botón por primera vez
+    updateControlsForMode();
 
     const inlineInstructions = createInlineInstructions('image');
     container.appendChild(inlineInstructions);
@@ -359,10 +374,28 @@ export function ImageStudio() {
 
     onAuthStateChanged(auth, (user) => { if (user) loadHistory(user); });
 
-    // --- GENERACIÓN ---
+    // --- GENERACIÓN Y FACTURACIÓN ---
     generateBtn.onclick = async () => {
         const promptText = textarea.value.trim();
-        if (!auth.currentUser || (!imageMode && !promptText)) return alert('Completa los campos.');
+        if (!auth.currentUser) return alert('Debes iniciar sesión para generar imágenes.');
+        if (!imageMode && !promptText) return alert('Por favor, escribe un prompt.');
+
+        const cost = getModelCost(selectedModel);
+        const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', auth.currentUser.uid);
+
+        // PASO 1: Comprobar que hay saldo antes de empezar
+        try {
+            const userSnap = await getDoc(userRef);
+            const currentCredits = userSnap.exists() ? (userSnap.data().credits || 0) : 0;
+            if (currentCredits < cost) {
+                alert(`⚠️ Saldo insuficiente.\n\nEste modelo requiere ${cost} 🪙 y actualmente dispones de ${currentCredits} 🪙.\n\nPor favor, recarga créditos en tu panel haciendo clic en la moneda de la barra superior.`);
+                return;
+            }
+        } catch (err) {
+            console.error("Error comprobando el saldo:", err);
+            alert("No hemos podido verificar tu saldo. Revisa tu conexión a internet.");
+            return;
+        }
 
         const tempId = Date.now().toString();
         const loadingCard = document.createElement('div');
@@ -371,7 +404,10 @@ export function ImageStudio() {
         galleryGrid.prepend(loadingCard);
 
         textarea.value = ''; textarea.style.height = 'auto';
-        
+        const originalText = generateBtn.innerHTML;
+        generateBtn.innerHTML = `Lanzado 🚀`;
+        setTimeout(() => { updateControlsForMode(); }, 1000); // Restaura el botón con su precio
+
         try {
             let res;
             const qualityLabel = document.getElementById('quality-btn-label')?.textContent;
@@ -391,31 +427,23 @@ export function ImageStudio() {
                 
                 res = await req.json();
 
-                // --- SISTEMA DE RASTREO CON LA RUTA OFICIAL DE MUAPI ---
                 if (res.request_id && !res.url) {
                     let attempts = 0;
                     while (attempts < 60) {
                         await new Promise(r => setTimeout(r, 2000));
-                        
-                        // Utilizamos la ruta oficial para polling que define la API: /api/v1/predictions/{request_id}/result
                         const poll = await fetch(`/api/v1/predictions/${res.request_id}/result`, { 
                             headers: { 'Authorization': `Bearer ${token}` } 
                         });
                         
                         if (poll.ok) {
                             const pollRes = await poll.json();
-                            
-                            // Extraemos la URL final del laberinto según el esquema oficial
                             const finalUrl = pollRes.url || 
                                              pollRes.image_url || 
                                              (pollRes.output && pollRes.output.outputs && pollRes.output.outputs[0]) || 
                                              (pollRes.outputs && pollRes.outputs[0]) || 
                                              (pollRes.images && pollRes.images[0]?.url);
                             
-                            if (finalUrl) { 
-                                res.url = finalUrl; 
-                                break; 
-                            }
+                            if (finalUrl) { res.url = finalUrl; break; }
                             if (pollRes.status === 'failed' || pollRes.status === 'error') throw new Error("Error interno.");
                         }
                         attempts++;
@@ -426,6 +454,14 @@ export function ImageStudio() {
             }
 
             if (res && res.url) {
+                // PASO 2: La imagen ha salido bien. ¡Ahora sí cobramos los créditos!
+                try {
+                    await updateDoc(userRef, { credits: increment(-cost) });
+                } catch (billingErr) {
+                    console.error("No se pudo descontar el saldo, pero la imagen se generó:", billingErr);
+                }
+
+                // Guardamos en el historial y mostramos
                 const entry = { url: res.url, prompt: finalPrompt, model: selectedModel, aspect_ratio: selectedAr, createdAt: serverTimestamp() };
                 const docRef = await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'users', auth.currentUser.uid, 'generations'), entry);
                 loadingCard.remove();
@@ -435,7 +471,8 @@ export function ImageStudio() {
             }
         } catch (e) {
             console.error(e);
-            loadingCard.innerHTML = `<span class="text-red-400 text-[8px] font-bold">FALLO</span><button class="text-[8px] underline" onclick="this.parentElement.remove()">Quitar</button>`;
+            // PASO 3: Ha habido un error de generación. Como no hemos cobrado, el usuario no pierde nada.
+            loadingCard.innerHTML = `<span class="text-red-400 text-[8px] font-bold">FALLO TÉCNICO</span><span class="text-white/50 text-[6px] mt-1 text-center px-2">No se te han descontado créditos.</span><button class="text-[8px] underline mt-2 bg-white/10 px-2 py-1 rounded" onclick="this.parentElement.remove()">Quitar</button>`;
         }
     };
 
