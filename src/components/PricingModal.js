@@ -87,7 +87,6 @@ export function PricingModal() {
 
     modal.querySelector('#close-pricing-btn').onclick = () => document.body.removeChild(overlay);
 
-    // Lógica para los botones de compra
     const buttons = modal.querySelectorAll('.buy-btn');
     buttons.forEach(btn => {
         btn.onclick = () => {
@@ -100,17 +99,15 @@ export function PricingModal() {
                 return;
             }
 
-            // Tus enlaces reales de Stripe
             const stripeLinks = {
                 starter: "https://buy.stripe.com/5kQdRbdff73IfNI7wr",
                 pro: "https://buy.stripe.com/fZu14p2AB0Fkato8Av",
                 max: "https://buy.stripe.com/3cI8wR7UV9bQ7hc4kf"
             };
 
-            // Mandamos al usuario a Stripe, pasándole su email y un ID interno para saber qué plan eligió
-            const checkoutUrl = `${stripeLinks[plan]}?prefilled_email=${encodeURIComponent(user.email)}&client_reference_id=${plan}`;
+            // AQUÍ ESTÁ EL CAMBIO: Enviamos plan + UID separados por ___
+            const checkoutUrl = `${stripeLinks[plan]}?prefilled_email=${encodeURIComponent(user.email)}&client_reference_id=${plan}___${user.uid}`;
             
-            // Redirigimos a la pasarela real de Stripe
             window.location.href = checkoutUrl; 
         };
     });
