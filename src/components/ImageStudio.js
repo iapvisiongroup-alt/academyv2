@@ -380,7 +380,7 @@ export function ImageStudio() {
 
             if (imageMode) {
                 const token = await auth.currentUser.getIdToken();
-                const genParams = { model: selectedModel, images_list: uploadedImageUrls, image_url: uploadedImageUrls[0], aspect_ratio: selectedAr, prompt: finalPrompt };
+                const genParams = { model: selectedModel, images_list: uploadedImageUrls, aspect_ratio: selectedAr, prompt: finalPrompt };
                 if (negativePrompt) genParams.negative_prompt = negativePrompt;
 
                 const req = await fetch(`/api/v1/${selectedModel}`, {
@@ -391,19 +391,32 @@ export function ImageStudio() {
                 
                 res = await req.json();
 
-                // --- SISTEMA DE RASTREO (POLLING) REPARADO ---
+                // --- SISTEMA DE RASTREO CON LA RUTA OFICIAL DE MUAPI ---
                 if (res.request_id && !res.url) {
                     let attempts = 0;
                     while (attempts < 60) {
                         await new Promise(r => setTimeout(r, 2000));
-                        // Buscamos el resultado en el endpoint de búsqueda/fetch de tu API
-                        const poll = await fetch(`/api/v1/fetch/${res.request_id}`, { headers: { 'Authorization': `Bearer ${token}` } });
+                        
+                        // Utilizamos la ruta oficial para polling que define la API: /api/v1/predictions/{request_id}/result
+                        const poll = await fetch(`/api/v1/predictions/${res.request_id}/result`, { 
+                            headers: { 'Authorization': `Bearer ${token}` } 
+                        });
+                        
                         if (poll.ok) {
                             const pollRes = await poll.json();
-                            // El servidor devuelve la URL en 'url', 'image_url' o dentro de un array 'images'
-                            const finalUrl = pollRes.url || pollRes.image_url || (pollRes.images && pollRes.images[0]?.url);
-                            if (finalUrl) { res.url = finalUrl; break; }
-                            if (pollRes.status === 'failed') throw new Error("Error interno.");
+                            
+                            // Extraemos la URL final del laberinto según el esquema oficial
+                            const finalUrl = pollRes.url || 
+                                             pollRes.image_url || 
+                                             (pollRes.output && pollRes.output.outputs && pollRes.output.outputs[0]) || 
+                                             (pollRes.outputs && pollRes.outputs[0]) || 
+                                             (pollRes.images && pollRes.images[0]?.url);
+                            
+                            if (finalUrl) { 
+                                res.url = finalUrl; 
+                                break; 
+                            }
+                            if (pollRes.status === 'failed' || pollRes.status === 'error') throw new Error("Error interno.");
                         }
                         attempts++;
                     }
