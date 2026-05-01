@@ -23,16 +23,21 @@ function createInlineInstructions(type) {
     return el;
 }
 
-const filterAndRenameModels = (modelsList) => {
-    const allowedIds = ['nano-banana', 'nano-banana-pro', 'nano-banana-2'];
+// NUEVO FILTRO ESTRICTO: Solo permite las 3 versiones de KreateImage y bloquea el resto (Effects, etc.)
+const filterAndRenameModels = (modelsList, isI2I) => {
+    const allowedIds = isI2I 
+        ? ['nano-banana-edit', 'nano-banana-pro-edit', 'nano-banana-2-edit'] 
+        : ['nano-banana', 'nano-banana-pro', 'nano-banana-2'];
     
     return modelsList
-        .filter(m => allowedIds.includes(m.id) || m.name.toLowerCase().includes('nano'))
+        .filter(m => allowedIds.includes(m.id)) // Solo pasan los IDs autorizados
         .map(m => {
             let newName = m.name;
-            if (m.id === 'nano-banana' || m.name === 'Nano Banana') newName = 'KreateImage';
-            if (m.id === 'nano-banana-pro' || m.name === 'Nano Banana Pro') newName = 'KreateImage Pro';
-            if (m.id === 'nano-banana-2' || m.name === 'Nano Banana 2') newName = 'KreateImage 2';
+            // Mapeo corporativo limpio
+            if (m.id === 'nano-banana' || m.id === 'nano-banana-edit') newName = 'KreateImage';
+            if (m.id === 'nano-banana-pro' || m.id === 'nano-banana-pro-edit') newName = 'KreateImage Pro';
+            if (m.id === 'nano-banana-2' || m.id === 'nano-banana-2-edit') newName = 'KreateImage 2';
+            
             return { ...m, name: newName };
         });
 };
@@ -41,8 +46,9 @@ export function ImageStudio() {
     const container = document.createElement('div');
     container.className = 'w-full h-full flex flex-col items-center bg-app-bg relative p-2 md:p-6 pb-24 overflow-y-auto custom-scrollbar overflow-x-hidden';
 
-    const activeT2iModels = filterAndRenameModels(t2iModels);
-    const activeI2iModels = filterAndRenameModels(i2iModels);
+    // Aplicamos el filtro estricto a ambas listas
+    const activeT2iModels = filterAndRenameModels(t2iModels, false);
+    const activeI2iModels = filterAndRenameModels(i2iModels, true);
 
     const defaultModel = activeT2iModels.length > 0 ? activeT2iModels[0] : t2iModels[0];
     let selectedModel = defaultModel.id;
