@@ -471,6 +471,7 @@ export function ImageStudio() {
                     </button>
                 </div>
             </div>
+            <!-- Botón de descarga siempre visible en móvil para usabilidad -->
             <button class="download-btn-mobile md:hidden absolute bottom-2 right-2 p-1.5 bg-black/50 text-white rounded-lg backdrop-blur-md border border-white/10">
                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
             </button>
@@ -598,31 +599,47 @@ export function ImageStudio() {
                 finalPrompt = promptText ? `${promptText}, estilo ${selectedStyle.toLowerCase()}` : `estilo ${selectedStyle.toLowerCase()}`;
             }
 
-            // --- PROTECCIÓN DEFINITIVA CONTRA EL ERROR 422 ---
-            // Volvemos a construir los datos tal y como los tenías en tu código original para no romper la API
+            // Fallback de seguridad: la API exige un texto
+            if (imageMode && !finalPrompt) {
+                finalPrompt = "Edición de imagen de alta calidad";
+            }
 
             let genParams = {};
 
             if (imageMode) {
-                // A la API le pasamos todos sus parámetros intactos
                 genParams = {
                     model: selectedModel,
                     images_list: uploadedImageUrls,
                     image_url: uploadedImageUrls[0], 
-                    aspect_ratio: selectedAr
+                    aspect_ratio: selectedAr,
+                    prompt: finalPrompt
                 };
                 
-                // IMPORTANTE: Respetamos tu condición original para el prompt
-                if (finalPrompt) genParams.prompt = finalPrompt;
-
                 const qualityField = getCurrentQualityField(selectedModel);
                 if (qualityField && qualityLabel) genParams[qualityField] = qualityLabel;
                 if (negativePrompt) genParams.negative_prompt = negativePrompt;
                 
-                // Doble check: si existe la función original de I2I la usamos, si no, intentamos por la general
-                if (typeof muapi.generateI2I === 'function') {
-                    res = await muapi.generateI2I(genParams);
-                } else {
+                // --- SOLUCIÓN AL BUG DE MUAPI.JS ---
+                // Hacemos la petición directa al proxy del backend para que no se pierda el 'images_list'
+                try {
+                    const token = await auth.currentUser.getIdToken();
+                    const req = await fetch(`/api/v1/${selectedModel}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify(genParams)
+                    });
+                    
+                    if (!req.ok) {
+                        const err = await req.text();
+                        console.error("Detalle del error del servidor:", err);
+                        throw new Error(`Error HTTP: ${req.status}`);
+                    }
+                    res = await req.json();
+                } catch (apiError) {
+                    console.error("Fallo en fetch directo, intentando fallback:", apiError);
                     res = await muapi.generateImage(genParams);
                 }
             } else {
@@ -669,7 +686,7 @@ export function ImageStudio() {
                 <div class="absolute inset-0 bg-red-500/10"></div>
                 <div class="z-10 flex flex-col items-center gap-1 md:gap-2 p-2 md:p-4 text-center">
                     <span class="text-lg md:text-xl">⚠️</span>
-                    <span class="text-[8px] md:text-[10px] font-bold text-red-400">Fallo en generación</span>
+                    <span class="text-[8px] md:text-[10px] font-bold text-red-400">Fallo de red o servidor</span>
                     <button class="retry-btn mt-1 md:mt-2 bg-white/10 px-2 py-1 md:px-3 rounded-md md:rounded-lg text-[8px] md:text-xs text-white hover:bg-white/20 transition-all border border-white/10">Quitar</button>
                 </div>
             `;
