@@ -1,6 +1,7 @@
 import { auth, db, APP_ID } from '../lib/firebase.js';
 import { signOut, deleteUser } from 'firebase/auth';
 import { doc, getDoc, deleteDoc } from 'firebase/firestore';
+import { PricingModal } from './PricingModal.js';
 
 export function SettingsModal() {
     const overlay = document.createElement('div');
@@ -77,7 +78,7 @@ export function SettingsModal() {
                 </div>
 
                 <div class="space-y-3">
-                    <button onclick="alert('Esta acción abrirá la pasarela de Stripe (Pendiente de conectar en el siguiente paso)')" class="w-full bg-white text-black font-black uppercase tracking-wide py-4 rounded-xl hover:scale-[1.02] active:scale-95 transition-all shadow-[0_0_20px_rgba(255,255,255,0.2)]">
+                    <button id="open-pricing-btn" class="w-full bg-white text-black font-black uppercase tracking-wide py-4 rounded-xl hover:scale-[1.02] active:scale-95 transition-all shadow-[0_0_20px_rgba(255,255,255,0.2)]">
                         Comprar más créditos
                     </button>
                     <p class="text-center text-xs text-white/30">Los pagos se procesan de forma segura mediante Stripe.</p>
@@ -145,6 +146,15 @@ export function SettingsModal() {
     // ACCIONES DE BOTONES
     modal.querySelector('#close-modal-btn').onclick = () => document.body.removeChild(overlay);
     
+    // Abrir Modal de Precios
+    const openPricingBtn = modal.querySelector('#open-pricing-btn');
+    if (openPricingBtn) {
+        openPricingBtn.onclick = () => {
+            document.body.removeChild(overlay);
+            document.body.appendChild(PricingModal());
+        };
+    }
+
     // 1. CERRAR SESIÓN
     modal.querySelector('#logout-btn').onclick = async () => {
         await signOut(auth);
