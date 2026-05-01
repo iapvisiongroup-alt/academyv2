@@ -147,7 +147,6 @@ export function ImageStudio() {
         textarea.style.height = Math.min(textarea.scrollHeight, maxHeight) + 'px';
     };
 
-    // ATAJO ENTER
     textarea.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
@@ -228,7 +227,7 @@ export function ImageStudio() {
     container.appendChild(inlineInstructions);
 
     // ==========================================
-    // 3. QUICK TOOLS PANEL (Original)
+    // 3. QUICK TOOLS PANEL
     // ==========================================
     const toolsPanel = document.createElement('div');
     toolsPanel.className = 'w-full max-w-4xl mt-6 animate-fade-in-up hidden shrink-0';
@@ -291,7 +290,7 @@ export function ImageStudio() {
     container.appendChild(toolsPanel);
 
     // ==========================================
-    // 4. ADVANCED OPTIONS PANEL (Original)
+    // 4. ADVANCED OPTIONS PANEL
     // ==========================================
     const STYLE_PRESETS = ['Ninguno', 'Fotorrealista', 'Anime', 'Cinematográfico', 'Pintura al Óleo', 'Acuarela', 'Arte Digital', 'Arte Conceptual', 'Cyberpunk'];
     
@@ -405,7 +404,6 @@ export function ImageStudio() {
     `;
     container.appendChild(advancedPanel);
 
-    // [LÓGICA ORIGINAL DE LOS PANELES Y DROPDOWNS]
     const toggleAdvanced = () => {
         showAdvanced = !showAdvanced;
         advancedPanel.classList.toggle('hidden', !showAdvanced);
@@ -508,19 +506,23 @@ export function ImageStudio() {
         };
     });
 
+    // ==========================================
+    // 3. DROPDOWNS (CORREGIDOS PARA EVITAR CORTES)
+    // ==========================================
     const dropdown = document.createElement('div');
-    dropdown.className = 'absolute bottom-[102%] left-2 z-50 transition-all opacity-0 pointer-events-none scale-95 origin-bottom-left glass rounded-3xl p-3 translate-y-2 w-[calc(100vw-3rem)] max-w-xs shadow-4xl border border-white/10 flex flex-col bg-[#111]/95 backdrop-blur-xl';
+    // CAMBIO CRÍTICO: Usamos 'fixed' y un z-index altísimo para que ningún contenedor lo esconda
+    dropdown.className = 'fixed z-[999999] transition-all opacity-0 pointer-events-none scale-95 origin-bottom-left glass rounded-3xl p-3 w-[calc(100vw-3rem)] max-w-xs shadow-2xl border border-white/10 flex flex-col bg-[#111]/95 backdrop-blur-xl';
 
     const showDropdown = (type, anchorBtn) => {
         dropdown.innerHTML = '';
-        dropdown.classList.remove('opacity-0', 'pointer-events-none');
-        dropdown.classList.add('opacity-100', 'pointer-events-auto');
+        dropdown.classList.remove('opacity-0', 'pointer-events-none', 'scale-95');
+        dropdown.classList.add('opacity-100', 'pointer-events-auto', 'scale-100');
 
         if (type === 'model') {
             dropdown.classList.add('w-[calc(100vw-3rem)]', 'max-w-xs');
             dropdown.classList.remove('max-w-[240px]', 'max-w-[200px]');
             dropdown.innerHTML = `
-                <div class="flex flex-col h-full max-h-[70vh]">
+                <div class="flex flex-col h-full max-h-[60vh]">
                     <div class="px-2 pb-3 mb-2 border-b border-white/5 shrink-0">
                         <div class="flex items-center gap-3 bg-white/5 rounded-xl px-4 py-2.5 border border-white/5 focus-within:border-[#3B82F6]/50 transition-colors">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="text-white/30"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
@@ -580,7 +582,7 @@ export function ImageStudio() {
             dropdown.classList.add('max-w-[240px]');
             dropdown.innerHTML = `<div class="text-[10px] font-bold text-white/50 uppercase tracking-widest px-3 py-2 border-b border-white/5 mb-2">Relación de Aspecto</div>`;
             const list = document.createElement('div');
-            list.className = 'flex flex-col gap-1';
+            list.className = 'flex flex-col gap-1 max-h-[60vh] overflow-y-auto custom-scrollbar';
 
             const availableArs = getCurrentAspectRatios(selectedModel);
             availableArs.forEach(r => {
@@ -608,7 +610,7 @@ export function ImageStudio() {
             dropdown.classList.add('max-w-[200px]');
             dropdown.innerHTML = `<div class="text-[10px] font-bold text-white/50 uppercase tracking-widest px-3 py-2 border-b border-white/5 mb-2">Resolución</div>`;
             const list = document.createElement('div');
-            list.className = 'flex flex-col gap-1';
+            list.className = 'flex flex-col gap-1 max-h-[60vh] overflow-y-auto custom-scrollbar';
 
             const options = getCurrentResolutions(selectedModel);
             options.forEach(opt => {
@@ -628,21 +630,21 @@ export function ImageStudio() {
             dropdown.appendChild(list);
         }
 
+        // CAMBIO CRÍTICO: Cálculo de posición usando la pantalla entera para que no se oculte
         const btnRect = anchorBtn.getBoundingClientRect();
-        const containerRect = container.getBoundingClientRect();
         if (window.innerWidth < 768) {
             dropdown.style.left = '50%';
-            dropdown.style.transform = 'translateX(-50%) translate(0, 8px)';
+            dropdown.style.transform = 'translateX(-50%)';
         } else {
-            dropdown.style.left = `${btnRect.left - containerRect.left}px`;
-            dropdown.style.transform = 'translate(0, 8px)';
+            dropdown.style.left = `${btnRect.left}px`;
+            dropdown.style.transform = 'none';
         }
-        dropdown.style.bottom = `${containerRect.bottom - btnRect.top + 8}px`;
+        dropdown.style.bottom = `${window.innerHeight - btnRect.top + 10}px`;
     };
 
     const closeDropdown = () => {
-        dropdown.classList.add('opacity-0', 'pointer-events-none');
-        dropdown.classList.remove('opacity-100', 'pointer-events-auto');
+        dropdown.classList.add('opacity-0', 'pointer-events-none', 'scale-95');
+        dropdown.classList.remove('opacity-100', 'pointer-events-auto', 'scale-100');
         dropdownOpen = null;
     };
 
@@ -650,7 +652,9 @@ export function ImageStudio() {
     arBtn.onclick = (e) => { e.stopPropagation(); dropdownOpen === 'ar' ? closeDropdown() : showDropdown('ar', arBtn); };
     qualityBtn.onclick = (e) => { e.stopPropagation(); dropdownOpen === 'quality' ? closeDropdown() : showDropdown('quality', qualityBtn); };
     window.onclick = () => closeDropdown();
-    container.appendChild(dropdown);
+    
+    // Lo atamos directamente al body para asegurar que siempre está por encima de cualquier capa
+    document.body.appendChild(dropdown);
 
 
     // ==========================================
@@ -664,7 +668,6 @@ export function ImageStudio() {
     galleryHeader.textContent = 'Tus Creaciones';
     galleryWrapper.appendChild(galleryHeader);
 
-    // Grid Masonry / Cuadrícula
     const galleryGrid = document.createElement('div');
     galleryGrid.className = 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 w-full';
     galleryWrapper.appendChild(galleryGrid);
@@ -680,15 +683,15 @@ export function ImageStudio() {
 
         const card = document.createElement('div');
         card.id = `card-${entry.id}`;
-        card.className = 'relative aspect-square rounded-2xl overflow-hidden bg-white/5 border border-white/10 group animate-fade-in-up';
+        card.className = 'relative aspect-square rounded-2xl overflow-hidden bg-white/5 border border-white/10 group animate-fade-in-up cursor-pointer';
 
         card.innerHTML = `
             <img src="${entry.url}" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" loading="lazy">
             <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
                 <p class="text-white text-xs font-medium line-clamp-3 mb-3 shadow-black drop-shadow-md">${entry.prompt || 'Sin descripción'}</p>
                 <div class="flex items-center justify-between">
-                    <span class="text-[10px] text-white/50 bg-black/40 px-2 py-1 rounded-md backdrop-blur-sm">${entry.aspect_ratio || '1:1'}</span>
-                    <button class="download-btn p-2 bg-white/10 hover:bg-[#FFB000] hover:text-black text-white rounded-xl backdrop-blur-md transition-all">
+                    <span class="text-[10px] text-white/50 bg-black/40 px-2 py-1 rounded-md backdrop-blur-sm border border-white/10">${entry.aspect_ratio || '1:1'}</span>
+                    <button class="download-btn p-2 bg-white/10 hover:bg-[#FFB000] hover:text-black text-white rounded-xl backdrop-blur-md transition-all border border-white/10">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
                     </button>
                 </div>
@@ -700,7 +703,6 @@ export function ImageStudio() {
             downloadImage(entry.url, `kreateia-${entry.id}.jpg`);
         };
 
-        // Al hacer click, se abre en pantalla completa en una pestaña nueva
         card.onclick = () => window.open(entry.url, '_blank');
 
         if (isPrepend) {
@@ -727,7 +729,6 @@ export function ImageStudio() {
         }
     };
 
-    // Cargar historial al iniciar
     const loadFirebaseHistory = async (user) => {
         try {
             const genRef = collection(db, 'artifacts', APP_ID, 'public', 'data', 'users', user.uid, 'generations');
@@ -769,7 +770,6 @@ export function ImageStudio() {
             return;
         }
 
-        // 1. Creamos la "Tarjeta de Carga" en la galería instantáneamente
         const tempId = Date.now().toString();
         galleryHeader.classList.remove('hidden');
         const loadingCard = document.createElement('div');
@@ -787,11 +787,9 @@ export function ImageStudio() {
         
         galleryGrid.prepend(loadingCard);
 
-        // 2. Limpiamos el texto para que el usuario pueda lanzar otra a la vez
         textarea.value = ''; 
-        textarea.style.height = 'auto'; // Resetear altura
+        textarea.style.height = 'auto'; 
         
-        // Efecto visual rápido en el botón
         const originalText = generateBtn.innerHTML;
         generateBtn.innerHTML = `Lanzado 🚀`;
         setTimeout(() => { generateBtn.innerHTML = originalText; }, 1000);
@@ -811,7 +809,6 @@ export function ImageStudio() {
                 const qualityField = getCurrentQualityField(selectedModel);
                 if (qualityField && qualityLabel) genParams[qualityField] = qualityLabel;
                 
-                // Añadimos los parámetros avanzados de la UI a la generación
                 if (negativePrompt) genParams.negative_prompt = negativePrompt;
                 if (seed !== -1) genParams.seed = seed;
                 
@@ -825,7 +822,6 @@ export function ImageStudio() {
                 const qualityField = getCurrentQualityField(selectedModel);
                 if (qualityField && qualityLabel) genParams[qualityField] = qualityLabel;
                 
-                // Añadimos los parámetros avanzados de la UI a la generación
                 if (negativePrompt) genParams.negative_prompt = negativePrompt;
                 if (seed !== -1) genParams.seed = seed;
 
@@ -850,7 +846,6 @@ export function ImageStudio() {
                     console.error("No se guardó en Firebase pero mostramos imagen", e);
                 }
 
-                // Quitamos la tarjeta de carga y ponemos la definitiva
                 loadingCard.remove();
                 renderCard({ id: realId, ...entryData }, true);
 
