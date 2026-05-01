@@ -1,6 +1,7 @@
 import { SettingsModal } from './SettingsModal.js';
 import { AuthModal } from './AuthModal.js';
 import { AdminPanel } from './AdminPanel.js';
+import { PricingModal } from './PricingModal.js';
 import { auth, db, APP_ID } from '../lib/firebase.js';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
@@ -124,14 +125,17 @@ export function Header(navigate) {
                 rightPart.appendChild(adminBtn);
             }
 
-            // 2. Mostrar Créditos
+            // 2. Mostrar Créditos (Ahora abre el PricingModal)
             const creditsBadge = document.createElement('div');
-            creditsBadge.className = 'flex items-center gap-1.5 bg-white/5 border border-white/10 px-3 py-1.5 rounded-xl cursor-pointer hover:bg-white/10 transition-colors shadow-inner';
-            creditsBadge.title = 'Ir a recargar créditos';
-            creditsBadge.onclick = () => alert('Próximamente: Redirección a la tabla de precios para recargar créditos.');
+            creditsBadge.className = 'flex items-center gap-2 bg-white/5 border border-white/10 px-3 py-1.5 rounded-xl cursor-pointer hover:bg-white/10 hover:border-white/30 transition-all shadow-inner group';
+            creditsBadge.title = 'Añadir más créditos';
+            creditsBadge.onclick = () => {
+                document.body.appendChild(PricingModal());
+            };
             creditsBadge.innerHTML = `
                 <span class="text-sm">🪙</span>
                 <span class="text-white font-bold text-xs md:text-sm font-mono tracking-tight">${credits}</span>
+                <span class="bg-[#3B82F6]/20 text-[#3B82F6] rounded-md px-1.5 text-xs font-bold group-hover:bg-[#3B82F6] group-hover:text-white transition-colors">+</span>
             `;
 
             // 3. Botón de Usuario (Ajustes)
