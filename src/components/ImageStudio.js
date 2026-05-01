@@ -7,7 +7,6 @@ import {
 import { AuthModal } from './AuthModal.js';
 import { createUploadPicker } from './UploadPicker.js';
 
-// IMPORTANTE: Hemos añadido getDoc, updateDoc, increment y doc para cobrar los créditos
 import { auth, db, APP_ID } from '../lib/firebase.js';
 import { collection, addDoc, query, orderBy, limit, getDocs, serverTimestamp, doc, getDoc, updateDoc, increment } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -83,6 +82,35 @@ export function ImageStudio() {
     const getCurrentResolutions = (id) => imageMode ? getResolutionsForI2IModel(id) : getResolutionsForModel(id);
     const getCurrentQualityField = (id) => imageMode ? getQualityFieldForI2IModel(id) : getQualityFieldForModel(id);
 
+    // Declaramos el botón de generar al principio para evitar crashes
+    const generateBtn = document.createElement('button');
+    generateBtn.className = 'bg-[#FFB000] text-black px-6 md:px-8 py-3 md:py-3.5 rounded-xl md:rounded-[1.5rem] font-black text-sm md:text-base hover:shadow-[0_0_20px_rgba(255,176,0,0.4)] active:scale-95 transition-all flex items-center justify-center gap-1.5 md:gap-2.5 w-full sm:w-auto shadow-lg shrink-0 mt-2 sm:mt-0';
+
+    // Función segura para actualizar textos (usando container.querySelector)
+    const updateControlsForMode = () => {
+        const availableArs = getCurrentAspectRatios(selectedModel);
+        selectedAr = availableArs[0] || '1:1';
+        
+        const mBtnLabel = container.querySelector('#model-btn-label');
+        if (mBtnLabel) mBtnLabel.textContent = selectedModelName;
+        
+        const aBtnLabel = container.querySelector('#ar-btn-label');
+        if (aBtnLabel) aBtnLabel.textContent = selectedAr;
+        
+        const validResolutions = getCurrentResolutions(selectedModel);
+        const qBtn = container.querySelector('#quality-btn');
+        if (qBtn) {
+            qBtn.style.display = validResolutions.length > 0 ? 'flex' : 'none';
+            const qBtnLabel = container.querySelector('#quality-btn-label');
+            if (validResolutions.length > 0 && qBtnLabel) {
+                qBtnLabel.textContent = validResolutions[0];
+            }
+        }
+
+        const cost = getModelCost(selectedModel);
+        generateBtn.innerHTML = `Generar ✨ <span class="bg-black/20 px-2 py-0.5 rounded-md text-[10px] md:text-xs font-mono ml-1 shadow-inner border border-black/10">${cost} 🪙</span>`;
+    };
+
     // --- HERO SECTION ---
     const hero = document.createElement('div');
     hero.className = 'flex flex-col items-center mb-6 md:mb-16 mt-4 md:mt-0 animate-fade-in-up transition-all duration-700 shrink-0';
@@ -108,7 +136,7 @@ export function ImageStudio() {
     `;
     container.appendChild(hero);
 
-    // --- PROMPT BAR Y BOTÓN DE GENERAR PRE-DECLARADO ---
+    // --- PROMPT BAR ---
     const promptWrapper = document.createElement('div');
     promptWrapper.className = 'w-full max-w-4xl relative z-40 animate-fade-in-up shrink-0 px-2 md:px-0';
     promptWrapper.style.animationDelay = '0.2s';
@@ -118,28 +146,6 @@ export function ImageStudio() {
 
     const topRow = document.createElement('div');
     topRow.className = 'flex items-start gap-3 md:gap-5 px-1 md:px-2';
-
-    // Declaramos el botón aquí para poder actualizar su coste desde updateControlsForMode
-    const generateBtn = document.createElement('button');
-    generateBtn.className = 'bg-[#FFB000] text-black px-6 md:px-8 py-3 md:py-3.5 rounded-xl md:rounded-[1.5rem] font-black text-sm md:text-base hover:shadow-[0_0_20px_rgba(255,176,0,0.4)] active:scale-95 transition-all flex items-center justify-center gap-1.5 md:gap-2.5 w-full sm:w-auto shadow-lg shrink-0 mt-2 sm:mt-0';
-
-    const updateControlsForMode = () => {
-        const availableArs = getCurrentAspectRatios(selectedModel);
-        selectedAr = availableArs[0] || '1:1';
-        document.getElementById('model-btn-label').textContent = selectedModelName;
-        document.getElementById('ar-btn-label').textContent = selectedAr;
-        
-        const validResolutions = getCurrentResolutions(selectedModel);
-        const qualityBtnEl = document.getElementById('quality-btn');
-        if (qualityBtnEl) {
-            qualityBtnEl.style.display = validResolutions.length > 0 ? 'flex' : 'none';
-            if (validResolutions.length > 0) document.getElementById('quality-btn-label').textContent = validResolutions[0];
-        }
-
-        // Actualizamos el botón de generar con el precio correspondiente
-        const cost = getModelCost(selectedModel);
-        generateBtn.innerHTML = `Generar ✨ <span class="bg-black/20 px-2 py-0.5 rounded-md text-[10px] md:text-xs font-mono ml-1 shadow-inner border border-black/10">${cost} 🪙</span>`;
-    };
 
     const picker = createUploadPicker({
         anchorContainer: container,
@@ -236,9 +242,6 @@ export function ImageStudio() {
     promptWrapper.appendChild(bar);
     container.appendChild(promptWrapper);
 
-    // Inicializamos el precio del botón por primera vez
-    updateControlsForMode();
-
     const inlineInstructions = createInlineInstructions('image');
     container.appendChild(inlineInstructions);
 
@@ -272,7 +275,8 @@ export function ImageStudio() {
     advancedBtn.onclick = () => {
         showAdvanced = !showAdvanced;
         advancedPanel.classList.toggle('hidden', !showAdvanced);
-        document.getElementById('advanced-btn-label').textContent = showAdvanced ? 'Ocultar' : 'Avanzado';
+        const advLabel = container.querySelector('#advanced-btn-label');
+        if (advLabel) advLabel.textContent = showAdvanced ? 'Ocultar' : 'Avanzado';
     };
     advancedPanel.querySelector('#close-adv-btn').onclick = () => advancedBtn.click();
     advancedPanel.querySelector('#negative-prompt-input').oninput = (e) => { negativePrompt = e.target.value; };
@@ -309,7 +313,13 @@ export function ImageStudio() {
                 const item = document.createElement('div');
                 item.className = 'flex items-center justify-between p-2.5 md:p-3.5 hover:bg-white/5 rounded-xl md:rounded-2xl cursor-pointer transition-all';
                 item.innerHTML = `<div class="flex items-center gap-3"><div class="w-5 h-5 border-2 border-white/20 rounded shadow-inner flex items-center justify-center"><div class="w-2 h-2 bg-white/10 rounded-[1px]"></div></div><span class="text-xs md:text-sm font-bold text-white">${r}</span></div>${selectedAr === r ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFB000" stroke-width="4"><polyline points="20 6 9 17 4 12"/></svg>' : ''}`;
-                item.onclick = (e) => { e.stopPropagation(); selectedAr = r; document.getElementById('ar-btn-label').textContent = r; closeDropdown(); };
+                item.onclick = (e) => { 
+                    e.stopPropagation(); 
+                    selectedAr = r; 
+                    const aLabel = container.querySelector('#ar-btn-label');
+                    if(aLabel) aLabel.textContent = r; 
+                    closeDropdown(); 
+                };
                 dropdown.querySelector('div:last-child').appendChild(item);
             });
         } else if (type === 'quality') {
@@ -317,8 +327,14 @@ export function ImageStudio() {
             getCurrentResolutions(selectedModel).forEach(opt => {
                 const item = document.createElement('div');
                 item.className = 'flex items-center justify-between p-2.5 md:p-3.5 hover:bg-white/5 rounded-xl md:rounded-2xl cursor-pointer transition-all';
-                item.innerHTML = `<span class="text-xs md:text-sm font-bold text-white">${opt}</span>${document.getElementById('quality-btn-label').textContent === opt ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFB000" stroke-width="4"><polyline points="20 6 9 17 4 12"/></svg>' : ''}`;
-                item.onclick = (e) => { e.stopPropagation(); document.getElementById('quality-btn-label').textContent = opt; closeDropdown(); };
+                const qBtnLabelEl = container.querySelector('#quality-btn-label');
+                const isSelected = qBtnLabelEl && qBtnLabelEl.textContent === opt;
+                item.innerHTML = `<span class="text-xs md:text-sm font-bold text-white">${opt}</span>${isSelected ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFB000" stroke-width="4"><polyline points="20 6 9 17 4 12"/></svg>' : ''}`;
+                item.onclick = (e) => { 
+                    e.stopPropagation(); 
+                    if(qBtnLabelEl) qBtnLabelEl.textContent = opt; 
+                    closeDropdown(); 
+                };
                 dropdown.querySelector('div:last-child').appendChild(item);
             });
         }
@@ -383,7 +399,6 @@ export function ImageStudio() {
         const cost = getModelCost(selectedModel);
         const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', auth.currentUser.uid);
 
-        // PASO 1: Comprobar que hay saldo antes de empezar
         try {
             const userSnap = await getDoc(userRef);
             const currentCredits = userSnap.exists() ? (userSnap.data().credits || 0) : 0;
@@ -406,11 +421,13 @@ export function ImageStudio() {
         textarea.value = ''; textarea.style.height = 'auto';
         const originalText = generateBtn.innerHTML;
         generateBtn.innerHTML = `Lanzado 🚀`;
-        setTimeout(() => { updateControlsForMode(); }, 1000); // Restaura el botón con su precio
+        setTimeout(() => { updateControlsForMode(); }, 1000);
 
         try {
             let res;
-            const qualityLabel = document.getElementById('quality-btn-label')?.textContent;
+            const qBtnLabelEl = container.querySelector('#quality-btn-label');
+            const qualityLabel = qBtnLabelEl ? qBtnLabelEl.textContent : null;
+            
             let finalPrompt = promptText || (imageMode ? "Edición de imagen" : "");
             if (selectedStyle && selectedStyle !== 'Ninguno') finalPrompt += `, estilo ${selectedStyle.toLowerCase()}`;
 
@@ -454,14 +471,12 @@ export function ImageStudio() {
             }
 
             if (res && res.url) {
-                // PASO 2: La imagen ha salido bien. ¡Ahora sí cobramos los créditos!
                 try {
                     await updateDoc(userRef, { credits: increment(-cost) });
                 } catch (billingErr) {
                     console.error("No se pudo descontar el saldo, pero la imagen se generó:", billingErr);
                 }
 
-                // Guardamos en el historial y mostramos
                 const entry = { url: res.url, prompt: finalPrompt, model: selectedModel, aspect_ratio: selectedAr, createdAt: serverTimestamp() };
                 const docRef = await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'users', auth.currentUser.uid, 'generations'), entry);
                 loadingCard.remove();
@@ -471,10 +486,12 @@ export function ImageStudio() {
             }
         } catch (e) {
             console.error(e);
-            // PASO 3: Ha habido un error de generación. Como no hemos cobrado, el usuario no pierde nada.
             loadingCard.innerHTML = `<span class="text-red-400 text-[8px] font-bold">FALLO TÉCNICO</span><span class="text-white/50 text-[6px] mt-1 text-center px-2">No se te han descontado créditos.</span><button class="text-[8px] underline mt-2 bg-white/10 px-2 py-1 rounded" onclick="this.parentElement.remove()">Quitar</button>`;
         }
     };
+
+    // Al final del todo, llamamos a la función segura para inicializar el precio
+    updateControlsForMode();
 
     return container;
 }
