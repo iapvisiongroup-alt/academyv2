@@ -23,28 +23,41 @@ function createInlineInstructions(type) {
     return el;
 }
 
-// FILTRO ESTRICTO: Solo permite KreateImage y bloquea el resto (Effects, etc.)
+// FILTRO ESTRICTO Y MARCA BLANCA: Respeta la lista completa de modelos pero les cambia el nombre
 const filterAndRenameModels = (modelsList, isI2I) => {
-    const allowedIds = isI2I 
-        ? ['nano-banana-edit', 'nano-banana-pro-edit', 'nano-banana-2-edit'] 
-        : ['nano-banana', 'nano-banana-pro', 'nano-banana-2'];
-    
-    return modelsList
-        .filter(m => allowedIds.includes(m.id))
-        .map(m => {
-            let newName = m.name;
-            if (m.id === 'nano-banana' || m.id === 'nano-banana-edit') newName = 'KreateImage';
-            if (m.id === 'nano-banana-pro' || m.id === 'nano-banana-pro-edit') newName = 'KreateImage Pro';
-            if (m.id === 'nano-banana-2' || m.id === 'nano-banana-2-edit') newName = 'KreateImage 2';
-            return { ...m, name: newName };
-        });
+    if (isI2I) {
+        // En modo Edición (Imagen a Imagen), permitimos los 4 modelos y los renombramos
+        const allowedIds = ['nano-banana-edit', 'nano-banana-effects', 'nano-banana-pro-edit', 'nano-banana-2-edit'];
+        return modelsList
+            .filter(m => allowedIds.includes(m.id))
+            .map(m => {
+                let newName = m.name;
+                if (m.id === 'nano-banana-edit') newName = 'KreateImage Edit';
+                if (m.id === 'nano-banana-effects') newName = 'KreateImage Effects';
+                if (m.id === 'nano-banana-pro-edit') newName = 'KreateImage Pro Edit';
+                if (m.id === 'nano-banana-2-edit') newName = 'KreateImage 2 Edit';
+                return { ...m, name: newName };
+            });
+    } else {
+        // En modo Creación (Texto a Imagen)
+        const allowedIds = ['nano-banana', 'nano-banana-pro', 'nano-banana-2'];
+        return modelsList
+            .filter(m => allowedIds.includes(m.id))
+            .map(m => {
+                let newName = m.name;
+                if (m.id === 'nano-banana') newName = 'KreateImage';
+                if (m.id === 'nano-banana-pro') newName = 'KreateImage Pro';
+                if (m.id === 'nano-banana-2') newName = 'KreateImage 2';
+                return { ...m, name: newName };
+            });
+    }
 };
 
 export function ImageStudio() {
     const container = document.createElement('div');
     container.className = 'w-full h-full flex flex-col items-center bg-app-bg relative p-2 md:p-6 pb-24 overflow-y-auto custom-scrollbar overflow-x-hidden';
 
-    // Aplicamos el filtro estricto a ambas listas
+    // Aplicamos el filtro de marca blanca
     const activeT2iModels = filterAndRenameModels(t2iModels, false);
     const activeI2iModels = filterAndRenameModels(i2iModels, true);
 
@@ -105,6 +118,20 @@ export function ImageStudio() {
     const topRow = document.createElement('div');
     topRow.className = 'flex items-start gap-3 md:gap-5 px-1 md:px-2';
 
+    const updateControlsForMode = () => {
+        const availableArs = getCurrentAspectRatios(selectedModel);
+        selectedAr = availableArs[0] || '1:1';
+        document.getElementById('model-btn-label').textContent = selectedModelName;
+        document.getElementById('ar-btn-label').textContent = selectedAr;
+        
+        const validResolutions = getCurrentResolutions(selectedModel);
+        const qualityBtnEl = document.getElementById('quality-btn');
+        if (qualityBtnEl) {
+            qualityBtnEl.style.display = validResolutions.length > 0 ? 'flex' : 'none';
+            if (validResolutions.length > 0) document.getElementById('quality-btn-label').textContent = validResolutions[0];
+        }
+    };
+
     const picker = createUploadPicker({
         anchorContainer: container,
         onSelect: ({ url, urls }) => {
@@ -113,12 +140,7 @@ export function ImageStudio() {
                 imageMode = true;
                 selectedModel = activeI2iModels.length > 0 ? activeI2iModels[0].id : defaultModel.id;
                 selectedModelName = activeI2iModels.length > 0 ? activeI2iModels[0].name : defaultModel.name;
-                selectedAr = getAspectRatiosForI2IModel(selectedModel)[0] || '1:1';
-                document.getElementById('model-btn-label').textContent = selectedModelName;
-                document.getElementById('ar-btn-label').textContent = selectedAr;
-                const validResolutions = getResolutionsForI2IModel(selectedModel);
-                qualityBtn.style.display = validResolutions.length > 0 ? 'flex' : 'none';
-                if (validResolutions.length > 0) document.getElementById('quality-btn-label').textContent = validResolutions[0];
+                updateControlsForMode();
                 picker.setMaxImages(getMaxImagesForI2IModel(selectedModel));
             }
             textarea.placeholder = uploadedImageUrls.length > 1
@@ -130,12 +152,7 @@ export function ImageStudio() {
             imageMode = false;
             selectedModel = activeT2iModels.length > 0 ? activeT2iModels[0].id : defaultModel.id;
             selectedModelName = activeT2iModels.length > 0 ? activeT2iModels[0].name : defaultModel.name;
-            selectedAr = getAspectRatiosForModel(selectedModel)[0] || '1:1';
-            document.getElementById('model-btn-label').textContent = selectedModelName;
-            document.getElementById('ar-btn-label').textContent = selectedAr;
-            const t2iResolutions = getResolutionsForModel(selectedModel);
-            qualityBtn.style.display = t2iResolutions.length > 0 ? 'flex' : 'none';
-            if (t2iResolutions.length > 0) document.getElementById('quality-btn-label').textContent = t2iResolutions[0];
+            updateControlsForMode();
             picker.setMaxImages(1);
             textarea.placeholder = 'Describe la imagen que quieres crear...';
         }
@@ -320,17 +337,7 @@ export function ImageStudio() {
                     e.stopPropagation();
                     selectedModel = m.id;
                     selectedModelName = m.name;
-                    const availableArs = getCurrentAspectRatios(selectedModel);
-                    selectedAr = availableArs[0] || '1:1';
-                    document.getElementById('model-btn-label').textContent = selectedModelName;
-                    document.getElementById('ar-btn-label').textContent = selectedAr;
-
-                    const validResolutions = getCurrentResolutions(selectedModel);
-                    qualityBtn.style.display = validResolutions.length > 0 ? 'flex' : 'none';
-                    if (validResolutions.length > 0) {
-                        document.getElementById('quality-btn-label').textContent = validResolutions[0];
-                    }
-
+                    updateControlsForMode();
                     if (imageMode) picker.setMaxImages(getMaxImagesForI2IModel(selectedModel));
                     closeDropdown();
                 };
@@ -570,7 +577,7 @@ export function ImageStudio() {
                 <div class="w-6 h-6 md:w-8 md:h-8 border-4 border-[#FFB000]/30 border-t-[#FFB000] rounded-full animate-spin"></div>
                 <span class="text-[10px] md:text-xs font-bold text-[#FFB000] animate-pulse">Generando...</span>
             </div>
-            <div class="absolute bottom-2 md:bottom-4 left-2 right-2 md:left-4 md:right-4 text-[8px] md:text-[10px] text-center text-white/40 line-clamp-2 px-1 md:px-2 leading-tight">${promptText || 'Edición de imagen...'}</div>
+            <div class="absolute bottom-2 md:bottom-4 left-2 right-2 md:left-4 md:right-4 text-[8px] md:text-[10px] text-center text-white/40 line-clamp-2 px-1 md:px-2 leading-tight">${promptText || 'Edición...'}</div>
         `;
         
         galleryGrid.prepend(loadingCard);
@@ -591,28 +598,33 @@ export function ImageStudio() {
                 finalPrompt = promptText ? `${promptText}, estilo ${selectedStyle.toLowerCase()}` : `estilo ${selectedStyle.toLowerCase()}`;
             }
 
-            // Fallback de seguridad: si no envías texto en edición, se envía este por defecto para evitar Error 422
-            if (imageMode && !finalPrompt) {
-                finalPrompt = "Edición de imagen";
-            }
+            // --- PROTECCIÓN DEFINITIVA CONTRA EL ERROR 422 ---
+            // Volvemos a construir los datos tal y como los tenías en tu código original para no romper la API
 
             let genParams = {};
 
             if (imageMode) {
-                // A LA API LE HEMOS RESTAURADO TODAS SUS VARIABLES ORIGINALES:
+                // A la API le pasamos todos sus parámetros intactos
                 genParams = {
                     model: selectedModel,
                     images_list: uploadedImageUrls,
                     image_url: uploadedImageUrls[0], 
-                    aspect_ratio: selectedAr,
-                    prompt: finalPrompt
+                    aspect_ratio: selectedAr
                 };
                 
+                // IMPORTANTE: Respetamos tu condición original para el prompt
+                if (finalPrompt) genParams.prompt = finalPrompt;
+
                 const qualityField = getCurrentQualityField(selectedModel);
                 if (qualityField && qualityLabel) genParams[qualityField] = qualityLabel;
                 if (negativePrompt) genParams.negative_prompt = negativePrompt;
                 
-                res = await muapi.generateImage(genParams);
+                // Doble check: si existe la función original de I2I la usamos, si no, intentamos por la general
+                if (typeof muapi.generateI2I === 'function') {
+                    res = await muapi.generateI2I(genParams);
+                } else {
+                    res = await muapi.generateImage(genParams);
+                }
             } else {
                 genParams = {
                     model: selectedModel,
