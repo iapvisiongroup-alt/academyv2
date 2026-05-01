@@ -12,7 +12,7 @@
     "start": "next start",
     "lint": "next lint",
     "build:studio": "cd packages/studio && npm run build",
-    "setup": "npm install && npm run build:studio",
+    "setup": "npm install --no-package-lock && npm run build:studio",
     "vite:dev": "vite",
     "vite:build": "vite build",
     "electron:build": "vite build && electron-builder --mac",
