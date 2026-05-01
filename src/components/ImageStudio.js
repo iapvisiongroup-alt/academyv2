@@ -14,16 +14,15 @@ import { onAuthStateChanged } from 'firebase/auth';
 
 function createInlineInstructions(type) {
     const el = document.createElement('div');
-    el.className = 'w-full text-center text-white/30 text-sm flex flex-col items-center gap-2 py-2';
+    el.className = 'w-full text-center text-white/30 text-sm flex flex-col items-center gap-1 md:gap-2 py-2 px-4';
     const icon = type === 'image' ? '🖼️' : '🎬';
     el.innerHTML = `
-        <p>${icon} Escribe un prompt arriba y haz clic en <span class="text-[#FFB000] font-semibold">Generar</span>.</p>
-        <p class="text-xs text-white/20">Puedes lanzar varias generaciones a la vez sin esperar a que terminen.</p>
+        <p class="text-xs md:text-sm">${icon} Escribe un prompt y haz clic en <span class="text-[#FFB000] font-semibold">Generar</span>.</p>
+        <p class="text-[10px] md:text-xs text-white/20">Puedes lanzar varias generaciones a la vez sin esperar.</p>
     `;
     return el;
 }
 
-// Filtramos y renombramos los modelos para que solo queden los de KreateImage
 const filterAndRenameModels = (modelsList) => {
     const allowedIds = ['nano-banana', 'nano-banana-pro', 'nano-banana-2'];
     
@@ -40,13 +39,12 @@ const filterAndRenameModels = (modelsList) => {
 
 export function ImageStudio() {
     const container = document.createElement('div');
-    container.className = 'w-full h-full flex flex-col items-center bg-app-bg relative p-4 md:p-6 overflow-y-auto custom-scrollbar overflow-x-hidden';
+    // Añadido pb-24 para que en móvil se pueda hacer scroll hasta el fondo sin tapar la última foto
+    container.className = 'w-full h-full flex flex-col items-center bg-app-bg relative p-2 md:p-6 pb-24 overflow-y-auto custom-scrollbar overflow-x-hidden';
 
-    // Inicializamos con los modelos filtrados y renombrados
     const activeT2iModels = filterAndRenameModels(t2iModels);
     const activeI2iModels = filterAndRenameModels(i2iModels);
 
-    // --- State ---
     const defaultModel = activeT2iModels.length > 0 ? activeT2iModels[0] : t2iModels[0];
     let selectedModel = defaultModel.id;
     let selectedModelName = defaultModel.name;
@@ -55,7 +53,6 @@ export function ImageStudio() {
     let uploadedImageUrls = []; 
     let imageMode = false; 
 
-    // Advanced parameters state
     let negativePrompt = '';
     let showAdvanced = false;
     let selectedStyle = 'Ninguno';
@@ -69,26 +66,26 @@ export function ImageStudio() {
     // 1. HERO SECTION
     // ==========================================
     const hero = document.createElement('div');
-    hero.className = 'flex flex-col items-center mb-10 md:mb-20 animate-fade-in-up transition-all duration-700 shrink-0';
+    hero.className = 'flex flex-col items-center mb-6 md:mb-16 mt-4 md:mt-0 animate-fade-in-up transition-all duration-700 shrink-0';
     hero.innerHTML = `
-        <div class="mb-10 relative group">
-             <div class="absolute inset-0 bg-[#3B82F6]/20 blur-[100px] rounded-full opacity-40 group-hover:opacity-70 transition-opacity duration-1000"></div>
-             <div class="relative w-24 h-24 md:w-32 md:h-32 bg-[#0a0a0a] rounded-3xl flex items-center justify-center border border-white/5 overflow-hidden">
-                <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" class="text-[#3B82F6] opacity-20 absolute -right-4 -bottom-4">
+        <div class="mb-6 md:mb-10 relative group">
+             <div class="absolute inset-0 bg-[#3B82F6]/20 blur-[60px] md:blur-[100px] rounded-full opacity-40 group-hover:opacity-70 transition-opacity duration-1000"></div>
+             <div class="relative w-16 h-16 md:w-32 md:h-32 bg-[#0a0a0a] rounded-2xl md:rounded-3xl flex items-center justify-center border border-white/5 overflow-hidden">
+                <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" class="text-[#3B82F6] opacity-20 absolute -right-2 -bottom-2 md:-right-4 md:-bottom-4 w-12 md:w-20">
                     <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
                 </svg>
-                <div class="w-16 h-16 bg-[#3B82F6]/10 rounded-2xl flex items-center justify-center border border-[#3B82F6]/20 shadow-glow relative z-10">
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="text-[#3B82F6]">
+                <div class="w-10 h-10 md:w-16 md:h-16 bg-[#3B82F6]/10 rounded-xl md:rounded-2xl flex items-center justify-center border border-[#3B82F6]/20 shadow-glow relative z-10">
+                    <svg width="50%" height="50%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="text-[#3B82F6] w-5 md:w-8">
                         <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
                         <circle cx="8.5" cy="8.5" r="1.5"/>
                         <polyline points="21 15 16 10 5 21"/>
                     </svg>
                 </div>
-                <div class="absolute top-4 right-4 text-[#FFB000] animate-pulse">✨</div>
+                <div class="absolute top-2 right-2 md:top-4 md:right-4 text-[#FFB000] animate-pulse text-xs md:text-base">✨</div>
              </div>
         </div>
-        <h1 class="text-2xl sm:text-4xl md:text-7xl font-black text-white tracking-widest uppercase mb-4 selection:bg-[#FFB000] selection:text-black text-center px-4">Estudio de Imagen</h1>
-        <p class="text-white/50 text-sm font-medium tracking-wide opacity-60">Transforma imágenes con IA — escala, estiliza, anima y más</p>
+        <h1 class="text-xl sm:text-4xl md:text-7xl font-black text-white tracking-widest uppercase mb-2 md:mb-4 selection:bg-[#FFB000] selection:text-black text-center px-4">Estudio de Imagen</h1>
+        <p class="text-white/50 text-[10px] md:text-sm font-medium tracking-wide opacity-60 text-center px-4">Transforma imágenes con IA — escala, estiliza, anima y más</p>
     `;
     container.appendChild(hero);
 
@@ -96,14 +93,14 @@ export function ImageStudio() {
     // 2. PROMPT BAR 
     // ==========================================
     const promptWrapper = document.createElement('div');
-    promptWrapper.className = 'w-full max-w-4xl relative z-40 animate-fade-in-up shrink-0';
+    promptWrapper.className = 'w-full max-w-4xl relative z-40 animate-fade-in-up shrink-0 px-2 md:px-0';
     promptWrapper.style.animationDelay = '0.2s';
 
     const bar = document.createElement('div');
     bar.className = 'w-full bg-[#111]/90 backdrop-blur-xl border border-white/10 rounded-[1.5rem] md:rounded-[2.5rem] p-3 md:p-5 flex flex-col gap-3 md:gap-5 shadow-3xl';
 
     const topRow = document.createElement('div');
-    topRow.className = 'flex items-start gap-5 px-2';
+    topRow.className = 'flex items-start gap-3 md:gap-5 px-1 md:px-2';
 
     const picker = createUploadPicker({
         anchorContainer: container,
@@ -122,8 +119,8 @@ export function ImageStudio() {
                 picker.setMaxImages(getMaxImagesForI2IModel(selectedModel));
             }
             textarea.placeholder = uploadedImageUrls.length > 1
-                ? `${uploadedImageUrls.length} imágenes seleccionadas — describe la transformación (opcional)`
-                : 'Describe cómo transformar esta imagen (opcional)';
+                ? `${uploadedImageUrls.length} imágenes seleccionadas (describe la transformación)`
+                : 'Describe cómo transformar esta imagen';
         },
         onClear: () => {
             uploadedImageUrls = [];
@@ -137,19 +134,19 @@ export function ImageStudio() {
             qualityBtn.style.display = t2iResolutions.length > 0 ? 'flex' : 'none';
             if (t2iResolutions.length > 0) document.getElementById('quality-btn-label').textContent = t2iResolutions[0];
             picker.setMaxImages(1);
-            textarea.placeholder = 'Describe la imagen que quieres crear';
+            textarea.placeholder = 'Describe la imagen que quieres crear...';
         }
     });
     topRow.appendChild(picker.trigger);
     container.appendChild(picker.panel);
 
     const textarea = document.createElement('textarea');
-    textarea.placeholder = 'Describe la imagen que quieres crear';
-    textarea.className = 'flex-1 bg-transparent border-none text-white text-base md:text-xl placeholder:text-muted focus:outline-none resize-none pt-2.5 leading-relaxed min-h-[40px] max-h-[150px] md:max-h-[250px] overflow-y-auto custom-scrollbar';
+    textarea.placeholder = 'Describe la imagen que quieres crear...';
+    textarea.className = 'flex-1 bg-transparent border-none text-white text-sm md:text-xl placeholder:text-muted focus:outline-none resize-none pt-2 md:pt-2.5 leading-relaxed min-h-[40px] max-h-[150px] md:max-h-[250px] overflow-y-auto custom-scrollbar';
     textarea.rows = 1;
     textarea.oninput = () => {
         textarea.style.height = 'auto';
-        const maxHeight = window.innerWidth < 768 ? 150 : 250;
+        const maxHeight = window.innerWidth < 768 ? 120 : 250;
         textarea.style.height = Math.min(textarea.scrollHeight, maxHeight) + 'px';
     };
 
@@ -164,36 +161,38 @@ export function ImageStudio() {
     bar.appendChild(topRow);
 
     const bottomRow = document.createElement('div');
-    bottomRow.className = 'flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 px-2 pt-4 border-t border-white/5';
+    // CORRECCIÓN MÓVIL: Añadido flex-col en móvil, centrado, y botones adaptables
+    bottomRow.className = 'flex flex-col sm:flex-row items-center justify-between gap-3 px-1 md:px-2 pt-3 border-t border-white/5';
 
     const controlsLeft = document.createElement('div');
-    controlsLeft.className = 'flex items-center gap-1.5 md:gap-2.5 relative overflow-x-auto no-scrollbar pb-1 md:pb-0';
+    // CORRECCIÓN MÓVIL: flex-wrap en lugar de overflow-x-auto. Ahora saltan de línea si no caben.
+    controlsLeft.className = 'flex flex-wrap items-center justify-center sm:justify-start gap-1.5 md:gap-2.5 w-full sm:w-auto';
 
     const createControlBtn = (icon, label, id, tooltip) => {
         const btn = document.createElement('button');
         btn.id = id;
-        btn.className = 'flex items-center gap-1.5 md:gap-2.5 px-3 md:px-4 py-2 md:py-2.5 bg-white/5 hover:bg-white/10 rounded-xl md:rounded-2xl transition-all border border-white/5 group whitespace-nowrap';
+        btn.className = 'flex items-center gap-1.5 md:gap-2.5 px-2.5 py-1.5 md:px-4 md:py-2.5 bg-white/5 hover:bg-white/10 rounded-xl md:rounded-2xl transition-all border border-white/5 group whitespace-nowrap flex-1 sm:flex-none justify-center';
         if (tooltip) btn.setAttribute('data-tooltip', tooltip);
         btn.innerHTML = `
             ${icon}
-            <span id="${id}-label" class="text-xs font-bold text-white group-hover:text-[#FFB000] transition-colors">${label}</span>
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" class="opacity-20 group-hover:opacity-100 transition-opacity"><path d="M6 9l6 6 6-6"/></svg>
+            <span id="${id}-label" class="text-[10px] md:text-xs font-bold text-white group-hover:text-[#FFB000] transition-colors truncate max-w-[80px] md:max-w-none">${label}</span>
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4" class="opacity-20 group-hover:opacity-100 transition-opacity shrink-0"><path d="M6 9l6 6 6-6"/></svg>
         `;
         return btn;
     };
 
     const modelBtn = createControlBtn(`
-        <div class="w-5 h-5 bg-[#3B82F6] rounded-md flex items-center justify-center shadow-lg shadow-[#3B82F6]/20">
-            <span class="text-[10px] font-black text-white">K</span>
+        <div class="w-4 h-4 md:w-5 md:h-5 bg-[#3B82F6] rounded flex items-center justify-center shadow-lg shadow-[#3B82F6]/20 shrink-0">
+            <span class="text-[8px] md:text-[10px] font-black text-white">K</span>
         </div>
     `, selectedModelName, 'model-btn', 'Seleccionar modelo');
 
     const arBtn = createControlBtn(`
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="opacity-60 text-white/50"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="opacity-60 text-white/50 shrink-0 md:w-4 md:h-4"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>
     `, selectedAr, 'ar-btn', 'Cambiar relación de aspecto');
 
     const qualityBtn = createControlBtn(`
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="opacity-60 text-white/50"><path d="M6 2L3 6v15a2 2 0 002 2h14a2 2 0 002-2V6l-3-4H6z"/></svg>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="opacity-60 text-white/50 shrink-0 md:w-4 md:h-4"><path d="M6 2L3 6v15a2 2 0 002 2h14a2 2 0 002-2V6l-3-4H6z"/></svg>
     `, '720p', 'quality-btn', 'Ajustar calidad de salida');
 
     controlsLeft.appendChild(modelBtn);
@@ -201,7 +200,7 @@ export function ImageStudio() {
     controlsLeft.appendChild(qualityBtn);
     
     const advancedBtn = createControlBtn(`
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="opacity-60 text-white/50"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 001.82-.33 1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-1.82.33A1.65 1.65 0 0019.4 9a1.65 1.65 0 00-1.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="opacity-60 text-white/50 shrink-0 md:w-4 md:h-4"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 001.82-.33 1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-1.82.33A1.65 1.65 0 0019.4 9a1.65 1.65 0 00-1.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
     `, 'Avanzado', 'advanced-btn', 'Mostrar opciones avanzadas');
     controlsLeft.appendChild(advancedBtn);
 
@@ -213,8 +212,8 @@ export function ImageStudio() {
     }
 
     const generateBtn = document.createElement('button');
-    generateBtn.className = 'bg-[#FFB000] text-black px-6 md:px-8 py-3 md:py-3.5 rounded-xl md:rounded-[1.5rem] font-black text-sm md:text-base hover:shadow-[0_0_20px_rgba(255,176,0,0.4)] hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2.5 w-full sm:w-auto shadow-lg shrink-0';
-    generateBtn.setAttribute('data-tooltip', 'Generar imagen con IA');
+    // CORRECCIÓN MÓVIL: w-full para que ocupe todo el ancho en el móvil, más fácil de pulsar.
+    generateBtn.className = 'bg-[#FFB000] text-black px-6 md:px-8 py-3 md:py-3.5 rounded-xl md:rounded-[1.5rem] font-black text-sm md:text-base hover:shadow-[0_0_20px_rgba(255,176,0,0.4)] active:scale-95 transition-all flex items-center justify-center gap-2.5 w-full sm:w-auto shadow-lg shrink-0 mt-2 sm:mt-0';
     generateBtn.innerHTML = `Generar ✨`;
 
     bottomRow.appendChild(controlsLeft);
@@ -224,7 +223,6 @@ export function ImageStudio() {
     container.appendChild(promptWrapper);
 
     const inlineInstructions = createInlineInstructions('image');
-    inlineInstructions.classList.add('max-w-4xl', 'mt-4');
     container.appendChild(inlineInstructions);
 
     // ==========================================
@@ -233,29 +231,29 @@ export function ImageStudio() {
     const STYLE_PRESETS = ['Ninguno', 'Fotorrealista', 'Anime', 'Cinematográfico', 'Pintura al Óleo', 'Acuarela', 'Arte Digital', 'Arte Conceptual', 'Cyberpunk'];
     
     const advancedPanel = document.createElement('div');
-    advancedPanel.className = 'w-full max-w-4xl mt-6 animate-fade-in-up hidden shrink-0';
+    advancedPanel.className = 'w-full max-w-4xl mt-4 animate-fade-in-up hidden shrink-0 px-2 md:px-0';
     advancedPanel.id = 'advanced-panel';
     advancedPanel.innerHTML = `
-        <div class="bg-[#111]/90 backdrop-blur-xl border border-white/10 rounded-2xl p-5 flex flex-col gap-4">
+        <div class="bg-[#111]/90 backdrop-blur-xl border border-white/10 rounded-2xl p-4 md:p-5 flex flex-col gap-4 shadow-xl">
             <div class="flex items-center justify-between pb-3 border-b border-white/5">
-                <h3 class="text-sm font-bold text-white">Opciones Avanzadas</h3>
-                <button id="close-adv-btn" class="text-white/40 hover:text-white transition-colors">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                <h3 class="text-xs md:text-sm font-bold text-white">Opciones Avanzadas</h3>
+                <button id="close-adv-btn" class="text-white/40 hover:text-white transition-colors p-1">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
                 </button>
             </div>
             
             <div class="flex flex-col gap-2">
-                <label class="text-xs font-bold text-white/50 uppercase tracking-wider">Estilos Predefinidos</label>
-                <div class="flex gap-2 flex-wrap">
-                    ${STYLE_PRESETS.map(s => `<button class="style-preset-btn px-3 py-1.5 rounded-lg text-xs font-bold bg-white/5 text-white/50 hover:bg-white/10 transition-all" data-style="${s}">${s}</button>`).join('')}
+                <label class="text-[10px] md:text-xs font-bold text-white/50 uppercase tracking-wider">Estilos Predefinidos</label>
+                <div class="flex gap-1.5 flex-wrap">
+                    ${STYLE_PRESETS.map(s => `<button class="style-preset-btn px-2 py-1.5 md:px-3 rounded-lg text-[10px] md:text-xs font-bold bg-white/5 text-white/50 hover:bg-white/10 transition-all border border-transparent" data-style="${s}">${s}</button>`).join('')}
                 </div>
             </div>
             
-            <div class="flex flex-col gap-2">
-                <label class="text-xs font-bold text-white/50 uppercase tracking-wider">Prompt Negativo</label>
+            <div class="flex flex-col gap-2 mt-2">
+                <label class="text-[10px] md:text-xs font-bold text-white/50 uppercase tracking-wider">Prompt Negativo</label>
                 <input type="text" id="negative-prompt-input" 
-                    placeholder="Qué excluir de la imagen (ej. borroso, distorsionado, marcas de agua)"
-                    class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm placeholder:text-white/30 focus:outline-none focus:border-[#3B82F6]/50 transition-colors">
+                    placeholder="Qué excluir (ej. borroso, distorsionado)"
+                    class="w-full bg-white/5 border border-white/10 rounded-xl px-3 md:px-4 py-2 text-white text-xs md:text-sm placeholder:text-white/30 focus:outline-none focus:border-[#3B82F6]/50 transition-colors">
             </div>
         </div>
     `;
@@ -264,7 +262,7 @@ export function ImageStudio() {
     const toggleAdvanced = () => {
         showAdvanced = !showAdvanced;
         advancedPanel.classList.toggle('hidden', !showAdvanced);
-        document.getElementById('advanced-btn-label').textContent = showAdvanced ? 'Menos' : 'Avanzado';
+        document.getElementById('advanced-btn-label').textContent = showAdvanced ? 'Ocultar' : 'Avanzado';
     };
     advancedBtn.onclick = toggleAdvanced;
     const closeAdvBtn = advancedPanel.querySelector('#close-adv-btn');
@@ -278,18 +276,19 @@ export function ImageStudio() {
             selectedStyle = btn.dataset.style;
             advancedPanel.querySelectorAll('.style-preset-btn').forEach(b => {
                 b.classList.remove('bg-[#3B82F6]/20', 'text-[#3B82F6]', 'border-[#3B82F6]/30');
-                b.classList.add('bg-white/5', 'text-white/50');
+                b.classList.add('bg-white/5', 'text-white/50', 'border-transparent');
             });
             btn.classList.add('bg-[#3B82F6]/20', 'text-[#3B82F6]', 'border-[#3B82F6]/30');
-            btn.classList.remove('bg-white/5', 'text-white/50');
+            btn.classList.remove('bg-white/5', 'text-white/50', 'border-transparent');
         };
     });
 
     // ==========================================
-    // 4. DROPDOWNS (CORREGIDOS PARA EVITAR CORTES)
+    // 4. DROPDOWNS (CORREGIDOS PARA MÓVIL)
     // ==========================================
     const dropdown = document.createElement('div');
-    dropdown.className = 'fixed z-[999999] transition-all opacity-0 pointer-events-none scale-95 origin-bottom-left glass rounded-3xl p-3 w-[calc(100vw-3rem)] max-w-xs shadow-2xl border border-white/10 flex flex-col bg-[#111]/95 backdrop-blur-xl';
+    // CORRECCIÓN MÓVIL: En móvil el menú flotará adaptándose al ancho casi total
+    dropdown.className = 'fixed z-[999999] transition-all opacity-0 pointer-events-none scale-95 glass rounded-2xl md:rounded-3xl p-2 md:p-3 shadow-2xl border border-white/10 flex flex-col bg-[#111]/95 backdrop-blur-xl';
 
     const showDropdown = (type, anchorBtn) => {
         dropdown.innerHTML = '';
@@ -297,29 +296,26 @@ export function ImageStudio() {
         dropdown.classList.add('opacity-100', 'pointer-events-auto', 'scale-100');
 
         if (type === 'model') {
-            dropdown.classList.add('w-[calc(100vw-3rem)]', 'max-w-xs');
-            dropdown.classList.remove('max-w-[240px]', 'max-w-[200px]');
             dropdown.innerHTML = `
-                <div class="flex flex-col h-full max-h-[60vh]">
-                    <div class="text-[10px] font-bold text-white/50 uppercase tracking-widest px-3 py-2 shrink-0 border-b border-white/5 mb-2">Modelos KreateIA</div>
-                    <div id="model-list-container" class="flex flex-col gap-1.5 overflow-y-auto custom-scrollbar pr-1 pb-2"></div>
+                <div class="flex flex-col max-h-[50vh] md:max-h-[60vh]">
+                    <div class="text-[10px] font-bold text-white/50 uppercase tracking-widest px-2 py-2 shrink-0 border-b border-white/5 mb-2">Modelos KreateIA</div>
+                    <div id="model-list-container" class="flex flex-col gap-1 overflow-y-auto custom-scrollbar pr-1 pb-1"></div>
                 </div>
             `;
             const list = dropdown.querySelector('#model-list-container');
-
             const currentAvailableModels = getCurrentModels();
             
             currentAvailableModels.forEach(m => {
                 const item = document.createElement('div');
-                item.className = `flex items-center justify-between p-3.5 hover:bg-white/5 rounded-2xl cursor-pointer transition-all border border-transparent hover:border-white/5 ${selectedModel === m.id ? 'bg-white/5 border-white/5' : ''}`;
+                item.className = `flex items-center justify-between p-2.5 md:p-3.5 hover:bg-white/5 rounded-xl md:rounded-2xl cursor-pointer transition-all border border-transparent hover:border-white/5 ${selectedModel === m.id ? 'bg-white/5 border-white/5' : ''}`;
                 item.innerHTML = `
-                    <div class="flex items-center gap-3.5">
-                         <div class="w-10 h-10 ${m.name.includes('Pro') ? 'bg-[#FFB000]/10 text-[#FFB000]' : 'bg-[#3B82F6]/10 text-[#3B82F6]'} border border-white/5 rounded-xl flex items-center justify-center font-black text-sm shadow-inner uppercase">K</div>
+                    <div class="flex items-center gap-3">
+                         <div class="w-8 h-8 md:w-10 md:h-10 ${m.name.includes('Pro') ? 'bg-[#FFB000]/10 text-[#FFB000]' : 'bg-[#3B82F6]/10 text-[#3B82F6]'} border border-white/5 rounded-lg md:rounded-xl flex items-center justify-center font-black text-xs shadow-inner uppercase">K</div>
                          <div class="flex flex-col gap-0.5">
-                            <span class="text-xs font-bold text-white tracking-tight">${m.name}</span>
+                            <span class="text-xs md:text-sm font-bold text-white tracking-tight">${m.name}</span>
                          </div>
                     </div>
-                    ${selectedModel === m.id ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFB000" stroke-width="4"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+                    ${selectedModel === m.id ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFB000" stroke-width="4"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
                 `;
                 item.onclick = (e) => {
                     e.stopPropagation();
@@ -343,23 +339,22 @@ export function ImageStudio() {
             });
 
         } else if (type === 'ar') {
-            dropdown.classList.add('max-w-[240px]');
-            dropdown.innerHTML = `<div class="text-[10px] font-bold text-white/50 uppercase tracking-widest px-3 py-2 border-b border-white/5 mb-2">Relación de Aspecto</div>`;
+            dropdown.innerHTML = `<div class="text-[10px] font-bold text-white/50 uppercase tracking-widest px-2 py-2 border-b border-white/5 mb-2">Relación de Aspecto</div>`;
             const list = document.createElement('div');
-            list.className = 'flex flex-col gap-1 max-h-[60vh] overflow-y-auto custom-scrollbar';
+            list.className = 'flex flex-col gap-1 max-h-[50vh] md:max-h-[60vh] overflow-y-auto custom-scrollbar';
 
             const availableArs = getCurrentAspectRatios(selectedModel);
             availableArs.forEach(r => {
                 const item = document.createElement('div');
-                item.className = 'flex items-center justify-between p-3.5 hover:bg-white/5 rounded-2xl cursor-pointer transition-all group';
+                item.className = 'flex items-center justify-between p-2.5 md:p-3.5 hover:bg-white/5 rounded-xl md:rounded-2xl cursor-pointer transition-all group';
                 item.innerHTML = `
-                    <div class="flex items-center gap-4">
-                        <div class="w-6 h-6 border-2 border-white/20 rounded-md shadow-inner flex items-center justify-center group-hover:border-[#FFB000]/50 transition-colors">
-                             <div class="w-3 h-3 bg-white/10 rounded-sm"></div>
+                    <div class="flex items-center gap-3">
+                        <div class="w-5 h-5 border-2 border-white/20 rounded md:rounded-md shadow-inner flex items-center justify-center group-hover:border-[#FFB000]/50 transition-colors">
+                             <div class="w-2 h-2 bg-white/10 rounded-[1px]"></div>
                         </div>
-                        <span class="text-xs font-bold text-white opacity-80 group-hover:opacity-100 transition-opacity">${r}</span>
+                        <span class="text-xs md:text-sm font-bold text-white opacity-80 group-hover:opacity-100 transition-opacity">${r}</span>
                     </div>
-                     ${selectedAr === r ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFB000" stroke-width="4"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+                     ${selectedAr === r ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFB000" stroke-width="4"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
                 `;
                 item.onclick = (e) => {
                     e.stopPropagation();
@@ -371,18 +366,17 @@ export function ImageStudio() {
             });
             dropdown.appendChild(list);
         } else if (type === 'quality') {
-            dropdown.classList.add('max-w-[200px]');
-            dropdown.innerHTML = `<div class="text-[10px] font-bold text-white/50 uppercase tracking-widest px-3 py-2 border-b border-white/5 mb-2">Resolución</div>`;
+            dropdown.innerHTML = `<div class="text-[10px] font-bold text-white/50 uppercase tracking-widest px-2 py-2 border-b border-white/5 mb-2">Resolución</div>`;
             const list = document.createElement('div');
-            list.className = 'flex flex-col gap-1 max-h-[60vh] overflow-y-auto custom-scrollbar';
+            list.className = 'flex flex-col gap-1 max-h-[50vh] overflow-y-auto custom-scrollbar';
 
             const options = getCurrentResolutions(selectedModel);
             options.forEach(opt => {
                 const item = document.createElement('div');
-                item.className = 'flex items-center justify-between p-3.5 hover:bg-white/5 rounded-2xl cursor-pointer transition-all group';
+                item.className = 'flex items-center justify-between p-2.5 md:p-3.5 hover:bg-white/5 rounded-xl md:rounded-2xl cursor-pointer transition-all group';
                 item.innerHTML = `
-                    <span class="text-xs font-bold text-white opacity-80 group-hover:opacity-100">${opt}</span>
-                     ${document.getElementById('quality-btn-label').textContent === opt ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFB000" stroke-width="4"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+                    <span class="text-xs md:text-sm font-bold text-white opacity-80 group-hover:opacity-100">${opt}</span>
+                     ${document.getElementById('quality-btn-label').textContent === opt ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFB000" stroke-width="4"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
                 `;
                 item.onclick = (e) => {
                     e.stopPropagation();
@@ -394,15 +388,26 @@ export function ImageStudio() {
             dropdown.appendChild(list);
         }
 
+        // CORRECCIÓN MÓVIL: Cálculos de posición anclados y seguros
         const btnRect = anchorBtn.getBoundingClientRect();
-        if (window.innerWidth < 768) {
-            dropdown.style.left = '50%';
-            dropdown.style.transform = 'translateX(-50%)';
-        } else {
-            dropdown.style.left = `${btnRect.left}px`;
+        
+        if (window.innerWidth < 640) {
+            // En móvil, el menú ocupa casi toda la pantalla y sale por encima de los botones
+            dropdown.style.left = '16px';
+            dropdown.style.right = '16px';
+            dropdown.style.width = 'auto';
             dropdown.style.transform = 'none';
+            dropdown.style.transformOrigin = 'bottom center';
+            dropdown.style.bottom = `${window.innerHeight - btnRect.top + 10}px`;
+        } else {
+            // En PC se comporta como antes, ajustado al botón
+            dropdown.style.left = `${btnRect.left}px`;
+            dropdown.style.right = 'auto';
+            dropdown.style.width = '240px';
+            dropdown.style.transform = 'none';
+            dropdown.style.transformOrigin = 'bottom left';
+            dropdown.style.bottom = `${window.innerHeight - btnRect.top + 10}px`;
         }
-        dropdown.style.bottom = `${window.innerHeight - btnRect.top + 10}px`;
     };
 
     const closeDropdown = () => {
@@ -418,20 +423,19 @@ export function ImageStudio() {
     
     document.body.appendChild(dropdown);
 
-
     // ==========================================
     // NUEVA GALERÍA INFERIOR (FEED HIGGSFIELD)
     // ==========================================
     const galleryWrapper = document.createElement('div');
-    galleryWrapper.className = 'w-full max-w-6xl mt-8 pb-32 flex-1 flex flex-col shrink-0';
+    galleryWrapper.className = 'w-full max-w-6xl mt-4 md:mt-8 flex-1 flex flex-col shrink-0 px-2 md:px-0';
     
     const galleryHeader = document.createElement('h3');
-    galleryHeader.className = 'text-xs font-bold text-white/40 uppercase tracking-widest mb-4 px-2 hidden';
+    galleryHeader.className = 'text-[10px] md:text-xs font-bold text-white/40 uppercase tracking-widest mb-3 md:mb-4 px-2 hidden';
     galleryHeader.textContent = 'Tus Creaciones';
     galleryWrapper.appendChild(galleryHeader);
 
     const galleryGrid = document.createElement('div');
-    galleryGrid.className = 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 w-full';
+    galleryGrid.className = 'grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-4 w-full';
     galleryWrapper.appendChild(galleryGrid);
 
     container.appendChild(galleryWrapper);
@@ -445,27 +449,37 @@ export function ImageStudio() {
 
         const card = document.createElement('div');
         card.id = `card-${entry.id}`;
-        card.className = 'relative aspect-square rounded-2xl overflow-hidden bg-white/5 border border-white/10 group animate-fade-in-up cursor-pointer';
+        card.className = 'relative aspect-square rounded-xl md:rounded-2xl overflow-hidden bg-white/5 border border-white/10 group animate-fade-in-up cursor-pointer';
 
         card.innerHTML = `
             <img src="${entry.url}" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" loading="lazy">
-            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
-                <p class="text-white text-xs font-medium line-clamp-3 mb-3 shadow-black drop-shadow-md">${entry.prompt || 'Sin descripción'}</p>
+            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 md:opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-2 md:p-4">
+                <p class="text-white text-[10px] md:text-xs font-medium line-clamp-2 md:line-clamp-3 mb-2 md:mb-3 shadow-black drop-shadow-md leading-tight">${entry.prompt || 'Sin descripción'}</p>
                 <div class="flex items-center justify-between">
-                    <span class="text-[10px] text-white/50 bg-black/40 px-2 py-1 rounded-md backdrop-blur-sm border border-white/10">${entry.aspect_ratio || '1:1'}</span>
-                    <button class="download-btn p-2 bg-white/10 hover:bg-[#FFB000] hover:text-black text-white rounded-xl backdrop-blur-md transition-all border border-white/10">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                    <span class="text-[8px] md:text-[10px] text-white/70 bg-black/60 px-1.5 py-0.5 md:px-2 md:py-1 rounded-md backdrop-blur-sm border border-white/10">${entry.aspect_ratio || '1:1'}</span>
+                    <button class="download-btn p-1.5 md:p-2 bg-white/20 hover:bg-[#FFB000] hover:text-black text-white rounded-lg md:rounded-xl backdrop-blur-md transition-all border border-white/20">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="md:w-3.5 md:h-3.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
                     </button>
                 </div>
             </div>
+            <!-- Botón de descarga siempre visible en móvil para usabilidad -->
+            <button class="download-btn-mobile md:hidden absolute bottom-2 right-2 p-1.5 bg-black/50 text-white rounded-lg backdrop-blur-md border border-white/10">
+                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+            </button>
         `;
 
-        card.querySelector('.download-btn').onclick = (e) => {
+        const triggerDownload = (e) => {
             e.stopPropagation();
             const randomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
             const filename = `Kreateia-${randomCode}.jpg`;
             downloadImage(entry.url, filename);
         };
+
+        const btnDesktop = card.querySelector('.download-btn');
+        if (btnDesktop) btnDesktop.onclick = triggerDownload;
+        
+        const btnMobile = card.querySelector('.download-btn-mobile');
+        if (btnMobile) btnMobile.onclick = triggerDownload;
 
         card.onclick = async () => {
             try {
@@ -547,15 +561,15 @@ export function ImageStudio() {
         galleryHeader.classList.remove('hidden');
         const loadingCard = document.createElement('div');
         loadingCard.id = `card-${tempId}`;
-        loadingCard.className = 'relative aspect-square rounded-2xl overflow-hidden bg-white/5 border border-white/10 flex flex-col items-center justify-center animate-fade-in-up';
+        loadingCard.className = 'relative aspect-square rounded-xl md:rounded-2xl overflow-hidden bg-white/5 border border-white/10 flex flex-col items-center justify-center animate-fade-in-up';
         
         loadingCard.innerHTML = `
             <div class="absolute inset-0 bg-gradient-to-tr from-[#3B82F6]/5 to-[#FFB000]/5 animate-pulse"></div>
-            <div class="z-10 flex flex-col items-center gap-3">
-                <div class="w-8 h-8 border-4 border-[#FFB000]/30 border-t-[#FFB000] rounded-full animate-spin"></div>
-                <span class="text-xs font-bold text-[#FFB000] animate-pulse">Generando...</span>
+            <div class="z-10 flex flex-col items-center gap-2 md:gap-3">
+                <div class="w-6 h-6 md:w-8 md:h-8 border-4 border-[#FFB000]/30 border-t-[#FFB000] rounded-full animate-spin"></div>
+                <span class="text-[10px] md:text-xs font-bold text-[#FFB000] animate-pulse">Generando...</span>
             </div>
-            <div class="absolute bottom-4 left-4 right-4 text-[10px] text-center text-white/40 line-clamp-2 px-2">${prompt}</div>
+            <div class="absolute bottom-2 md:bottom-4 left-2 right-2 md:left-4 md:right-4 text-[8px] md:text-[10px] text-center text-white/40 line-clamp-2 px-1 md:px-2 leading-tight">${prompt}</div>
         `;
         
         galleryGrid.prepend(loadingCard);
@@ -571,7 +585,6 @@ export function ImageStudio() {
             let res;
             const qualityLabel = document.getElementById('quality-btn-label')?.textContent;
             
-            // Adjuntamos el estilo si se ha seleccionado uno
             let finalPrompt = prompt;
             if (selectedStyle && selectedStyle !== 'Ninguno') {
                 finalPrompt = `${prompt}, estilo ${selectedStyle.toLowerCase()}`;
@@ -587,7 +600,6 @@ export function ImageStudio() {
                 if (finalPrompt) genParams.prompt = finalPrompt;
                 const qualityField = getCurrentQualityField(selectedModel);
                 if (qualityField && qualityLabel) genParams[qualityField] = qualityLabel;
-                
                 if (negativePrompt) genParams.negative_prompt = negativePrompt;
                 
                 res = await muapi.generateI2I(genParams);
@@ -599,7 +611,6 @@ export function ImageStudio() {
                 };
                 const qualityField = getCurrentQualityField(selectedModel);
                 if (qualityField && qualityLabel) genParams[qualityField] = qualityLabel;
-                
                 if (negativePrompt) genParams.negative_prompt = negativePrompt;
 
                 res = await muapi.generateImage(genParams);
@@ -633,10 +644,10 @@ export function ImageStudio() {
             console.error(e);
             loadingCard.innerHTML = `
                 <div class="absolute inset-0 bg-red-500/10"></div>
-                <div class="z-10 flex flex-col items-center gap-2 p-4 text-center">
-                    <span class="text-xl">⚠️</span>
-                    <span class="text-[10px] font-bold text-red-400">Fallo en generación</span>
-                    <button class="retry-btn mt-2 bg-white/10 px-3 py-1 rounded-lg text-xs text-white hover:bg-white/20 transition-all border border-white/10">Quitar</button>
+                <div class="z-10 flex flex-col items-center gap-1 md:gap-2 p-2 md:p-4 text-center">
+                    <span class="text-lg md:text-xl">⚠️</span>
+                    <span class="text-[8px] md:text-[10px] font-bold text-red-400">Fallo en generación</span>
+                    <button class="retry-btn mt-1 md:mt-2 bg-white/10 px-2 py-1 md:px-3 rounded-md md:rounded-lg text-[8px] md:text-xs text-white hover:bg-white/20 transition-all border border-white/10">Quitar</button>
                 </div>
             `;
             loadingCard.querySelector('.retry-btn').onclick = () => loadingCard.remove();
