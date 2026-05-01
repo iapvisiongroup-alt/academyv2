@@ -9,7 +9,6 @@ import { AuthModal } from './AuthModal.js';
 import { createUploadPicker } from './UploadPicker.js';
 import { savePendingJob, removePendingJob, getPendingJobs } from '../lib/pendingJobs.js';
 
-// --- NUEVAS IMPORTACIONES DE FIREBASE ---
 import { auth, db, APP_ID } from '../lib/firebase.js';
 import { collection, addDoc, query, orderBy, limit, getDocs, serverTimestamp } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -149,6 +148,15 @@ export function ImageStudio() {
         const maxHeight = window.innerWidth < 768 ? 150 : 250;
         textarea.style.height = Math.min(textarea.scrollHeight, maxHeight) + 'px';
     };
+
+    // --- NUEVO: ATAJO DE LA TECLA ENTER ---
+    textarea.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            generateBtn.click();
+        }
+    });
+    // --------------------------------------
 
     topRow.appendChild(textarea);
     bar.appendChild(topRow);
@@ -963,9 +971,6 @@ export function ImageStudio() {
         const pending = getPendingJobs('image');
         if (!pending.length) return;
 
-        const apiKey = localStorage.getItem('muapi_key');
-        if (!apiKey) return; 
-
         const banner = document.createElement('div');
         banner.className = 'fixed top-4 left-1/2 -translate-x-1/2 z-[200] bg-[#111] border border-white/10 text-white text-sm px-5 py-3 rounded-2xl shadow-xl flex items-center gap-3';
         banner.innerHTML = `<span class="animate-spin text-[#FFB000]">◌</span> <span class="banner-text">Reanudando ${pending.length} generación(es) pendiente(s)...</span>`;
@@ -976,10 +981,10 @@ export function ImageStudio() {
             const elapsedAttempts = Math.floor((Date.now() - job.submittedAt) / job.interval);
             const attemptsLeft = Math.max(1, job.maxAttempts - elapsedAttempts);
             try {
-                const result = await muapi.pollForResult(job.requestId, apiKey, attemptsLeft, job.interval);
+                // --- ARREGLO: Ya no pasamos la apiKey aquí ---
+                const result = await muapi.pollForResult(job.requestId, attemptsLeft, job.interval);
                 const url = result.outputs?.[0] || result.url || result.output?.url;
                 if (url) {
-                    // Usamos la nueva función conectada a Firebase
                     addToHistory({ id: job.requestId, url, ...job.historyMeta, timestamp: new Date().toISOString() });
                 }
             } catch (e) {
@@ -1046,11 +1051,12 @@ export function ImageStudio() {
             }
         }
 
-        const apiKey = localStorage.getItem('muapi_key');
-        if (!apiKey) {
-            AuthModal(() => generateBtn.click());
+        // --- ARREGLO PRINCIPAL: Comprobamos Firebase en vez de API Key ---
+        if (!auth.currentUser) {
+            alert('Debes iniciar sesión para generar imágenes.');
             return;
         }
+        // -----------------------------------------------------------------
 
         hero.classList.add('opacity-0', 'scale-95', '-translate-y-10', 'pointer-events-none');
         generateBtn.disabled = true;
