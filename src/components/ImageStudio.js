@@ -6,6 +6,8 @@ import {
 } from '../lib/models.js';
 import { AuthModal } from './AuthModal.js';
 import { createUploadPicker } from './UploadPicker.js';
+import { savePendingJob, removePendingJob, getPendingJobs } from '../lib/pendingJobs.js';
+
 import { auth, db, APP_ID } from '../lib/firebase.js';
 import { collection, addDoc, query, orderBy, limit, getDocs, serverTimestamp } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -21,7 +23,7 @@ function createInlineInstructions(type) {
     return el;
 }
 
-// FILTRO ESTRICTO: Bloquea modelos no deseados y renombra a marca blanca KreateImage
+// FILTRO ESTRICTO: Solo permite KreateImage y bloquea el resto (Effects, etc.)
 const filterAndRenameModels = (modelsList, isI2I) => {
     const allowedIds = isI2I 
         ? ['nano-banana-edit', 'nano-banana-pro-edit', 'nano-banana-2-edit'] 
@@ -42,6 +44,7 @@ export function ImageStudio() {
     const container = document.createElement('div');
     container.className = 'w-full h-full flex flex-col items-center bg-app-bg relative p-2 md:p-6 pb-24 overflow-y-auto custom-scrollbar overflow-x-hidden';
 
+    // Aplicamos el filtro estricto a ambas listas
     const activeT2iModels = filterAndRenameModels(t2iModels, false);
     const activeI2iModels = filterAndRenameModels(i2iModels, true);
 
@@ -102,20 +105,6 @@ export function ImageStudio() {
     const topRow = document.createElement('div');
     topRow.className = 'flex items-start gap-3 md:gap-5 px-1 md:px-2';
 
-    const updateControlsForMode = () => {
-        const availableArs = getCurrentAspectRatios(selectedModel);
-        selectedAr = availableArs[0] || '1:1';
-        document.getElementById('model-btn-label').textContent = selectedModelName;
-        document.getElementById('ar-btn-label').textContent = selectedAr;
-        
-        const validResolutions = getCurrentResolutions(selectedModel);
-        const qualityBtnEl = document.getElementById('quality-btn');
-        if (qualityBtnEl) {
-            qualityBtnEl.style.display = validResolutions.length > 0 ? 'flex' : 'none';
-            if (validResolutions.length > 0) document.getElementById('quality-btn-label').textContent = validResolutions[0];
-        }
-    };
-
     const picker = createUploadPicker({
         anchorContainer: container,
         onSelect: ({ url, urls }) => {
@@ -124,7 +113,12 @@ export function ImageStudio() {
                 imageMode = true;
                 selectedModel = activeI2iModels.length > 0 ? activeI2iModels[0].id : defaultModel.id;
                 selectedModelName = activeI2iModels.length > 0 ? activeI2iModels[0].name : defaultModel.name;
-                updateControlsForMode();
+                selectedAr = getAspectRatiosForI2IModel(selectedModel)[0] || '1:1';
+                document.getElementById('model-btn-label').textContent = selectedModelName;
+                document.getElementById('ar-btn-label').textContent = selectedAr;
+                const validResolutions = getResolutionsForI2IModel(selectedModel);
+                qualityBtn.style.display = validResolutions.length > 0 ? 'flex' : 'none';
+                if (validResolutions.length > 0) document.getElementById('quality-btn-label').textContent = validResolutions[0];
                 picker.setMaxImages(getMaxImagesForI2IModel(selectedModel));
             }
             textarea.placeholder = uploadedImageUrls.length > 1
@@ -136,7 +130,12 @@ export function ImageStudio() {
             imageMode = false;
             selectedModel = activeT2iModels.length > 0 ? activeT2iModels[0].id : defaultModel.id;
             selectedModelName = activeT2iModels.length > 0 ? activeT2iModels[0].name : defaultModel.name;
-            updateControlsForMode();
+            selectedAr = getAspectRatiosForModel(selectedModel)[0] || '1:1';
+            document.getElementById('model-btn-label').textContent = selectedModelName;
+            document.getElementById('ar-btn-label').textContent = selectedAr;
+            const t2iResolutions = getResolutionsForModel(selectedModel);
+            qualityBtn.style.display = t2iResolutions.length > 0 ? 'flex' : 'none';
+            if (t2iResolutions.length > 0) document.getElementById('quality-btn-label').textContent = t2iResolutions[0];
             picker.setMaxImages(1);
             textarea.placeholder = 'Describe la imagen que quieres crear...';
         }
@@ -321,7 +320,17 @@ export function ImageStudio() {
                     e.stopPropagation();
                     selectedModel = m.id;
                     selectedModelName = m.name;
-                    updateControlsForMode();
+                    const availableArs = getCurrentAspectRatios(selectedModel);
+                    selectedAr = availableArs[0] || '1:1';
+                    document.getElementById('model-btn-label').textContent = selectedModelName;
+                    document.getElementById('ar-btn-label').textContent = selectedAr;
+
+                    const validResolutions = getCurrentResolutions(selectedModel);
+                    qualityBtn.style.display = validResolutions.length > 0 ? 'flex' : 'none';
+                    if (validResolutions.length > 0) {
+                        document.getElementById('quality-btn-label').textContent = validResolutions[0];
+                    }
+
                     if (imageMode) picker.setMaxImages(getMaxImagesForI2IModel(selectedModel));
                     closeDropdown();
                 };
@@ -378,7 +387,6 @@ export function ImageStudio() {
             dropdown.appendChild(list);
         }
 
-        // --- CÁLCULO DE POSICIÓN A PRUEBA DE BOMBAS ---
         const btnRect = anchorBtn.getBoundingClientRect();
         
         if (window.innerWidth < 768) {
@@ -456,7 +464,6 @@ export function ImageStudio() {
                     </button>
                 </div>
             </div>
-            <!-- Botón de descarga siempre visible en móvil para usabilidad -->
             <button class="download-btn-mobile md:hidden absolute bottom-2 right-2 p-1.5 bg-black/50 text-white rounded-lg backdrop-blur-md border border-white/10">
                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
             </button>
@@ -563,7 +570,7 @@ export function ImageStudio() {
                 <div class="w-6 h-6 md:w-8 md:h-8 border-4 border-[#FFB000]/30 border-t-[#FFB000] rounded-full animate-spin"></div>
                 <span class="text-[10px] md:text-xs font-bold text-[#FFB000] animate-pulse">Generando...</span>
             </div>
-            <div class="absolute bottom-2 md:bottom-4 left-2 right-2 md:left-4 md:right-4 text-[8px] md:text-[10px] text-center text-white/40 line-clamp-2 px-1 md:px-2 leading-tight">${promptText || 'Edición...'}</div>
+            <div class="absolute bottom-2 md:bottom-4 left-2 right-2 md:left-4 md:right-4 text-[8px] md:text-[10px] text-center text-white/40 line-clamp-2 px-1 md:px-2 leading-tight">${promptText || 'Edición de imagen...'}</div>
         `;
         
         galleryGrid.prepend(loadingCard);
@@ -579,25 +586,25 @@ export function ImageStudio() {
             let res;
             const qualityLabel = document.getElementById('quality-btn-label')?.textContent;
             
-            // Si hay estilo seleccionado, lo anexamos.
             let finalPrompt = promptText;
             if (selectedStyle && selectedStyle !== 'Ninguno') {
                 finalPrompt = promptText ? `${promptText}, estilo ${selectedStyle.toLowerCase()}` : `estilo ${selectedStyle.toLowerCase()}`;
             }
 
-            // --- PROTECCIÓN CONTRA ERROR 422 ---
-            // Si es edición y no han escrito nada, pasamos un texto por defecto para que la API no se queje
+            // Fallback de seguridad: si no envías texto en edición, se envía este por defecto para evitar Error 422
             if (imageMode && !finalPrompt) {
-                finalPrompt = "Edición de imagen de alta calidad"; 
+                finalPrompt = "Edición de imagen";
             }
 
             let genParams = {};
 
             if (imageMode) {
-                // MUY IMPORTANTE: Solo image_url, NADA de aspect_ratio ni arrays
+                // A LA API LE HEMOS RESTAURADO TODAS SUS VARIABLES ORIGINALES:
                 genParams = {
                     model: selectedModel,
-                    image_url: uploadedImageUrls[0],
+                    images_list: uploadedImageUrls,
+                    image_url: uploadedImageUrls[0], 
+                    aspect_ratio: selectedAr,
                     prompt: finalPrompt
                 };
                 
@@ -605,7 +612,6 @@ export function ImageStudio() {
                 if (qualityField && qualityLabel) genParams[qualityField] = qualityLabel;
                 if (negativePrompt) genParams.negative_prompt = negativePrompt;
                 
-                // Usamos la misma función maestra para todo
                 res = await muapi.generateImage(genParams);
             } else {
                 genParams = {
@@ -626,7 +632,7 @@ export function ImageStudio() {
                     url: res.url,
                     prompt: finalPrompt,
                     model: selectedModel,
-                    aspect_ratio: imageMode ? 'Original' : selectedAr,
+                    aspect_ratio: selectedAr,
                     type: 'image'
                 };
 
