@@ -39,7 +39,6 @@ const filterAndRenameModels = (modelsList) => {
 
 export function ImageStudio() {
     const container = document.createElement('div');
-    // Añadido pb-24 para que en móvil se pueda hacer scroll hasta el fondo sin tapar la última foto
     container.className = 'w-full h-full flex flex-col items-center bg-app-bg relative p-2 md:p-6 pb-24 overflow-y-auto custom-scrollbar overflow-x-hidden';
 
     const activeT2iModels = filterAndRenameModels(t2iModels);
@@ -161,11 +160,9 @@ export function ImageStudio() {
     bar.appendChild(topRow);
 
     const bottomRow = document.createElement('div');
-    // CORRECCIÓN MÓVIL: Añadido flex-col en móvil, centrado, y botones adaptables
     bottomRow.className = 'flex flex-col sm:flex-row items-center justify-between gap-3 px-1 md:px-2 pt-3 border-t border-white/5';
 
     const controlsLeft = document.createElement('div');
-    // CORRECCIÓN MÓVIL: flex-wrap en lugar de overflow-x-auto. Ahora saltan de línea si no caben.
     controlsLeft.className = 'flex flex-wrap items-center justify-center sm:justify-start gap-1.5 md:gap-2.5 w-full sm:w-auto';
 
     const createControlBtn = (icon, label, id, tooltip) => {
@@ -212,7 +209,6 @@ export function ImageStudio() {
     }
 
     const generateBtn = document.createElement('button');
-    // CORRECCIÓN MÓVIL: w-full para que ocupe todo el ancho en el móvil, más fácil de pulsar.
     generateBtn.className = 'bg-[#FFB000] text-black px-6 md:px-8 py-3 md:py-3.5 rounded-xl md:rounded-[1.5rem] font-black text-sm md:text-base hover:shadow-[0_0_20px_rgba(255,176,0,0.4)] active:scale-95 transition-all flex items-center justify-center gap-2.5 w-full sm:w-auto shadow-lg shrink-0 mt-2 sm:mt-0';
     generateBtn.innerHTML = `Generar ✨`;
 
@@ -284,10 +280,9 @@ export function ImageStudio() {
     });
 
     // ==========================================
-    // 4. DROPDOWNS (CORREGIDOS PARA MÓVIL)
+    // 4. DROPDOWNS MATEMÁTICA PERFECTA
     // ==========================================
     const dropdown = document.createElement('div');
-    // CORRECCIÓN MÓVIL: En móvil el menú flotará adaptándose al ancho casi total
     dropdown.className = 'fixed z-[999999] transition-all opacity-0 pointer-events-none scale-95 glass rounded-2xl md:rounded-3xl p-2 md:p-3 shadow-2xl border border-white/10 flex flex-col bg-[#111]/95 backdrop-blur-xl';
 
     const showDropdown = (type, anchorBtn) => {
@@ -388,25 +383,33 @@ export function ImageStudio() {
             dropdown.appendChild(list);
         }
 
-        // CORRECCIÓN MÓVIL: Cálculos de posición anclados y seguros
+        // --- CÁLCULO DE POSICIÓN A PRUEBA DE BOMBAS ---
         const btnRect = anchorBtn.getBoundingClientRect();
         
-        if (window.innerWidth < 640) {
-            // En móvil, el menú ocupa casi toda la pantalla y sale por encima de los botones
+        if (window.innerWidth < 768) {
+            // MÓVIL: Menú inferior tipo Bottom Sheet anclado al fondo
+            dropdown.style.top = 'auto';
+            dropdown.style.bottom = '16px';
             dropdown.style.left = '16px';
             dropdown.style.right = '16px';
             dropdown.style.width = 'auto';
-            dropdown.style.transform = 'none';
             dropdown.style.transformOrigin = 'bottom center';
-            dropdown.style.bottom = `${window.innerHeight - btnRect.top + 10}px`;
         } else {
-            // En PC se comporta como antes, ajustado al botón
+            // PC: Lo ponemos debajo del botón por defecto
+            dropdown.style.bottom = 'auto';
+            dropdown.style.top = `${btnRect.bottom + 8}px`;
             dropdown.style.left = `${btnRect.left}px`;
             dropdown.style.right = 'auto';
-            dropdown.style.width = '240px';
-            dropdown.style.transform = 'none';
-            dropdown.style.transformOrigin = 'bottom left';
-            dropdown.style.bottom = `${window.innerHeight - btnRect.top + 10}px`;
+            dropdown.style.width = type === 'quality' ? '200px' : (type === 'model' ? '300px' : '240px');
+            dropdown.style.transformOrigin = 'top left';
+
+            // Si detectamos que se va a salir de la pantalla por abajo, lo invertimos hacia arriba
+            const dropdownHeight = 300; // altura estimada de los menús
+            if (btnRect.bottom + dropdownHeight > window.innerHeight) {
+                dropdown.style.top = 'auto';
+                dropdown.style.bottom = `${window.innerHeight - btnRect.top + 8}px`;
+                dropdown.style.transformOrigin = 'bottom left';
+            }
         }
     };
 
