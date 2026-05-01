@@ -43,7 +43,6 @@ export function PricingModal() {
                 <div class="text-[#FFB000] font-bold tracking-widest text-xs uppercase mb-2">Creador Pro</div>
                 <div class="flex items-baseline gap-1 mb-4">
                     <span class="text-4xl font-black text-white">24,99€</span>
-                    <span class="text-white/30 text-sm line-through">29,99€</span>
                 </div>
                 <div class="flex items-center gap-2 mb-8 bg-black/30 w-fit px-3 py-1.5 rounded-lg border border-[#FFB000]/30">
                     <span>🪙</span> <span class="text-white font-bold">3,000 CR</span>
@@ -88,7 +87,7 @@ export function PricingModal() {
 
     modal.querySelector('#close-pricing-btn').onclick = () => document.body.removeChild(overlay);
 
-    // Lógica temporal para los botones de compra
+    // Lógica para los botones de compra
     const buttons = modal.querySelectorAll('.buy-btn');
     buttons.forEach(btn => {
         btn.onclick = () => {
@@ -101,18 +100,18 @@ export function PricingModal() {
                 return;
             }
 
-            // Aquí inyectaremos los Payment Links de Stripe más adelante
+            // Tus enlaces reales de Stripe
             const stripeLinks = {
-                starter: "https://buy.stripe.com/TU_ENLACE_STARTER",
-                pro: "https://buy.stripe.com/TU_ENLACE_PRO",
-                max: "https://buy.stripe.com/TU_ENLACE_MAX"
+                starter: "https://buy.stripe.com/5kQdRbdff73IfNI7wr",
+                pro: "https://buy.stripe.com/fZu14p2AB0Fkato8Av",
+                max: "https://buy.stripe.com/3cI8wR7UV9bQ7hc4kf"
             };
 
-            // Mandamos al usuario a Stripe, pasándole su email para que sepamos quién ha pagado
-            const checkoutUrl = `${stripeLinks[plan]}?prefilled_email=${encodeURIComponent(user.email)}`;
+            // Mandamos al usuario a Stripe, pasándole su email y un ID interno para saber qué plan eligió
+            const checkoutUrl = `${stripeLinks[plan]}?prefilled_email=${encodeURIComponent(user.email)}&client_reference_id=${plan}`;
             
-            alert(`AQUÍ SE ABRIRÁ STRIPE.\n\nSimulando redirección a:\n${checkoutUrl}\n\n(En el siguiente paso configuraremos tus enlaces reales)`);
-            // window.location.href = checkoutUrl; // Descomentar esto cuando tengamos los enlaces reales
+            // Redirigimos a la pasarela real de Stripe
+            window.location.href = checkoutUrl; 
         };
     });
 
