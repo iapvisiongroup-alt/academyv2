@@ -510,7 +510,6 @@ export function ImageStudio() {
     // 3. DROPDOWNS (CORREGIDOS PARA EVITAR CORTES)
     // ==========================================
     const dropdown = document.createElement('div');
-    // CAMBIO CRÍTICO: Usamos 'fixed' y un z-index altísimo para que ningún contenedor lo esconda
     dropdown.className = 'fixed z-[999999] transition-all opacity-0 pointer-events-none scale-95 origin-bottom-left glass rounded-3xl p-3 w-[calc(100vw-3rem)] max-w-xs shadow-2xl border border-white/10 flex flex-col bg-[#111]/95 backdrop-blur-xl';
 
     const showDropdown = (type, anchorBtn) => {
@@ -630,7 +629,6 @@ export function ImageStudio() {
             dropdown.appendChild(list);
         }
 
-        // CAMBIO CRÍTICO: Cálculo de posición usando la pantalla entera para que no se oculte
         const btnRect = anchorBtn.getBoundingClientRect();
         if (window.innerWidth < 768) {
             dropdown.style.left = '50%';
@@ -653,9 +651,7 @@ export function ImageStudio() {
     qualityBtn.onclick = (e) => { e.stopPropagation(); dropdownOpen === 'quality' ? closeDropdown() : showDropdown('quality', qualityBtn); };
     window.onclick = () => closeDropdown();
     
-    // Lo atamos directamente al body para asegurar que siempre está por encima de cualquier capa
     document.body.appendChild(dropdown);
-
 
     // ==========================================
     // NUEVA GALERÍA INFERIOR (FEED HIGGSFIELD)
@@ -700,10 +696,25 @@ export function ImageStudio() {
 
         card.querySelector('.download-btn').onclick = (e) => {
             e.stopPropagation();
-            downloadImage(entry.url, `kreateia-${entry.id}.jpg`);
+            const randomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+            const filename = `Kreateia-${randomCode}.jpg`;
+            downloadImage(entry.url, filename);
         };
 
-        card.onclick = () => window.open(entry.url, '_blank');
+        // --- MAGIA MARCA BLANCA AQUÍ ---
+        card.onclick = async () => {
+            try {
+                // Descargamos la foto en la memoria interna de la web
+                const response = await fetch(entry.url);
+                const blob = await response.blob();
+                // Creamos un enlace "fantasma" interno (blob:https://tu-web...)
+                const blobUrl = URL.createObjectURL(blob);
+                window.open(blobUrl, '_blank');
+            } catch (err) {
+                // Plan B por si el navegador bloquea algo
+                window.open(entry.url, '_blank');
+            }
+        };
 
         if (isPrepend) {
             galleryGrid.prepend(card);
