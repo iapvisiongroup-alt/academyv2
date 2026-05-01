@@ -611,7 +611,8 @@ export function ImageStudio() {
                 if (qualityField && qualityLabel) genParams[qualityField] = qualityLabel;
                 if (negativePrompt) genParams.negative_prompt = negativePrompt;
                 
-                res = await muapi.generateI2I(genParams);
+                // ¡AQUÍ ESTABA EL FANTASMA! Ahora llama a generateImage SIEMPRE.
+                res = await muapi.generateImage(genParams);
             } else {
                 const genParams = {
                     model: selectedModel,
