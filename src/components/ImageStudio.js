@@ -55,7 +55,6 @@ export function ImageStudio() {
     const container = document.createElement('div');
     container.className = 'w-full h-full flex flex-col items-center bg-app-bg relative p-2 md:p-6 pb-24 overflow-y-auto custom-scrollbar overflow-x-hidden';
 
-    // Aplicamos el filtro de marca blanca
     const activeT2iModels = filterAndRenameModels(t2iModels, false);
     const activeI2iModels = filterAndRenameModels(i2iModels, true);
 
@@ -76,9 +75,7 @@ export function ImageStudio() {
     const getCurrentResolutions = (id) => imageMode ? getResolutionsForI2IModel(id) : getResolutionsForModel(id);
     const getCurrentQualityField = (id) => imageMode ? getQualityFieldForI2IModel(id) : getQualityFieldForModel(id);
 
-    // ==========================================
-    // 1. HERO SECTION
-    // ==========================================
+    // --- HERO SECTION ---
     const hero = document.createElement('div');
     hero.className = 'flex flex-col items-center mb-6 md:mb-16 mt-4 md:mt-0 animate-fade-in-up transition-all duration-700 shrink-0';
     hero.innerHTML = `
@@ -103,9 +100,7 @@ export function ImageStudio() {
     `;
     container.appendChild(hero);
 
-    // ==========================================
-    // 2. PROMPT BAR 
-    // ==========================================
+    // --- PROMPT BAR ---
     const promptWrapper = document.createElement('div');
     promptWrapper.className = 'w-full max-w-4xl relative z-40 animate-fade-in-up shrink-0 px-2 md:px-0';
     promptWrapper.style.animationDelay = '0.2s';
@@ -142,7 +137,7 @@ export function ImageStudio() {
                 picker.setMaxImages(getMaxImagesForI2IModel(selectedModel));
             }
             textarea.placeholder = uploadedImageUrls.length > 1
-                ? `${uploadedImageUrls.length} imágenes seleccionadas (describe la transformación)`
+                ? `${uploadedImageUrls.length} imágenes seleccionadas`
                 : 'Describe cómo transformar esta imagen (opcional)';
         },
         onClear: () => {
@@ -184,11 +179,10 @@ export function ImageStudio() {
     const controlsLeft = document.createElement('div');
     controlsLeft.className = 'flex flex-wrap items-center justify-center sm:justify-start gap-1.5 md:gap-2.5 w-full sm:w-auto';
 
-    const createControlBtn = (icon, label, id, tooltip) => {
+    const createControlBtn = (icon, label, id) => {
         const btn = document.createElement('button');
         btn.id = id;
         btn.className = 'flex items-center gap-1.5 md:gap-2.5 px-2.5 py-1.5 md:px-4 md:py-2.5 bg-white/5 hover:bg-white/10 rounded-xl md:rounded-2xl transition-all border border-white/5 group whitespace-nowrap flex-1 sm:flex-none justify-center';
-        if (tooltip) btn.setAttribute('data-tooltip', tooltip);
         btn.innerHTML = `
             ${icon}
             <span id="${id}-label" class="text-[10px] md:text-xs font-bold text-white group-hover:text-[#FFB000] transition-colors truncate max-w-[80px] md:max-w-none">${label}</span>
@@ -201,15 +195,15 @@ export function ImageStudio() {
         <div class="w-4 h-4 md:w-5 md:h-5 bg-[#3B82F6] rounded flex items-center justify-center shadow-lg shadow-[#3B82F6]/20 shrink-0">
             <span class="text-[8px] md:text-[10px] font-black text-white">K</span>
         </div>
-    `, selectedModelName, 'model-btn', 'Seleccionar modelo');
+    `, selectedModelName, 'model-btn');
 
     const arBtn = createControlBtn(`
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="opacity-60 text-white/50 shrink-0 md:w-4 md:h-4"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>
-    `, selectedAr, 'ar-btn', 'Cambiar relación de aspecto');
+    `, selectedAr, 'ar-btn');
 
     const qualityBtn = createControlBtn(`
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="opacity-60 text-white/50 shrink-0 md:w-4 md:h-4"><path d="M6 2L3 6v15a2 2 0 002 2h14a2 2 0 002-2V6l-3-4H6z"/></svg>
-    `, '720p', 'quality-btn', 'Ajustar calidad de salida');
+    `, '720p', 'quality-btn');
 
     controlsLeft.appendChild(modelBtn);
     controlsLeft.appendChild(arBtn);
@@ -217,15 +211,8 @@ export function ImageStudio() {
     
     const advancedBtn = createControlBtn(`
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="opacity-60 text-white/50 shrink-0 md:w-4 md:h-4"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 001.82-.33 1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-1.82.33A1.65 1.65 0 0019.4 9a1.65 1.65 0 00-1.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-    `, 'Avanzado', 'advanced-btn', 'Mostrar opciones avanzadas');
+    `, 'Avanzado', 'advanced-btn');
     controlsLeft.appendChild(advancedBtn);
-
-    const _initResolutions = getResolutionsForModel(defaultModel.id);
-    qualityBtn.style.display = _initResolutions.length > 0 ? 'flex' : 'none';
-    if (_initResolutions.length > 0) {
-        const qlabel = qualityBtn.querySelector('#quality-btn-label');
-        if (qlabel) qlabel.textContent = _initResolutions[0];
-    }
 
     const generateBtn = document.createElement('button');
     generateBtn.className = 'bg-[#FFB000] text-black px-6 md:px-8 py-3 md:py-3.5 rounded-xl md:rounded-[1.5rem] font-black text-sm md:text-base hover:shadow-[0_0_20px_rgba(255,176,0,0.4)] active:scale-95 transition-all flex items-center justify-center gap-2.5 w-full sm:w-auto shadow-lg shrink-0 mt-2 sm:mt-0';
@@ -240,11 +227,8 @@ export function ImageStudio() {
     const inlineInstructions = createInlineInstructions('image');
     container.appendChild(inlineInstructions);
 
-    // ==========================================
-    // 3. ADVANCED OPTIONS PANEL (Minimalista)
-    // ==========================================
+    // --- ADVANCED OPTIONS PANEL ---
     const STYLE_PRESETS = ['Ninguno', 'Fotorrealista', 'Anime', 'Cinematográfico', 'Pintura al Óleo', 'Acuarela', 'Arte Digital', 'Arte Conceptual', 'Cyberpunk'];
-    
     const advancedPanel = document.createElement('div');
     advancedPanel.className = 'w-full max-w-4xl mt-4 animate-fade-in-up hidden shrink-0 px-2 md:px-0';
     advancedPanel.id = 'advanced-panel';
@@ -256,471 +240,189 @@ export function ImageStudio() {
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
                 </button>
             </div>
-            
             <div class="flex flex-col gap-2">
                 <label class="text-[10px] md:text-xs font-bold text-white/50 uppercase tracking-wider">Estilos Predefinidos</label>
                 <div class="flex gap-1.5 flex-wrap">
                     ${STYLE_PRESETS.map(s => `<button class="style-preset-btn px-2 py-1.5 md:px-3 rounded-lg text-[10px] md:text-xs font-bold bg-white/5 text-white/50 hover:bg-white/10 transition-all border border-transparent" data-style="${s}">${s}</button>`).join('')}
                 </div>
             </div>
-            
             <div class="flex flex-col gap-2 mt-2">
                 <label class="text-[10px] md:text-xs font-bold text-white/50 uppercase tracking-wider">Prompt Negativo</label>
-                <input type="text" id="negative-prompt-input" 
-                    placeholder="Qué excluir (ej. borroso, distorsionado)"
-                    class="w-full bg-white/5 border border-white/10 rounded-xl px-3 md:px-4 py-2 text-white text-xs md:text-sm placeholder:text-white/30 focus:outline-none focus:border-[#3B82F6]/50 transition-colors">
+                <input type="text" id="negative-prompt-input" placeholder="Qué excluir..." class="w-full bg-white/5 border border-white/10 rounded-xl px-3 md:px-4 py-2 text-white text-xs md:text-sm focus:border-[#3B82F6]/50 transition-colors">
             </div>
         </div>
     `;
     container.appendChild(advancedPanel);
 
-    const toggleAdvanced = () => {
+    advancedBtn.onclick = () => {
         showAdvanced = !showAdvanced;
         advancedPanel.classList.toggle('hidden', !showAdvanced);
         document.getElementById('advanced-btn-label').textContent = showAdvanced ? 'Ocultar' : 'Avanzado';
     };
-    advancedBtn.onclick = toggleAdvanced;
-    const closeAdvBtn = advancedPanel.querySelector('#close-adv-btn');
-    if (closeAdvBtn) closeAdvBtn.onclick = toggleAdvanced;
-
-    const negPromptInput = advancedPanel.querySelector('#negative-prompt-input');
-    if (negPromptInput) negPromptInput.oninput = (e) => { negativePrompt = e.target.value; };
-
+    advancedPanel.querySelector('#close-adv-btn').onclick = () => advancedBtn.click();
+    advancedPanel.querySelector('#negative-prompt-input').oninput = (e) => { negativePrompt = e.target.value; };
     advancedPanel.querySelectorAll('.style-preset-btn').forEach(btn => {
         btn.onclick = () => {
             selectedStyle = btn.dataset.style;
-            advancedPanel.querySelectorAll('.style-preset-btn').forEach(b => {
-                b.classList.remove('bg-[#3B82F6]/20', 'text-[#3B82F6]', 'border-[#3B82F6]/30');
-                b.classList.add('bg-white/5', 'text-white/50', 'border-transparent');
-            });
+            advancedPanel.querySelectorAll('.style-preset-btn').forEach(b => b.classList.remove('bg-[#3B82F6]/20', 'text-[#3B82F6]', 'border-[#3B82F6]/30'));
             btn.classList.add('bg-[#3B82F6]/20', 'text-[#3B82F6]', 'border-[#3B82F6]/30');
-            btn.classList.remove('bg-white/5', 'text-white/50', 'border-transparent');
         };
     });
 
-    // ==========================================
-    // 4. DROPDOWNS MATEMÁTICA PERFECTA
-    // ==========================================
+    // --- DROPDOWNS ---
     const dropdown = document.createElement('div');
     dropdown.className = 'fixed z-[999999] transition-all opacity-0 pointer-events-none scale-95 glass rounded-2xl md:rounded-3xl p-2 md:p-3 shadow-2xl border border-white/10 flex flex-col bg-[#111]/95 backdrop-blur-xl';
 
     const showDropdown = (type, anchorBtn) => {
         dropdown.innerHTML = '';
-        dropdown.classList.remove('opacity-0', 'pointer-events-none', 'scale-95');
+        dropdown.classList.remove('opacity-0', 'pointer-events-none', 'scale-95', 'opacity-100', 'pointer-events-auto', 'scale-100');
+        void dropdown.offsetWidth; 
         dropdown.classList.add('opacity-100', 'pointer-events-auto', 'scale-100');
 
         if (type === 'model') {
-            dropdown.innerHTML = `
-                <div class="flex flex-col max-h-[50vh] md:max-h-[60vh]">
-                    <div class="text-[10px] font-bold text-white/50 uppercase tracking-widest px-2 py-2 shrink-0 border-b border-white/5 mb-2">Modelos KreateIA</div>
-                    <div id="model-list-container" class="flex flex-col gap-1 overflow-y-auto custom-scrollbar pr-1 pb-1"></div>
-                </div>
-            `;
-            const list = dropdown.querySelector('#model-list-container');
-            const currentAvailableModels = getCurrentModels();
-            
-            currentAvailableModels.forEach(m => {
+            dropdown.innerHTML = `<div class="text-[10px] font-bold text-white/50 uppercase tracking-widest px-2 py-2 shrink-0 border-b border-white/5 mb-2">Modelos KreateIA</div><div id="model-list-container" class="flex flex-col gap-1 overflow-y-auto custom-scrollbar pr-1"></div>`;
+            getCurrentModels().forEach(m => {
                 const item = document.createElement('div');
-                item.className = `flex items-center justify-between p-2.5 md:p-3.5 hover:bg-white/5 rounded-xl md:rounded-2xl cursor-pointer transition-all border border-transparent hover:border-white/5 ${selectedModel === m.id ? 'bg-white/5 border-white/5' : ''}`;
-                item.innerHTML = `
-                    <div class="flex items-center gap-3">
-                         <div class="w-8 h-8 md:w-10 md:h-10 ${m.name.includes('Pro') ? 'bg-[#FFB000]/10 text-[#FFB000]' : 'bg-[#3B82F6]/10 text-[#3B82F6]'} border border-white/5 rounded-lg md:rounded-xl flex items-center justify-center font-black text-xs shadow-inner uppercase">K</div>
-                         <div class="flex flex-col gap-0.5">
-                            <span class="text-xs md:text-sm font-bold text-white tracking-tight">${m.name}</span>
-                         </div>
-                    </div>
-                    ${selectedModel === m.id ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFB000" stroke-width="4"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
-                `;
-                item.onclick = (e) => {
-                    e.stopPropagation();
-                    selectedModel = m.id;
-                    selectedModelName = m.name;
-                    updateControlsForMode();
-                    if (imageMode) picker.setMaxImages(getMaxImagesForI2IModel(selectedModel));
-                    closeDropdown();
-                };
-                list.appendChild(item);
+                item.className = `flex items-center justify-between p-2.5 md:p-3.5 hover:bg-white/5 rounded-xl md:rounded-2xl cursor-pointer transition-all border border-transparent ${selectedModel === m.id ? 'bg-white/5 border-white/5' : ''}`;
+                item.innerHTML = `<div class="flex items-center gap-3"><div class="w-8 h-8 md:w-10 md:h-10 ${m.name.includes('Pro') ? 'bg-[#FFB000]/10 text-[#FFB000]' : 'bg-[#3B82F6]/10 text-[#3B82F6]'} border border-white/5 rounded-lg md:rounded-xl flex items-center justify-center font-black text-xs uppercase">K</div><span class="text-xs md:text-sm font-bold text-white">${m.name}</span></div>${selectedModel === m.id ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFB000" stroke-width="4"><polyline points="20 6 9 17 4 12"/></svg>' : ''}`;
+                item.onclick = (e) => { e.stopPropagation(); selectedModel = m.id; selectedModelName = m.name; updateControlsForMode(); closeDropdown(); };
+                dropdown.querySelector('#model-list-container').appendChild(item);
             });
-
         } else if (type === 'ar') {
-            dropdown.innerHTML = `<div class="text-[10px] font-bold text-white/50 uppercase tracking-widest px-2 py-2 border-b border-white/5 mb-2">Relación de Aspecto</div>`;
-            const list = document.createElement('div');
-            list.className = 'flex flex-col gap-1 max-h-[50vh] md:max-h-[60vh] overflow-y-auto custom-scrollbar';
-
-            const availableArs = getCurrentAspectRatios(selectedModel);
-            availableArs.forEach(r => {
+            dropdown.innerHTML = `<div class="text-[10px] font-bold text-white/50 uppercase tracking-widest px-2 py-2 border-b border-white/5 mb-2">Relación de Aspecto</div><div class="flex flex-col gap-1 overflow-y-auto custom-scrollbar"></div>`;
+            getCurrentAspectRatios(selectedModel).forEach(r => {
                 const item = document.createElement('div');
-                item.className = 'flex items-center justify-between p-2.5 md:p-3.5 hover:bg-white/5 rounded-xl md:rounded-2xl cursor-pointer transition-all group';
-                item.innerHTML = `
-                    <div class="flex items-center gap-3">
-                        <div class="w-5 h-5 border-2 border-white/20 rounded md:rounded-md shadow-inner flex items-center justify-center group-hover:border-[#FFB000]/50 transition-colors">
-                             <div class="w-2 h-2 bg-white/10 rounded-[1px]"></div>
-                        </div>
-                        <span class="text-xs md:text-sm font-bold text-white opacity-80 group-hover:opacity-100 transition-opacity">${r}</span>
-                    </div>
-                     ${selectedAr === r ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFB000" stroke-width="4"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
-                `;
-                item.onclick = (e) => {
-                    e.stopPropagation();
-                    selectedAr = r;
-                    document.getElementById('ar-btn-label').textContent = r;
-                    closeDropdown();
-                };
-                list.appendChild(item);
+                item.className = 'flex items-center justify-between p-2.5 md:p-3.5 hover:bg-white/5 rounded-xl md:rounded-2xl cursor-pointer transition-all';
+                item.innerHTML = `<div class="flex items-center gap-3"><div class="w-5 h-5 border-2 border-white/20 rounded shadow-inner flex items-center justify-center"><div class="w-2 h-2 bg-white/10 rounded-[1px]"></div></div><span class="text-xs md:text-sm font-bold text-white">${r}</span></div>${selectedAr === r ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFB000" stroke-width="4"><polyline points="20 6 9 17 4 12"/></svg>' : ''}`;
+                item.onclick = (e) => { e.stopPropagation(); selectedAr = r; document.getElementById('ar-btn-label').textContent = r; closeDropdown(); };
+                dropdown.querySelector('div:last-child').appendChild(item);
             });
-            dropdown.appendChild(list);
         } else if (type === 'quality') {
-            dropdown.innerHTML = `<div class="text-[10px] font-bold text-white/50 uppercase tracking-widest px-2 py-2 border-b border-white/5 mb-2">Resolución</div>`;
-            const list = document.createElement('div');
-            list.className = 'flex flex-col gap-1 max-h-[50vh] overflow-y-auto custom-scrollbar';
-
-            const options = getCurrentResolutions(selectedModel);
-            options.forEach(opt => {
+            dropdown.innerHTML = `<div class="text-[10px] font-bold text-white/50 uppercase tracking-widest px-2 py-2 border-b border-white/5 mb-2">Resolución</div><div class="flex flex-col gap-1 overflow-y-auto custom-scrollbar"></div>`;
+            getCurrentResolutions(selectedModel).forEach(opt => {
                 const item = document.createElement('div');
-                item.className = 'flex items-center justify-between p-2.5 md:p-3.5 hover:bg-white/5 rounded-xl md:rounded-2xl cursor-pointer transition-all group';
-                item.innerHTML = `
-                    <span class="text-xs md:text-sm font-bold text-white opacity-80 group-hover:opacity-100">${opt}</span>
-                     ${document.getElementById('quality-btn-label').textContent === opt ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFB000" stroke-width="4"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
-                `;
-                item.onclick = (e) => {
-                    e.stopPropagation();
-                    document.getElementById('quality-btn-label').textContent = opt;
-                    closeDropdown();
-                };
-                list.appendChild(item);
+                item.className = 'flex items-center justify-between p-2.5 md:p-3.5 hover:bg-white/5 rounded-xl md:rounded-2xl cursor-pointer transition-all';
+                item.innerHTML = `<span class="text-xs md:text-sm font-bold text-white">${opt}</span>${document.getElementById('quality-btn-label').textContent === opt ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFB000" stroke-width="4"><polyline points="20 6 9 17 4 12"/></svg>' : ''}`;
+                item.onclick = (e) => { e.stopPropagation(); document.getElementById('quality-btn-label').textContent = opt; closeDropdown(); };
+                dropdown.querySelector('div:last-child').appendChild(item);
             });
-            dropdown.appendChild(list);
         }
 
         const btnRect = anchorBtn.getBoundingClientRect();
-        
         if (window.innerWidth < 768) {
-            dropdown.style.top = 'auto';
-            dropdown.style.bottom = '16px';
-            dropdown.style.left = '16px';
-            dropdown.style.right = '16px';
-            dropdown.style.width = 'auto';
-            dropdown.style.transformOrigin = 'bottom center';
+            dropdown.style.bottom = '16px'; dropdown.style.left = '16px'; dropdown.style.right = '16px'; dropdown.style.width = 'auto';
         } else {
-            dropdown.style.bottom = 'auto';
-            dropdown.style.top = `${btnRect.bottom + 8}px`;
-            dropdown.style.left = `${btnRect.left}px`;
-            dropdown.style.right = 'auto';
-            dropdown.style.width = type === 'quality' ? '200px' : (type === 'model' ? '300px' : '240px');
-            dropdown.style.transformOrigin = 'top left';
-
-            const dropdownHeight = 300; 
-            if (btnRect.bottom + dropdownHeight > window.innerHeight) {
-                dropdown.style.top = 'auto';
-                dropdown.style.bottom = `${window.innerHeight - btnRect.top + 8}px`;
-                dropdown.style.transformOrigin = 'bottom left';
-            }
+            dropdown.style.top = `${btnRect.bottom + 8}px`; dropdown.style.left = `${btnRect.left}px`; dropdown.style.width = type === 'model' ? '300px' : '240px';
         }
     };
 
-    const closeDropdown = () => {
-        dropdown.classList.add('opacity-0', 'pointer-events-none', 'scale-95');
-        dropdown.classList.remove('opacity-100', 'pointer-events-auto', 'scale-100');
-        dropdownOpen = null;
-    };
-
-    modelBtn.onclick = (e) => { e.stopPropagation(); dropdownOpen === 'model' ? closeDropdown() : showDropdown('model', modelBtn); };
-    arBtn.onclick = (e) => { e.stopPropagation(); dropdownOpen === 'ar' ? closeDropdown() : showDropdown('ar', arBtn); };
-    qualityBtn.onclick = (e) => { e.stopPropagation(); dropdownOpen === 'quality' ? closeDropdown() : showDropdown('quality', qualityBtn); };
+    const closeDropdown = () => { dropdown.classList.add('opacity-0', 'pointer-events-none', 'scale-95'); dropdown.classList.remove('opacity-100', 'pointer-events-auto', 'scale-100'); };
+    modelBtn.onclick = (e) => { e.stopPropagation(); showDropdown('model', modelBtn); };
+    arBtn.onclick = (e) => { e.stopPropagation(); showDropdown('ar', arBtn); };
+    qualityBtn.onclick = (e) => { e.stopPropagation(); showDropdown('quality', qualityBtn); };
     window.onclick = () => closeDropdown();
-    
     document.body.appendChild(dropdown);
 
-    // ==========================================
-    // NUEVA GALERÍA INFERIOR (FEED HIGGSFIELD)
-    // ==========================================
+    // --- GALERÍA ---
     const galleryWrapper = document.createElement('div');
     galleryWrapper.className = 'w-full max-w-6xl mt-4 md:mt-8 flex-1 flex flex-col shrink-0 px-2 md:px-0';
-    
     const galleryHeader = document.createElement('h3');
     galleryHeader.className = 'text-[10px] md:text-xs font-bold text-white/40 uppercase tracking-widest mb-3 md:mb-4 px-2 hidden';
     galleryHeader.textContent = 'Tus Creaciones';
     galleryWrapper.appendChild(galleryHeader);
-
     const galleryGrid = document.createElement('div');
     galleryGrid.className = 'grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 md:gap-4 w-full';
     galleryWrapper.appendChild(galleryGrid);
-
     container.appendChild(galleryWrapper);
 
-    // ==========================================
-    // LÓGICA DE FIREBASE Y RENDERIZADO (Feed)
-    // ==========================================
     const renderCard = (entry, isPrepend = false) => {
         galleryHeader.classList.remove('hidden');
-
         const card = document.createElement('div');
-        card.id = `card-${entry.id}`;
         card.className = 'relative aspect-square rounded-xl md:rounded-2xl overflow-hidden bg-white/5 border border-white/10 group animate-fade-in-up cursor-pointer';
-
-        card.innerHTML = `
-            <img src="${entry.url}" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" loading="lazy">
-            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 md:opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-2 md:p-4">
-                <p class="text-white text-[10px] md:text-xs font-medium line-clamp-2 md:line-clamp-3 mb-2 md:mb-3 shadow-black drop-shadow-md leading-tight">${entry.prompt || 'Sin descripción'}</p>
-                <div class="flex items-center justify-between">
-                    <span class="text-[8px] md:text-[10px] text-white/70 bg-black/60 px-1.5 py-0.5 md:px-2 md:py-1 rounded-md backdrop-blur-sm border border-white/10">${entry.aspect_ratio || '1:1'}</span>
-                    <button class="download-btn p-1.5 md:p-2 bg-white/20 hover:bg-[#FFB000] hover:text-black text-white rounded-lg md:rounded-xl backdrop-blur-md transition-all border border-white/20">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="md:w-3.5 md:h-3.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-                    </button>
-                </div>
-            </div>
-            <button class="download-btn-mobile md:hidden absolute bottom-2 right-2 p-1.5 bg-black/50 text-white rounded-lg backdrop-blur-md border border-white/10">
-                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-            </button>
-        `;
-
-        const triggerDownload = (e) => {
-            e.stopPropagation();
-            const randomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-            const filename = `Kreateia-${randomCode}.jpg`;
-            downloadImage(entry.url, filename);
-        };
-
-        const btnDesktop = card.querySelector('.download-btn');
-        if (btnDesktop) btnDesktop.onclick = triggerDownload;
+        card.innerHTML = `<img src="${entry.url}" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" loading="lazy"><div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent opacity-0 group-hover:opacity-100 transition-opacity p-2 md:p-4 flex flex-col justify-end"><p class="text-white text-[10px] md:text-xs line-clamp-2 leading-tight">${entry.prompt || ''}</p></div>`;
         
-        const btnMobile = card.querySelector('.download-btn-mobile');
-        if (btnMobile) btnMobile.onclick = triggerDownload;
-
         card.onclick = async () => {
-            try {
-                const response = await fetch(entry.url);
-                const blob = await response.blob();
-                const blobUrl = URL.createObjectURL(blob);
-                window.open(blobUrl, '_blank');
-            } catch (err) {
-                window.open(entry.url, '_blank');
-            }
+            const resp = await fetch(entry.url);
+            const blob = await resp.blob();
+            window.open(URL.createObjectURL(blob), '_blank');
         };
 
-        if (isPrepend) {
-            galleryGrid.prepend(card);
-        } else {
-            galleryGrid.appendChild(card);
-        }
+        if (isPrepend) galleryGrid.prepend(card); else galleryGrid.appendChild(card);
     };
 
-    const downloadImage = async (url, filename) => {
-        try {
-            const response = await fetch(url);
-            const blob = await response.blob();
-            const blobUrl = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = blobUrl;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(blobUrl);
-        } catch (err) {
-            window.open(url, '_blank');
-        }
+    const loadHistory = async (user) => {
+        const genRef = collection(db, 'artifacts', APP_ID, 'public', 'data', 'users', user.uid, 'generations');
+        const q = query(genRef, orderBy('createdAt', 'desc'), limit(20));
+        const snap = await getDocs(q);
+        snap.forEach(doc => renderCard({ id: doc.id, ...doc.data() }));
     };
 
-    const loadFirebaseHistory = async (user) => {
-        try {
-            const genRef = collection(db, 'artifacts', APP_ID, 'public', 'data', 'users', user.uid, 'generations');
-            const q = query(genRef, orderBy('createdAt', 'desc'), limit(20));
-            const snap = await getDocs(q);
+    onAuthStateChanged(auth, (user) => { if (user) loadHistory(user); });
 
-            if (!snap.empty) {
-                snap.forEach(doc => {
-                    const data = doc.data();
-                    renderCard({
-                        id: doc.id,
-                        url: data.url,
-                        prompt: data.prompt,
-                        aspect_ratio: data.aspect_ratio
-                    });
-                });
-            }
-        } catch (error) {
-            console.error("Error cargando historial de Firebase:", error);
-        }
-    };
-
-    onAuthStateChanged(auth, (user) => {
-        if (user) loadFirebaseHistory(user);
-    });
-
-    // ==========================================
-    // 5. GENERACIÓN MULTITAREA NO BLOQUEANTE
-    // ==========================================
+    // --- GENERACIÓN ---
     generateBtn.onclick = async () => {
         const promptText = textarea.value.trim();
-        
-        if (!auth.currentUser) {
-            alert('Debes iniciar sesión para generar imágenes.');
-            return;
-        }
-        if (!imageMode && !promptText) {
-            alert('Por favor, escribe un prompt.');
-            return;
-        }
+        if (!auth.currentUser || (!imageMode && !promptText)) return alert('Completa los campos.');
 
         const tempId = Date.now().toString();
-        galleryHeader.classList.remove('hidden');
         const loadingCard = document.createElement('div');
-        loadingCard.id = `card-${tempId}`;
-        loadingCard.className = 'relative aspect-square rounded-xl md:rounded-2xl overflow-hidden bg-white/5 border border-white/10 flex flex-col items-center justify-center animate-fade-in-up';
-        
-        loadingCard.innerHTML = `
-            <div class="absolute inset-0 bg-gradient-to-tr from-[#3B82F6]/5 to-[#FFB000]/5 animate-pulse"></div>
-            <div class="z-10 flex flex-col items-center gap-2 md:gap-3">
-                <div class="w-6 h-6 md:w-8 md:h-8 border-4 border-[#FFB000]/30 border-t-[#FFB000] rounded-full animate-spin"></div>
-                <span class="text-[10px] md:text-xs font-bold text-[#FFB000] animate-pulse">Generando...</span>
-            </div>
-            <div class="absolute bottom-2 md:bottom-4 left-2 right-2 md:left-4 md:right-4 text-[8px] md:text-[10px] text-center text-white/40 line-clamp-2 px-1 md:px-2 leading-tight">${promptText || 'Edición...'}</div>
-        `;
-        
+        loadingCard.className = 'relative aspect-square rounded-xl md:rounded-2xl overflow-hidden bg-white/5 border border-white/10 flex flex-col items-center justify-center animate-pulse';
+        loadingCard.innerHTML = `<div class="w-8 h-8 border-4 border-[#FFB000]/30 border-t-[#FFB000] rounded-full animate-spin mb-2"></div><span class="text-[10px] font-bold text-[#FFB000]">Generando...</span>`;
         galleryGrid.prepend(loadingCard);
 
-        textarea.value = ''; 
-        textarea.style.height = 'auto'; 
+        textarea.value = ''; textarea.style.height = 'auto';
         
-        const originalText = generateBtn.innerHTML;
-        generateBtn.innerHTML = `Lanzado 🚀`;
-        setTimeout(() => { generateBtn.innerHTML = originalText; }, 1000);
-
         try {
             let res;
             const qualityLabel = document.getElementById('quality-btn-label')?.textContent;
-            
-            let finalPrompt = promptText;
-            if (selectedStyle && selectedStyle !== 'Ninguno') {
-                finalPrompt = promptText ? `${promptText}, estilo ${selectedStyle.toLowerCase()}` : `estilo ${selectedStyle.toLowerCase()}`;
-            }
-
-            if (imageMode && !finalPrompt) {
-                finalPrompt = "Edición de imagen";
-            }
-
-            let genParams = {};
+            let finalPrompt = promptText || (imageMode ? "Edición de imagen" : "");
+            if (selectedStyle && selectedStyle !== 'Ninguno') finalPrompt += `, estilo ${selectedStyle.toLowerCase()}`;
 
             if (imageMode) {
-                genParams = {
-                    model: selectedModel,
-                    images_list: uploadedImageUrls,
-                    image_url: uploadedImageUrls[0], 
-                    aspect_ratio: selectedAr,
-                    prompt: finalPrompt
-                };
-                
-                const qualityField = getCurrentQualityField(selectedModel);
-                if (qualityField && qualityLabel) genParams[qualityField] = qualityLabel;
+                const token = await auth.currentUser.getIdToken();
+                const genParams = { model: selectedModel, images_list: uploadedImageUrls, image_url: uploadedImageUrls[0], aspect_ratio: selectedAr, prompt: finalPrompt };
                 if (negativePrompt) genParams.negative_prompt = negativePrompt;
-                
-                try {
-                    const token = await auth.currentUser.getIdToken();
-                    const req = await fetch(`/api/v1/${selectedModel}`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}`
-                        },
-                        body: JSON.stringify(genParams)
-                    });
-                    
-                    if (!req.ok) throw new Error(`Error HTTP: ${req.status}`);
-                    res = await req.json();
 
-                    // --- VIGILANTE (POLLING AUTOMÁTICO) ---
-                    // Si el servidor nos devuelve el ticket de "processing" en lugar de la imagen
-                    if (res.request_id && !res.url) {
-                        let isFinished = false;
-                        let attempts = 0;
-                        
-                        while (!isFinished && attempts < 40) { // Espera máxima de 100 segundos
-                            await new Promise(r => setTimeout(r, 2500)); // Pregunta cada 2.5s
-                            
-                            // Probamos los dos endpoints más comunes para chequear estado
-                            const pollUrls = [
-                                `/api/v1/status/${res.request_id}`,
-                                `/api/v1/${selectedModel}/requests/${res.request_id}`
-                            ];
-                            
-                            for (const pollUrl of pollUrls) {
-                                try {
-                                    const pollReq = await fetch(pollUrl, { headers: { 'Authorization': `Bearer ${token}` } });
-                                    if (pollReq.ok) {
-                                        const pollRes = await pollReq.json();
-                                        if (pollRes.status === 'succeeded' || pollRes.status === 'completed' || pollRes.url) {
-                                            // Extraemos la URL terminada
-                                            res.url = pollRes.url || pollRes.image_url || pollRes.output?.url;
-                                            if (!res.url && pollRes.images && pollRes.images.length > 0) {
-                                                res.url = pollRes.images[0].url;
-                                            }
-                                            isFinished = true;
-                                            break; 
-                                        } else if (pollRes.status === 'failed') {
-                                            throw new Error("El modelo falló procesando internamente la imagen.");
-                                        }
-                                    }
-                                } catch(err) { 
-                                    // Si falla la consulta, ignoramos y seguimos intentando
-                                }
-                            }
-                            attempts++;
+                const req = await fetch(`/api/v1/${selectedModel}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify(genParams)
+                });
+                
+                res = await req.json();
+
+                // --- SISTEMA DE RASTREO (POLLING) REPARADO ---
+                if (res.request_id && !res.url) {
+                    let attempts = 0;
+                    while (attempts < 60) {
+                        await new Promise(r => setTimeout(r, 2000));
+                        // Buscamos el resultado en el endpoint de búsqueda/fetch de tu API
+                        const poll = await fetch(`/api/v1/fetch/${res.request_id}`, { headers: { 'Authorization': `Bearer ${token}` } });
+                        if (poll.ok) {
+                            const pollRes = await poll.json();
+                            // El servidor devuelve la URL en 'url', 'image_url' o dentro de un array 'images'
+                            const finalUrl = pollRes.url || pollRes.image_url || (pollRes.images && pollRes.images[0]?.url);
+                            if (finalUrl) { res.url = finalUrl; break; }
+                            if (pollRes.status === 'failed') throw new Error("Error interno.");
                         }
+                        attempts++;
                     }
-                } catch (apiError) {
-                    console.error("Fallo en la comunicación con el servidor:", apiError);
-                    throw apiError;
                 }
             } else {
-                genParams = {
-                    model: selectedModel,
-                    prompt: finalPrompt,
-                    aspect_ratio: selectedAr
-                };
-                
-                const qualityField = getCurrentQualityField(selectedModel);
-                if (qualityField && qualityLabel) genParams[qualityField] = qualityLabel;
-                if (negativePrompt) genParams.negative_prompt = negativePrompt;
-
-                res = await muapi.generateImage(genParams);
+                res = await muapi.generateImage({ model: selectedModel, prompt: finalPrompt, aspect_ratio: selectedAr, negative_prompt: negativePrompt });
             }
 
             if (res && res.url) {
-                const entryData = {
-                    url: res.url,
-                    prompt: finalPrompt,
-                    model: selectedModel,
-                    aspect_ratio: selectedAr,
-                    type: 'image'
-                };
-
-                let realId = tempId;
-                try {
-                    const genRef = collection(db, 'artifacts', APP_ID, 'public', 'data', 'users', auth.currentUser.uid, 'generations');
-                    const docRef = await addDoc(genRef, { ...entryData, createdAt: serverTimestamp() });
-                    realId = docRef.id;
-                } catch (e) {
-                    console.error("No se guardó en Firebase pero mostramos imagen", e);
-                }
-
+                const entry = { url: res.url, prompt: finalPrompt, model: selectedModel, aspect_ratio: selectedAr, createdAt: serverTimestamp() };
+                const docRef = await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'users', auth.currentUser.uid, 'generations'), entry);
                 loadingCard.remove();
-                renderCard({ id: realId, ...entryData }, true);
-
+                renderCard({ id: docRef.id, ...entry }, true);
             } else {
-                throw new Error('La API no devolvió ninguna URL.');
+                throw new Error("Tiempo de espera agotado.");
             }
         } catch (e) {
-            console.error("Fallo al generar:", e);
-            loadingCard.innerHTML = `
-                <div class="absolute inset-0 bg-red-500/10"></div>
-                <div class="z-10 flex flex-col items-center gap-1 md:gap-2 p-2 md:p-4 text-center">
-                    <span class="text-lg md:text-xl">⚠️</span>
-                    <span class="text-[8px] md:text-[10px] font-bold text-red-400">Fallo en generación</span>
-                    <button class="retry-btn mt-1 md:mt-2 bg-white/10 px-2 py-1 md:px-3 rounded-md md:rounded-lg text-[8px] md:text-xs text-white hover:bg-white/20 transition-all border border-white/10">Quitar</button>
-                </div>
-            `;
-            loadingCard.querySelector('.retry-btn').onclick = () => loadingCard.remove();
+            console.error(e);
+            loadingCard.innerHTML = `<span class="text-red-400 text-[8px] font-bold">FALLO</span><button class="text-[8px] underline" onclick="this.parentElement.remove()">Quitar</button>`;
         }
     };
 
