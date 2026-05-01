@@ -9,6 +9,11 @@ import { AuthModal } from './AuthModal.js';
 import { createUploadPicker } from './UploadPicker.js';
 import { savePendingJob, removePendingJob, getPendingJobs } from '../lib/pendingJobs.js';
 
+// --- NUEVAS IMPORTACIONES DE FIREBASE ---
+import { auth, db, APP_ID } from '../lib/firebase.js';
+import { collection, addDoc, query, orderBy, limit, getDocs, serverTimestamp } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
+
 function createInlineInstructions(type) {
     const el = document.createElement('div');
     el.className = 'w-full text-center text-white/30 text-sm flex flex-col items-center gap-2 py-2';
@@ -85,7 +90,7 @@ export function ImageStudio() {
     container.appendChild(hero);
 
     // ==========================================
-    // 2. PROMPT BAR (Tailwind Refactor)
+    // 2. PROMPT BAR 
     // ==========================================
     const promptWrapper = document.createElement('div');
     promptWrapper.className = 'w-full max-w-4xl relative z-40 animate-fade-in-up';
@@ -94,11 +99,9 @@ export function ImageStudio() {
     const bar = document.createElement('div');
     bar.className = 'w-full bg-[#111]/90 backdrop-blur-xl border border-white/10 rounded-[1.5rem] md:rounded-[2.5rem] p-3 md:p-5 flex flex-col gap-3 md:gap-5 shadow-3xl';
 
-    // Top Row: Input
     const topRow = document.createElement('div');
     topRow.className = 'flex items-start gap-5 px-2';
 
-    // --- Image Upload Picker (Image-to-Image) ---
     const picker = createUploadPicker({
         anchorContainer: container,
         onSelect: ({ url, urls }) => {
@@ -150,7 +153,6 @@ export function ImageStudio() {
     topRow.appendChild(textarea);
     bar.appendChild(topRow);
 
-    // Bottom Row: Controls
     const bottomRow = document.createElement('div');
     bottomRow.className = 'flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 px-2 pt-4 border-t border-white/5';
 
@@ -188,13 +190,11 @@ export function ImageStudio() {
     controlsLeft.appendChild(arBtn);
     controlsLeft.appendChild(qualityBtn);
     
-    // Advanced options toggle button
     const advancedBtn = createControlBtn(`
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="opacity-60 text-white/50"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 001.82-.33 1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-1.82.33A1.65 1.65 0 0019.4 9a1.65 1.65 0 00-1.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
     `, 'Avanzado', 'advanced-btn', 'Mostrar opciones avanzadas');
     controlsLeft.appendChild(advancedBtn);
     
-    // Quick Tools toggle button
     const toolsBtn = createControlBtn(`
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="opacity-60 text-white/50"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
     `, 'Herramientas', 'tools-btn', 'Inicios rápidos y mejorador de prompts');
@@ -401,24 +401,20 @@ export function ImageStudio() {
     `;
     container.appendChild(advancedPanel);
 
-    // Advanced panel toggle logic
     const toggleAdvanced = () => {
         showAdvanced = !showAdvanced;
         advancedPanel.classList.toggle('hidden', !showAdvanced);
         document.getElementById('advanced-btn-label').textContent = showAdvanced ? 'Menos' : 'Avanzado';
     };
     
-    // Set up event handlers after elements are in DOM
     advancedBtn.onclick = toggleAdvanced;
     const closeAdvBtn = advancedPanel.querySelector('#close-adv-btn');
     if (closeAdvBtn) closeAdvBtn.onclick = toggleAdvanced;
     
-    // Quick Tools Panel toggle
     const toggleTools = () => {
         showToolsPanel = !showToolsPanel;
         toolsPanel.classList.toggle('hidden', !showToolsPanel);
         if (showToolsPanel) {
-            // Close advanced panel when opening tools
             if (!showAdvanced) {
                 showAdvanced = true;
                 advancedPanel.classList.remove('hidden');
@@ -430,7 +426,6 @@ export function ImageStudio() {
     const closeToolsBtn = toolsPanel.querySelector('#close-tools-btn');
     if (closeToolsBtn) closeToolsBtn.onclick = toggleTools;
     
-    // Quick Starter buttons
     const quickStarterBtns = toolsPanel.querySelectorAll('.quick-starter-btn');
     quickStarterBtns.forEach(btn => {
         btn.onclick = () => {
@@ -444,7 +439,6 @@ export function ImageStudio() {
         };
     });
     
-    // Prompt Enhancer - selected tags state
     const enhanceSelectedTags = new Set();
     const basePromptInput = toolsPanel.querySelector('#base-prompt-input');
     const enhancedPromptDisplay = toolsPanel.querySelector('#enhanced-prompt-display');
@@ -835,9 +829,26 @@ export function ImageStudio() {
         };
     };
 
-    const addToHistory = (entry) => {
+    // MAGIA FIREBASE: Modificamos la función para que guarde en la nube
+    const addToHistory = async (entry) => {
+        // 1. Lo añadimos a la interfaz local al instante
         generationHistory.unshift(entry);
         localStorage.setItem('muapi_history', JSON.stringify(generationHistory.slice(0, 50)));
+
+        // 2. Si el usuario ha iniciado sesión, lo guardamos en su base de datos de Firebase
+        if (auth.currentUser) {
+            try {
+                const user = auth.currentUser;
+                const genRef = collection(db, 'artifacts', APP_ID, 'public', 'data', 'users', user.uid, 'generations');
+                await addDoc(genRef, {
+                    ...entry,
+                    type: 'image',
+                    createdAt: serverTimestamp()
+                });
+            } catch (error) {
+                console.error("Error guardando en Firebase:", error);
+            }
+        }
 
         historySidebar.classList.remove('translate-x-full', 'opacity-0');
         historySidebar.classList.add('translate-x-0', 'opacity-100');
@@ -895,15 +906,58 @@ export function ImageStudio() {
         }
     };
 
-    try {
-        const saved = JSON.parse(localStorage.getItem('muapi_history') || '[]');
-        if (saved.length > 0) {
-            saved.forEach(e => generationHistory.push(e));
-            historySidebar.classList.remove('translate-x-full', 'opacity-0');
-            historySidebar.classList.add('translate-x-0', 'opacity-100');
-            renderHistory();
+    // MAGIA FIREBASE: Cargar el historial desde la nube al entrar
+    const loadFirebaseHistory = async (user) => {
+        try {
+            const genRef = collection(db, 'artifacts', APP_ID, 'public', 'data', 'users', user.uid, 'generations');
+            // Pedimos las últimas 50 imágenes, de la más nueva a la más antigua
+            const q = query(genRef, orderBy('createdAt', 'desc'), limit(50));
+            const snap = await getDocs(q);
+
+            if (!snap.empty) {
+                generationHistory.length = 0; // Vaciamos la memoria local
+                snap.forEach(doc => {
+                    const data = doc.data();
+                    generationHistory.push({
+                        id: doc.id,
+                        url: data.url,
+                        prompt: data.prompt,
+                        model: data.model,
+                        aspect_ratio: data.aspect_ratio,
+                        timestamp: data.createdAt ? data.createdAt.toDate().toISOString() : new Date().toISOString()
+                    });
+                });
+                
+                if (generationHistory.length > 0) {
+                    historySidebar.classList.remove('translate-x-full', 'opacity-0');
+                    historySidebar.classList.add('translate-x-0', 'opacity-100');
+                    renderHistory();
+                }
+            }
+        } catch (error) {
+            console.error("Error cargando historial de Firebase:", error);
         }
-    } catch (e) { /* ignore */ }
+    };
+
+    // Escuchar si el usuario ha iniciado sesión
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            // Si está conectado, cargamos sus imágenes desde Firebase
+            loadFirebaseHistory(user);
+        } else {
+            // Si no está conectado, probamos a cargar si hizo alguna de prueba en LocalStorage
+            try {
+                const saved = JSON.parse(localStorage.getItem('muapi_history') || '[]');
+                if (saved.length > 0) {
+                    generationHistory.length = 0;
+                    saved.forEach(e => generationHistory.push(e));
+                    historySidebar.classList.remove('translate-x-full', 'opacity-0');
+                    historySidebar.classList.add('translate-x-0', 'opacity-100');
+                    renderHistory();
+                }
+            } catch (e) { /* ignore */ }
+        }
+    });
 
     (async () => {
         const pending = getPendingJobs('image');
@@ -925,6 +979,7 @@ export function ImageStudio() {
                 const result = await muapi.pollForResult(job.requestId, apiKey, attemptsLeft, job.interval);
                 const url = result.outputs?.[0] || result.url || result.output?.url;
                 if (url) {
+                    // Usamos la nueva función conectada a Firebase
                     addToHistory({ id: job.requestId, url, ...job.historyMeta, timestamp: new Date().toISOString() });
                 }
             } catch (e) {
@@ -1042,6 +1097,8 @@ export function ImageStudio() {
 
             if (res && res.url) {
                 if (capturedRequestId) removePendingJob(capturedRequestId);
+                
+                // Usamos la nueva función conectada a Firebase
                 addToHistory({
                     id: res.id || capturedRequestId || Date.now().toString(),
                     url: res.url,
