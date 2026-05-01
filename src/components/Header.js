@@ -1,10 +1,14 @@
 import { SettingsModal } from './SettingsModal.js';
+import { AuthModal } from './AuthModal.js';
+import { auth, db, APP_ID } from '../lib/firebase.js';
+import { onAuthStateChanged } from 'firebase/auth';
+import { doc, onSnapshot } from 'firebase/firestore';
 
 export function Header(navigate) {
     const header = document.createElement('header');
     header.className = 'w-full flex flex-col z-50 sticky top-0';
 
-    // 2. Main Navigation Bar
+    // Main Navigation Bar
     const navBar = document.createElement('div');
     navBar.className = 'w-full h-16 bg-[#030303] flex items-center justify-between px-4 md:px-6 border-b border-white/5 backdrop-blur-md bg-opacity-95';
 
@@ -32,11 +36,12 @@ export function Header(navigate) {
             <span class="ml-2 text-white/50 font-medium text-sm">Studio</span>
         </div>
     `;
+    logoContainer.onclick = () => navigate('image');
 
     const menu = document.createElement('nav');
     menu.className = 'hidden lg:flex items-center gap-6 text-[13px] font-bold text-white/50';
     
-    // Rutas y traducciones (Academia de IA añadida aquí)
+    // Menú de navegación
     const items = [
         { id: 'image', label: 'Estudio de Imagen' },
         { id: 'video', label: 'Estudio de Vídeo' },
@@ -58,20 +63,17 @@ export function Header(navigate) {
         }
 
         link.onclick = () => {
-            // Eliminar estado activo de todas las pestañas
             Array.from(menu.children).forEach(child => {
                 child.classList.remove('text-[#FFB000]');
                 const oldDot = child.querySelector('.active-dot');
                 if(oldDot) oldDot.remove();
             });
             
-            // Añadir estado activo a la seleccionada
             link.classList.add('text-[#FFB000]');
             const dot = document.createElement('div');
             dot.className = 'absolute -bottom-1.5 left-0 right-0 h-[2px] bg-[#FFB000] rounded-full shadow-[0_0_8px_rgba(255,176,0,0.6)] active-dot';
             link.appendChild(dot);
 
-            // Enviar la ruta exacta al router (main.js)
             navigate(item.id);
         };
 
@@ -81,22 +83,90 @@ export function Header(navigate) {
     leftPart.appendChild(logoContainer);
     leftPart.appendChild(menu);
 
+    // ==========================================
+    // PARTE DERECHA: USUARIO, CRÉDITOS Y LOGIN
+    // ==========================================
     const rightPart = document.createElement('div');
-    rightPart.className = 'flex items-center gap-4';
+    rightPart.className = 'flex items-center gap-3 md:gap-4';
 
-    const keyBtn = document.createElement('button');
-    keyBtn.className = 'p-2 text-white/50 hover:text-[#FFB000] transition-colors';
-    keyBtn.title = 'Ajustes Muapi';
-    keyBtn.innerHTML = `
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3m-3-3l-2.25-2.25"/>
-        </svg>
-    `;
-    keyBtn.onclick = () => {
-        document.body.appendChild(SettingsModal());
+    let unsubscribeSnapshot = null;
+
+    // Función para repintar la parte derecha según si hay usuario o no
+    const updateRightUI = (user, credits = '...') => {
+        rightPart.innerHTML = '';
+
+        if (!user) {
+            // --- ESTADO: NO LOGUEADO ---
+            const loginBtn = document.createElement('button');
+            loginBtn.className = 'px-5 py-2 bg-gradient-to-r from-[#3B82F6] to-[#FFB000] text-black font-black text-xs md:text-sm uppercase rounded-xl hover:scale-105 active:scale-95 transition-all shadow-[0_0_15px_rgba(255,176,0,0.3)] flex items-center gap-2';
+            loginBtn.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg>
+                Iniciar Sesión
+            `;
+            loginBtn.onclick = () => {
+                document.body.appendChild(AuthModal());
+            };
+            rightPart.appendChild(loginBtn);
+
+        } else {
+            // --- ESTADO: LOGUEADO ---
+            
+            // 1. Mostrar Créditos
+            const creditsBadge = document.createElement('div');
+            creditsBadge.className = 'flex items-center gap-1.5 bg-white/5 border border-white/10 px-3 py-1.5 rounded-xl cursor-pointer hover:bg-white/10 transition-colors shadow-inner';
+            creditsBadge.title = 'Ir a recargar créditos';
+            // Al hacer clic, por ahora mostramos un alert, luego lo conectarás a tu pasarela de Stripe
+            creditsBadge.onclick = () => alert('Próximamente: Redirección a la tabla de precios para recargar créditos.');
+            creditsBadge.innerHTML = `
+                <span class="text-sm">🪙</span>
+                <span class="text-white font-bold text-xs md:text-sm font-mono tracking-tight">${credits}</span>
+            `;
+
+            // 2. Botón de Usuario (Ajustes)
+            const userBtn = document.createElement('button');
+            userBtn.className = 'w-9 h-9 rounded-xl bg-gradient-to-tr from-[#3B82F6] to-[#FFB000] flex items-center justify-center text-black font-black text-sm uppercase shadow-[0_0_10px_rgba(255,176,0,0.4)] hover:scale-105 transition-transform border border-white/20';
+            // Sacamos la primera letra del email para el icono
+            const initial = user.email ? user.email.charAt(0) : 'U';
+            userBtn.textContent = initial;
+            userBtn.onclick = () => {
+                document.body.appendChild(SettingsModal());
+            };
+
+            rightPart.appendChild(creditsBadge);
+            rightPart.appendChild(userBtn);
+        }
     };
 
-    rightPart.appendChild(keyBtn);
+    // Estado inicial (cargando)
+    updateRightUI(null);
+
+    // ==========================================
+    // ESCUCHADOR DE FIREBASE (MAGIA EN TIEMPO REAL)
+    // ==========================================
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            // Usuario conectado: Renderizamos la UI base mientras llegan los datos
+            updateRightUI(user, '...');
+            
+            // Nos conectamos al documento del usuario para escuchar sus créditos en vivo
+            const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', user.uid);
+            unsubscribeSnapshot = onSnapshot(userRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    const currentCredits = data.credits !== undefined ? data.credits : 0;
+                    // Actualizamos la interfaz con los créditos exactos
+                    updateRightUI(user, currentCredits);
+                }
+            });
+        } else {
+            // Usuario desconectado: matamos el listener si existía y mostramos botón de login
+            if (unsubscribeSnapshot) {
+                unsubscribeSnapshot();
+                unsubscribeSnapshot = null;
+            }
+            updateRightUI(null);
+        }
+    });
 
     navBar.appendChild(leftPart);
     navBar.appendChild(rightPart);
