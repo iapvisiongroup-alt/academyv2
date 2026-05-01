@@ -23,10 +23,9 @@ function createInlineInstructions(type) {
     return el;
 }
 
-// FILTRO ESTRICTO Y MARCA BLANCA: Respeta la lista completa de modelos pero les cambia el nombre
+// FILTRO ESTRICTO Y MARCA BLANCA: Respeta la lista de modelos pero les cambia el nombre
 const filterAndRenameModels = (modelsList, isI2I) => {
     if (isI2I) {
-        // En modo Edición (Imagen a Imagen), permitimos los 4 modelos y los renombramos
         const allowedIds = ['nano-banana-edit', 'nano-banana-effects', 'nano-banana-pro-edit', 'nano-banana-2-edit'];
         return modelsList
             .filter(m => allowedIds.includes(m.id))
@@ -39,7 +38,6 @@ const filterAndRenameModels = (modelsList, isI2I) => {
                 return { ...m, name: newName };
             });
     } else {
-        // En modo Creación (Texto a Imagen)
         const allowedIds = ['nano-banana', 'nano-banana-pro', 'nano-banana-2'];
         return modelsList
             .filter(m => allowedIds.includes(m.id))
@@ -471,7 +469,6 @@ export function ImageStudio() {
                     </button>
                 </div>
             </div>
-            <!-- Botón de descarga siempre visible en móvil para usabilidad -->
             <button class="download-btn-mobile md:hidden absolute bottom-2 right-2 p-1.5 bg-black/50 text-white rounded-lg backdrop-blur-md border border-white/10">
                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
             </button>
@@ -599,9 +596,8 @@ export function ImageStudio() {
                 finalPrompt = promptText ? `${promptText}, estilo ${selectedStyle.toLowerCase()}` : `estilo ${selectedStyle.toLowerCase()}`;
             }
 
-            // Fallback de seguridad: la API exige un texto
             if (imageMode && !finalPrompt) {
-                finalPrompt = "Edición de imagen de alta calidad";
+                finalPrompt = "Edición de imagen";
             }
 
             let genParams = {};
@@ -619,8 +615,6 @@ export function ImageStudio() {
                 if (qualityField && qualityLabel) genParams[qualityField] = qualityLabel;
                 if (negativePrompt) genParams.negative_prompt = negativePrompt;
                 
-                // --- SOLUCIÓN AL BUG DE MUAPI.JS ---
-                // Hacemos la petición directa al proxy del backend para que no se pierda el 'images_list'
                 try {
                     const token = await auth.currentUser.getIdToken();
                     const req = await fetch(`/api/v1/${selectedModel}`, {
@@ -632,15 +626,51 @@ export function ImageStudio() {
                         body: JSON.stringify(genParams)
                     });
                     
-                    if (!req.ok) {
-                        const err = await req.text();
-                        console.error("Detalle del error del servidor:", err);
-                        throw new Error(`Error HTTP: ${req.status}`);
-                    }
+                    if (!req.ok) throw new Error(`Error HTTP: ${req.status}`);
                     res = await req.json();
+
+                    // --- VIGILANTE (POLLING AUTOMÁTICO) ---
+                    // Si el servidor nos devuelve el ticket de "processing" en lugar de la imagen
+                    if (res.request_id && !res.url) {
+                        let isFinished = false;
+                        let attempts = 0;
+                        
+                        while (!isFinished && attempts < 40) { // Espera máxima de 100 segundos
+                            await new Promise(r => setTimeout(r, 2500)); // Pregunta cada 2.5s
+                            
+                            // Probamos los dos endpoints más comunes para chequear estado
+                            const pollUrls = [
+                                `/api/v1/status/${res.request_id}`,
+                                `/api/v1/${selectedModel}/requests/${res.request_id}`
+                            ];
+                            
+                            for (const pollUrl of pollUrls) {
+                                try {
+                                    const pollReq = await fetch(pollUrl, { headers: { 'Authorization': `Bearer ${token}` } });
+                                    if (pollReq.ok) {
+                                        const pollRes = await pollReq.json();
+                                        if (pollRes.status === 'succeeded' || pollRes.status === 'completed' || pollRes.url) {
+                                            // Extraemos la URL terminada
+                                            res.url = pollRes.url || pollRes.image_url || pollRes.output?.url;
+                                            if (!res.url && pollRes.images && pollRes.images.length > 0) {
+                                                res.url = pollRes.images[0].url;
+                                            }
+                                            isFinished = true;
+                                            break; 
+                                        } else if (pollRes.status === 'failed') {
+                                            throw new Error("El modelo falló procesando internamente la imagen.");
+                                        }
+                                    }
+                                } catch(err) { 
+                                    // Si falla la consulta, ignoramos y seguimos intentando
+                                }
+                            }
+                            attempts++;
+                        }
+                    }
                 } catch (apiError) {
-                    console.error("Fallo en fetch directo, intentando fallback:", apiError);
-                    res = await muapi.generateImage(genParams);
+                    console.error("Fallo en la comunicación con el servidor:", apiError);
+                    throw apiError;
                 }
             } else {
                 genParams = {
@@ -686,7 +716,7 @@ export function ImageStudio() {
                 <div class="absolute inset-0 bg-red-500/10"></div>
                 <div class="z-10 flex flex-col items-center gap-1 md:gap-2 p-2 md:p-4 text-center">
                     <span class="text-lg md:text-xl">⚠️</span>
-                    <span class="text-[8px] md:text-[10px] font-bold text-red-400">Fallo de red o servidor</span>
+                    <span class="text-[8px] md:text-[10px] font-bold text-red-400">Fallo en generación</span>
                     <button class="retry-btn mt-1 md:mt-2 bg-white/10 px-2 py-1 md:px-3 rounded-md md:rounded-lg text-[8px] md:text-xs text-white hover:bg-white/20 transition-all border border-white/10">Quitar</button>
                 </div>
             `;
