@@ -4,12 +4,10 @@ import { AuthModal } from './AuthModal.js';
 import { createUploadPicker } from './UploadPicker.js';
 import { savePendingJob, removePendingJob, getPendingJobs } from '../lib/pendingJobs.js';
 
-// Importamos Firebase para el cobro de créditos
 import { auth, db, APP_ID } from '../lib/firebase.js';
 import { collection, addDoc, query, orderBy, limit, getDocs, serverTimestamp, doc, getDoc, updateDoc, increment } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 
-// --- SISTEMA DE PRECIOS PARA VÍDEO (Coste por SEGUNDO * 2) ---
 const MUAPI_COST_PER_SECOND = {
     'seedance': 2.0,  
     'veo': 2.5,       
@@ -27,13 +25,12 @@ const calculateVideoCost = (modelId, durationStr) => {
     else if (id.includes('kling')) costPerSecond = MUAPI_COST_PER_SECOND['kling'];
 
     let muapiCostCents = costPerSecond * durationInSeconds;
-    return Math.ceil(muapiCostCents * 2); // Beneficio x2
+    return Math.ceil(muapiCostCents * 2);
 };
 
-// --- FILTRO ESTRICTO: Solo permite los 4 modelos indicados y oculta el resto ---
 const filterAndRenameVideoModels = (modelsList) => {
     const result = [];
-    const addedNames = new Set(); // Para evitar duplicados
+    const addedNames = new Set();
 
     modelsList.forEach(m => {
         const id = m.id.toLowerCase();
@@ -41,28 +38,20 @@ const filterAndRenameVideoModels = (modelsList) => {
         let newName = null;
         let order = 99;
 
-        // 1. KreateVideo 2 (Seedance 2, sin extend)
         if (id.includes('seedance') && !id.includes('extend')) {
             newName = 'KreateVideo 2';
             order = 1;
-        } 
-        // 2. KreateVideo 2 Extend (Seedance 2 extend)
-        else if (id.includes('seedance') && id.includes('extend')) {
+        } else if (id.includes('seedance') && id.includes('extend')) {
             newName = 'KreateVideo 2 Extend';
             order = 2;
-        } 
-        // 3. KreateVideo Fast (Veo 3.1 fast)
-        else if (id.includes('veo') && id.includes('fast')) {
+        } else if (id.includes('veo') && id.includes('fast')) {
             newName = 'KreateVideo Fast';
             order = 3;
-        } 
-        // 4. KreateMotion Control (Kling 3.0 Std)
-        else if (id.includes('kling') && (id.includes('std') || id.includes('motion') || id.includes('mc'))) {
+        } else if (id.includes('kling') && (id.includes('std') || id.includes('motion') || id.includes('mc'))) {
             newName = 'KreateMotion Control';
             order = 4;
         }
 
-        // Si es uno de nuestros 4 elegidos y no lo hemos añadido ya a la lista
         if (newName && !addedNames.has(newName)) {
             addedNames.add(newName);
             result.push({ ...m, name: newName, __order: order });
@@ -76,13 +65,11 @@ export function VideoStudio() {
     const container = document.createElement('div');
     container.className = 'w-full h-full flex flex-col items-center justify-center bg-[#050505] relative p-4 md:p-6 overflow-y-auto custom-scrollbar overflow-x-hidden';
 
-    // Función segura antibloqueos para actualizar textos en la UI
     const updateLabel = (id, text) => {
         const el = container.querySelector('#' + id);
         if (el) el.textContent = text;
     };
 
-    // Aplicamos el filtro estricto a las 3 categorías (T2V, I2V, V2V)
     const activeT2vModels = filterAndRenameVideoModels(t2vModels);
     const activeI2vModels = filterAndRenameVideoModels(i2vModels);
     const activeV2vModels = filterAndRenameVideoModels(v2vModels);
@@ -158,11 +145,8 @@ export function VideoStudio() {
     const topRow = document.createElement('div');
     topRow.className = 'flex items-start gap-5 px-2';
 
-    // Función principal para mantener la UI sincronizada y mostrar precios
     const updateControlsForModel = (modelId) => {
         const model = getCurrentModels().find(m => m.id === modelId);
-        
-        // Evitamos errores si por casualidad el modelo no existe en la categoría
         if (!model) return; 
 
         if (v2vMode) {
@@ -230,7 +214,6 @@ export function VideoStudio() {
         generateBtn.innerHTML = `Generar ✨ <span class="bg-black/20 px-2 py-0.5 rounded-md text-[10px] md:text-xs font-mono ml-1 shadow-inner border border-black/10">${cost} 🪙</span>`;
     };
 
-    // --- Image Upload Picker ---
     const picker = createUploadPicker({
         anchorContainer: container,
         onSelect: ({ url }) => {
@@ -242,7 +225,6 @@ export function VideoStudio() {
             }
             if (!imageMode) {
                 imageMode = true;
-                // Al subir imagen, seleccionamos el primer modelo válido I2V
                 if (activeI2vModels.length > 0) {
                     selectedModel = activeI2vModels[0].id;
                     selectedModelName = activeI2vModels[0].name;
@@ -256,7 +238,6 @@ export function VideoStudio() {
         onClear: () => {
             uploadedImageUrl = null;
             imageMode = false;
-            // Al limpiar, volvemos al T2V
             if (activeT2vModels.length > 0) {
                 selectedModel = activeT2vModels[0].id;
                 selectedModelName = activeT2vModels[0].name;
@@ -270,7 +251,6 @@ export function VideoStudio() {
     topRow.appendChild(picker.trigger);
     container.appendChild(picker.panel);
 
-    // --- Video Upload Picker ---
     const videoFileInput = document.createElement('input');
     videoFileInput.type = 'file';
     videoFileInput.accept = 'video/*';
@@ -361,7 +341,6 @@ export function VideoStudio() {
             }
             v2vMode = true;
             
-            // Asignamos a la herramienta V2V si la hay
             if (activeV2vModels.length > 0) {
                 selectedModel = activeV2vModels[0].id;
                 selectedModelName = activeV2vModels[0].name;
@@ -448,6 +427,12 @@ export function VideoStudio() {
             dropdown.classList.remove('max-w-[240px]', 'max-w-[200px]');
             dropdown.innerHTML = `
                 <div class="flex flex-col h-full max-h-[70vh]">
+                    <div class="px-2 pb-3 mb-2 border-b border-white/5 shrink-0">
+                        <div class="flex items-center gap-3 bg-white/5 rounded-xl px-4 py-2.5 border border-white/5 focus-within:border-[#FFB000]/50 transition-colors">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="text-white/30"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                            <input type="text" id="v-model-search" placeholder="Buscar modelos..." class="bg-transparent border-none text-xs text-white focus:ring-0 w-full p-0 outline-none">
+                        </div>
+                    </div>
                     <div class="text-[10px] font-bold text-white/50 uppercase tracking-widest px-3 py-2 shrink-0">Modelos de Vídeo KreateIA</div>
                     <div id="v-model-list-container" class="flex flex-col gap-1.5 overflow-y-auto custom-scrollbar pr-1 pb-2"></div>
                 </div>
@@ -490,16 +475,28 @@ export function VideoStudio() {
                 return item;
             };
 
-            const generationModels = imageMode ? activeI2vModels : activeT2vModels;
-            generationModels.forEach(m => list.appendChild(makeModelItem(m, false)));
+            const renderModels = (filter = '') => {
+                list.innerHTML = '';
+                const lf = filter.toLowerCase();
+                const generationModels = imageMode ? activeI2vModels : activeT2vModels;
+                const filteredMain = generationModels.filter(m => m.name.toLowerCase().includes(lf) || m.id.toLowerCase().includes(lf));
+                filteredMain.forEach(m => list.appendChild(makeModelItem(m, false)));
 
-            if (activeV2vModels.length > 0) {
-                const sectionLabel = document.createElement('div');
-                sectionLabel.className = 'text-[10px] font-bold text-white/50 uppercase tracking-widest px-3 py-2 mt-1 border-t border-white/5';
-                sectionLabel.textContent = 'Efectos sobre Vídeo';
-                list.appendChild(sectionLabel);
-                activeV2vModels.forEach(m => list.appendChild(makeModelItem(m, true)));
-            }
+                const filteredV2V = activeV2vModels.filter(m => m.name.toLowerCase().includes(lf) || m.id.toLowerCase().includes(lf));
+                if (filteredV2V.length > 0) {
+                    const sectionLabel = document.createElement('div');
+                    sectionLabel.className = 'text-[10px] font-bold text-white/50 uppercase tracking-widest px-3 py-2 mt-1 border-t border-white/5';
+                    sectionLabel.textContent = 'Efectos sobre Vídeo';
+                    list.appendChild(sectionLabel);
+                    filteredV2V.forEach(m => list.appendChild(makeModelItem(m, true)));
+                }
+            };
+
+            renderModels();
+            const searchInput = dropdown.querySelector('#v-model-search');
+            searchInput.onclick = (e) => e.stopPropagation();
+            searchInput.oninput = (e) => renderModels(e.target.value);
+
         } else if (type === 'ar') {
             dropdown.classList.add('max-w-[240px]');
             dropdown.innerHTML = `<div class="text-[10px] font-bold text-white/50 uppercase tracking-widest px-3 py-2 border-b border-white/5 mb-2">Relación de Aspecto</div>`;
@@ -738,7 +735,7 @@ export function VideoStudio() {
     };
 
     // ==========================================
-    // 6. GENERATION LOGIC + FACTURACIÓN
+    // 6. GENERATION LOGIC + FETCH DIRECTO (Bypass)
     // ==========================================
     generateBtn.onclick = async () => {
         const prompt = textarea.value.trim();
@@ -768,30 +765,59 @@ export function VideoStudio() {
         generateBtn.innerHTML = `<span class="animate-spin inline-block mr-2 text-black">◌</span> Procesando...`;
 
         let capturedRequestId = null;
-        const onRequestId = (rid) => { capturedRequestId = rid; };
 
         try {
             let res;
+            const token = await auth.currentUser.getIdToken();
             
-            try {
+            // --- EL PUENTE DIRECTO (Bypass a muapi.js para I2V y V2V) ---
+            if (v2vMode || imageMode) {
+                const params = { 
+                    model: selectedModel, 
+                    prompt: prompt || ''
+                };
+                
                 if (v2vMode) {
-                    res = await muapi.processV2V({ model: selectedModel, video_url: uploadedVideoUrl, onRequestId });
-                } else if (imageMode) {
-                    const params = { model: selectedModel, image_url: uploadedImageUrl, prompt: prompt || '', aspect_ratio: selectedAr, onRequestId };
-                    const durs = getCurrentDurations(selectedModel); if (durs.length > 0) params.duration = selectedDuration;
-                    res = await muapi.generateI2V(params);
+                    params.video_url = uploadedVideoUrl;
                 } else {
-                    const params = { model: selectedModel, prompt, aspect_ratio: selectedAr, onRequestId };
-                    const durs = getCurrentDurations(selectedModel); if (durs.length > 0) params.duration = selectedDuration;
-                    res = await muapi.generateVideo(params);
+                    params.image_url = uploadedImageUrl;
+                    params.aspect_ratio = selectedAr;
+                    const durs = getCurrentDurations(selectedModel); 
+                    if (durs.length > 0) params.duration = selectedDuration;
                 }
-            } catch (muapiErr) {
-                if (capturedRequestId && (muapiErr.message.includes('Tiempo de espera') || muapiErr.message.includes('timeout'))) {
-                    const token = await auth.currentUser.getIdToken();
+
+                // Llamada directa al proxy del backend
+                const req = await fetch(`/api/v1/${selectedModel}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify(params)
+                });
+                
+                if (!req.ok) throw new Error(`Error del servidor: ${req.status}`);
+                res = await req.json();
+
+                // Si el servidor devuelve un ID de proceso en lugar de la URL final, lanzamos el rastreador manual
+                if (res.request_id && !res.url) {
+                    capturedRequestId = res.request_id;
                     generateBtn.innerHTML = `<span class="animate-spin inline-block mr-2 text-black">◌</span> Renderizando vídeo...`;
                     res = await manualPolling(capturedRequestId, token);
-                } else {
-                    throw muapiErr;
+                }
+
+            } else {
+                // Generación T2V estándar
+                const onRequestId = (rid) => { capturedRequestId = rid; };
+                const params = { model: selectedModel, prompt, aspect_ratio: selectedAr, onRequestId };
+                const durs = getCurrentDurations(selectedModel); if (durs.length > 0) params.duration = selectedDuration;
+                
+                try {
+                    res = await muapi.generateVideo(params);
+                } catch (muapiErr) {
+                    if (capturedRequestId && (muapiErr.message.includes('Tiempo de espera') || muapiErr.message.includes('timeout'))) {
+                        generateBtn.innerHTML = `<span class="animate-spin inline-block mr-2 text-black">◌</span> Finalizando render...`;
+                        res = await manualPolling(capturedRequestId, token);
+                    } else {
+                        throw muapiErr;
+                    }
                 }
             }
 
@@ -814,7 +840,6 @@ export function VideoStudio() {
         }
     };
 
-    // Inicialización segura de botones y precios al cargar la página
     updateControlsForModel(selectedModel);
 
     return container;
