@@ -10,12 +10,11 @@ import { collection, addDoc, query, orderBy, limit, getDocs, serverTimestamp, do
 import { onAuthStateChanged } from 'firebase/auth';
 
 // --- SISTEMA DE PRECIOS PARA VÍDEO (Coste por SEGUNDO * 2) ---
-// Configura aquí cuánto te cobra Muapi por segundo (en céntimos de dólar).
 const MUAPI_COST_PER_SECOND = {
-    'seedance': 2.0,  // Ej: Seedance te cuesta 2 céntimos por segundo
-    'veo': 2.5,       // Ej: Veo Fast te cuesta 2.5 céntimos por segundo
-    'kling': 3.0,     // Ej: Kling Motion te cuesta 3 céntimos por segundo
-    'default': 2.0    // Coste para otros modelos
+    'seedance': 2.0,  
+    'veo': 2.5,       
+    'kling': 3.0,     
+    'default': 2.0    
 };
 
 const calculateVideoCost = (modelId, durationStr) => {
@@ -28,53 +27,69 @@ const calculateVideoCost = (modelId, durationStr) => {
     else if (id.includes('kling')) costPerSecond = MUAPI_COST_PER_SECOND['kling'];
 
     let muapiCostCents = costPerSecond * durationInSeconds;
-    const finalCostToUser = Math.ceil(muapiCostCents * 2);
-
-    return finalCostToUser;
+    return Math.ceil(muapiCostCents * 2); // Beneficio x2
 };
 
-// --- FILTRO INTELIGENTE ---
+// --- FILTRO ESTRICTO: Solo permite los 4 modelos indicados y oculta el resto ---
 const filterAndRenameVideoModels = (modelsList) => {
-    return modelsList.map(m => {
-        let newName = m.name;
-        let order = 99; 
-        let idLower = m.id.toLowerCase();
+    const result = [];
+    const addedNames = new Set(); // Para evitar duplicados
 
-        if (idLower.includes('seedance') && !idLower.includes('extend')) {
+    modelsList.forEach(m => {
+        const id = m.id.toLowerCase();
+        const name = m.name.toLowerCase();
+        let newName = null;
+        let order = 99;
+
+        // 1. KreateVideo 2 (Seedance 2, sin extend)
+        if (id.includes('seedance') && !id.includes('extend')) {
             newName = 'KreateVideo 2';
             order = 1;
-        } else if (idLower.includes('seedance') && idLower.includes('extend')) {
+        } 
+        // 2. KreateVideo 2 Extend (Seedance 2 extend)
+        else if (id.includes('seedance') && id.includes('extend')) {
             newName = 'KreateVideo 2 Extend';
             order = 2;
-        } else if (idLower.includes('veo') && idLower.includes('fast')) {
+        } 
+        // 3. KreateVideo Fast (Veo 3.1 fast)
+        else if (id.includes('veo') && id.includes('fast')) {
             newName = 'KreateVideo Fast';
             order = 3;
-        } else if (idLower.includes('kling') && (idLower.includes('motion') || idLower.includes('mc'))) {
+        } 
+        // 4. KreateMotion Control (Kling 3.0 Std)
+        else if (id.includes('kling') && (id.includes('std') || id.includes('motion') || id.includes('mc'))) {
             newName = 'KreateMotion Control';
             order = 4;
         }
 
-        return { ...m, name: newName, __order: order };
-    }).sort((a, b) => a.__order - b.__order);
+        // Si es uno de nuestros 4 elegidos y no lo hemos añadido ya a la lista
+        if (newName && !addedNames.has(newName)) {
+            addedNames.add(newName);
+            result.push({ ...m, name: newName, __order: order });
+        }
+    });
+
+    return result.sort((a, b) => a.__order - b.__order);
 };
 
 export function VideoStudio() {
     const container = document.createElement('div');
     container.className = 'w-full h-full flex flex-col items-center justify-center bg-[#050505] relative p-4 md:p-6 overflow-y-auto custom-scrollbar overflow-x-hidden';
 
-    // Función escuda antibloqueos para textos
+    // Función segura antibloqueos para actualizar textos en la UI
     const updateLabel = (id, text) => {
         const el = container.querySelector('#' + id);
         if (el) el.textContent = text;
     };
 
+    // Aplicamos el filtro estricto a las 3 categorías (T2V, I2V, V2V)
     const activeT2vModels = filterAndRenameVideoModels(t2vModels);
     const activeI2vModels = filterAndRenameVideoModels(i2vModels);
     const activeV2vModels = filterAndRenameVideoModels(v2vModels);
 
-    const defaultModel = activeT2vModels.length > 0 ? activeT2vModels[0] : t2vModels[0];
-    let selectedModel = defaultModel.id;
-    let selectedModelName = defaultModel.name;
+    const defaultModel = activeT2vModels.length > 0 ? activeT2vModels[0] : (t2vModels[0] || {});
+    let selectedModel = defaultModel.id || '';
+    let selectedModelName = defaultModel.name || '';
     let selectedAr = defaultModel.inputs?.aspect_ratio?.default || '16:9';
     let selectedDuration = defaultModel.inputs?.duration?.default || 5;
     let selectedResolution = defaultModel.inputs?.resolution?.default || '';
@@ -94,7 +109,7 @@ export function VideoStudio() {
     const getCurrentDurations = (id) => imageMode ? getDurationsForI2VModel(id) : getDurationsForModel(id);
     const getCurrentResolutions = (id) => imageMode ? getResolutionsForI2VModel(id) : getResolutionsForVideoModel(id);
     const getCurrentModes = (id) => getModesForModel(id);
-    const getCurrentModel = () => getCurrentModels().find(m => m.id === selectedModel);
+    const getCurrentModel = () => getCurrentModels().find(m => m.id === selectedModel) || {};
     const getQualitiesForModel = (id) => {
         const model = getCurrentModels().find(m => m.id === id);
         return model?.inputs?.quality?.enum || [];
@@ -143,7 +158,79 @@ export function VideoStudio() {
     const topRow = document.createElement('div');
     topRow.className = 'flex items-start gap-5 px-2';
 
-    // Image Picker
+    // Función principal para mantener la UI sincronizada y mostrar precios
+    const updateControlsForModel = (modelId) => {
+        const model = getCurrentModels().find(m => m.id === modelId);
+        
+        // Evitamos errores si por casualidad el modelo no existe en la categoría
+        if (!model) return; 
+
+        if (v2vMode) {
+            arBtn.style.display = 'none';
+            durationBtn.style.display = 'none';
+            resolutionBtn.style.display = 'none';
+            qualityBtn.style.display = 'none';
+            modeBtn.style.display = 'none';
+            effectNameBtn.style.display = 'none';
+            extendBanner.classList.add('hidden');
+            extendBanner.classList.remove('flex');
+        } else {
+            const availableArs = getCurrentAspectRatios(modelId);
+            if (availableArs.length > 0) {
+                if (!availableArs.includes(selectedAr)) selectedAr = availableArs[0];
+                updateLabel('v-ar-btn-label', selectedAr);
+                arBtn.style.display = 'flex';
+            } else arBtn.style.display = 'none';
+
+            const durations = getCurrentDurations(modelId);
+            if (durations.length > 0) {
+                if (!durations.includes(selectedDuration)) selectedDuration = durations[0];
+                updateLabel('v-duration-btn-label', `${selectedDuration}s`);
+                durationBtn.style.display = 'flex';
+            } else durationBtn.style.display = 'none';
+
+            const resolutions = getCurrentResolutions(modelId);
+            if (resolutions.length > 0) {
+                if (!resolutions.includes(selectedResolution)) selectedResolution = resolutions[0];
+                updateLabel('v-resolution-btn-label', selectedResolution);
+                resolutionBtn.style.display = 'flex';
+            } else resolutionBtn.style.display = 'none';
+
+            const qualities = getQualitiesForModel(modelId);
+            if (qualities.length > 0) {
+                if (!qualities.includes(selectedQuality)) selectedQuality = model?.inputs?.quality?.default || qualities[0];
+                updateLabel('v-quality-btn-label', selectedQuality);
+                qualityBtn.style.display = 'flex';
+            } else { selectedQuality = ''; qualityBtn.style.display = 'none'; }
+
+            const modes = getCurrentModes(modelId);
+            if (modes.length > 0) {
+                if (!modes.includes(selectedMode)) selectedMode = model?.inputs?.mode?.default || modes[0];
+                updateLabel('v-mode-btn-label', selectedMode);
+                modeBtn.style.display = 'flex';
+            } else { selectedMode = ''; modeBtn.style.display = 'none'; }
+
+            const effectNames = getEffectNamesForModel(modelId);
+            if (effectNames.length > 0) {
+                if (!effectNames.includes(selectedEffectName)) selectedEffectName = model?.inputs?.name?.default || effectNames[0];
+                updateLabel('v-effect-btn-label', selectedEffectName);
+                effectNameBtn.style.display = 'flex';
+            } else { selectedEffectName = ''; effectNameBtn.style.display = 'none'; }
+
+            if (model?.requiresRequestId || modelId.toLowerCase().includes('extend')) {
+                extendBanner.classList.remove('hidden');
+                extendBanner.classList.add('flex');
+            } else {
+                extendBanner.classList.add('hidden');
+                extendBanner.classList.remove('flex');
+            }
+        }
+
+        const cost = calculateVideoCost(selectedModel, selectedDuration);
+        generateBtn.innerHTML = `Generar ✨ <span class="bg-black/20 px-2 py-0.5 rounded-md text-[10px] md:text-xs font-mono ml-1 shadow-inner border border-black/10">${cost} 🪙</span>`;
+    };
+
+    // --- Image Upload Picker ---
     const picker = createUploadPicker({
         anchorContainer: container,
         onSelect: ({ url }) => {
@@ -155,10 +242,13 @@ export function VideoStudio() {
             }
             if (!imageMode) {
                 imageMode = true;
-                selectedModel = activeI2vModels[0]?.id || i2vModels[0].id;
-                selectedModelName = activeI2vModels[0]?.name || i2vModels[0].name;
-                updateLabel('v-model-btn-label', selectedModelName);
-                updateControlsForModel(selectedModel);
+                // Al subir imagen, seleccionamos el primer modelo válido I2V
+                if (activeI2vModels.length > 0) {
+                    selectedModel = activeI2vModels[0].id;
+                    selectedModelName = activeI2vModels[0].name;
+                    updateLabel('v-model-btn-label', selectedModelName);
+                    updateControlsForModel(selectedModel);
+                }
             }
             textarea.placeholder = 'Describe el movimiento o efecto (opcional)';
             textarea.disabled = false;
@@ -166,10 +256,13 @@ export function VideoStudio() {
         onClear: () => {
             uploadedImageUrl = null;
             imageMode = false;
-            selectedModel = activeT2vModels[0]?.id || t2vModels[0].id;
-            selectedModelName = activeT2vModels[0]?.name || t2vModels[0].name;
-            updateLabel('v-model-btn-label', selectedModelName);
-            updateControlsForModel(selectedModel);
+            // Al limpiar, volvemos al T2V
+            if (activeT2vModels.length > 0) {
+                selectedModel = activeT2vModels[0].id;
+                selectedModelName = activeT2vModels[0].name;
+                updateLabel('v-model-btn-label', selectedModelName);
+                updateControlsForModel(selectedModel);
+            }
             textarea.placeholder = 'Describe el vídeo que quieres crear';
             textarea.disabled = false;
         }
@@ -177,7 +270,7 @@ export function VideoStudio() {
     topRow.appendChild(picker.trigger);
     container.appendChild(picker.panel);
 
-    // Video Picker
+    // --- Video Upload Picker ---
     const videoFileInput = document.createElement('input');
     videoFileInput.type = 'file';
     videoFileInput.accept = 'video/*';
@@ -232,10 +325,12 @@ export function VideoStudio() {
         uploadedVideoUrl = null;
         v2vMode = false;
         showVideoIcon();
-        selectedModel = activeT2vModels[0]?.id || t2vModels[0].id;
-        selectedModelName = activeT2vModels[0]?.name || t2vModels[0].name;
-        updateLabel('v-model-btn-label', selectedModelName);
-        updateControlsForModel(selectedModel);
+        if (activeT2vModels.length > 0) {
+            selectedModel = activeT2vModels[0].id;
+            selectedModelName = activeT2vModels[0].name;
+            updateLabel('v-model-btn-label', selectedModelName);
+            updateControlsForModel(selectedModel);
+        }
         textarea.placeholder = 'Describe el vídeo que quieres crear';
         textarea.disabled = false;
     };
@@ -266,11 +361,13 @@ export function VideoStudio() {
             }
             v2vMode = true;
             
-            selectedModel = activeV2vModels[0]?.id || v2vModels[0]?.id || t2vModels[0].id;
-            selectedModelName = activeV2vModels[0]?.name || v2vModels[0]?.name || t2vModels[0].name;
-            
-            updateLabel('v-model-btn-label', selectedModelName);
-            updateControlsForModel(selectedModel);
+            // Asignamos a la herramienta V2V si la hay
+            if (activeV2vModels.length > 0) {
+                selectedModel = activeV2vModels[0].id;
+                selectedModelName = activeV2vModels[0].name;
+                updateLabel('v-model-btn-label', selectedModelName);
+                updateControlsForModel(selectedModel);
+            }
             textarea.placeholder = 'Vídeo listo — haz clic en Generar para aplicar';
             textarea.disabled = true;
         } catch (err) {
@@ -360,13 +457,10 @@ export function VideoStudio() {
             const makeModelItem = (m, isV2V = false) => {
                 const item = document.createElement('div');
                 item.className = `flex items-center justify-between p-3.5 hover:bg-white/5 rounded-2xl cursor-pointer transition-all border border-transparent hover:border-white/5 ${selectedModel === m.id ? 'bg-white/5 border-white/5' : ''}`;
-                const isKreate = m.name.includes('Kreate');
-                const iconColor = isKreate ? 'bg-[#FFB000]/10 text-[#FFB000]' : 'bg-white/10 text-white';
-                const initial = isKreate ? 'K' : m.name.charAt(0).toUpperCase();
-
+                
                 item.innerHTML = `
                     <div class="flex items-center gap-3.5">
-                         <div class="w-10 h-10 ${iconColor} border border-white/5 rounded-xl flex items-center justify-center font-black text-sm shadow-inner uppercase">${initial}</div>
+                         <div class="w-10 h-10 bg-[#FFB000]/10 text-[#FFB000] border border-white/5 rounded-xl flex items-center justify-center font-black text-sm shadow-inner uppercase">K</div>
                          <div class="flex flex-col gap-0.5">
                             <span class="text-xs font-bold text-white tracking-tight">${m.name}</span>
                             ${isV2V ? '<span class="text-[9px] text-white/50">Requiere vídeo de referencia</span>' : ''}
@@ -415,13 +509,7 @@ export function VideoStudio() {
                 const item = document.createElement('div');
                 item.className = 'flex items-center justify-between p-3.5 hover:bg-white/5 rounded-2xl cursor-pointer transition-all group';
                 item.innerHTML = `<div class="flex items-center gap-4"><div class="w-6 h-6 border-2 border-white/20 rounded-md shadow-inner flex items-center justify-center group-hover:border-[#FFB000]/50 transition-colors"><div class="w-3 h-3 bg-white/10 rounded-sm"></div></div><span class="text-xs font-bold text-white opacity-80 group-hover:opacity-100 transition-opacity">${r}</span></div>${selectedAr === r ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFB000" stroke-width="4"><polyline points="20 6 9 17 4 12"/></svg>' : ''}`;
-                item.onclick = (e) => { 
-                    e.stopPropagation(); 
-                    selectedAr = r; 
-                    updateLabel('v-ar-btn-label', r);
-                    updateControlsForModel(selectedModel); 
-                    closeDropdown(); 
-                };
+                item.onclick = (e) => { e.stopPropagation(); selectedAr = r; updateLabel('v-ar-btn-label', r); updateControlsForModel(selectedModel); closeDropdown(); };
                 list.appendChild(item);
             });
             dropdown.appendChild(list);
@@ -435,13 +523,7 @@ export function VideoStudio() {
                 const item = document.createElement('div');
                 item.className = 'flex items-center justify-between p-3.5 hover:bg-white/5 rounded-2xl cursor-pointer transition-all group';
                 item.innerHTML = `<span class="text-xs font-bold text-white opacity-80 group-hover:opacity-100">${d}s</span>${selectedDuration === d ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFB000" stroke-width="4"><polyline points="20 6 9 17 4 12"/></svg>' : ''}`;
-                item.onclick = (e) => { 
-                    e.stopPropagation(); 
-                    selectedDuration = d; 
-                    updateLabel('v-duration-btn-label', `${d}s`);
-                    updateControlsForModel(selectedModel); 
-                    closeDropdown(); 
-                };
+                item.onclick = (e) => { e.stopPropagation(); selectedDuration = d; updateLabel('v-duration-btn-label', `${d}s`); updateControlsForModel(selectedModel); closeDropdown(); };
                 list.appendChild(item);
             });
             dropdown.appendChild(list);
@@ -455,13 +537,7 @@ export function VideoStudio() {
                 const item = document.createElement('div');
                 item.className = 'flex items-center justify-between p-3.5 hover:bg-white/5 rounded-2xl cursor-pointer transition-all group';
                 item.innerHTML = `<span class="text-xs font-bold text-white opacity-80 group-hover:opacity-100 capitalize">${q}</span>${selectedQuality === q ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFB000" stroke-width="4"><polyline points="20 6 9 17 4 12"/></svg>' : ''}`;
-                item.onclick = (e) => { 
-                    e.stopPropagation(); 
-                    selectedQuality = q; 
-                    updateLabel('v-quality-btn-label', q);
-                    updateControlsForModel(selectedModel); 
-                    closeDropdown(); 
-                };
+                item.onclick = (e) => { e.stopPropagation(); selectedQuality = q; updateLabel('v-quality-btn-label', q); updateControlsForModel(selectedModel); closeDropdown(); };
                 list.appendChild(item);
             });
             dropdown.appendChild(list);
@@ -475,13 +551,7 @@ export function VideoStudio() {
                 const item = document.createElement('div');
                 item.className = 'flex items-center justify-between p-3.5 hover:bg-white/5 rounded-2xl cursor-pointer transition-all group';
                 item.innerHTML = `<span class="text-xs font-bold text-white opacity-80 group-hover:opacity-100">${r}</span>${selectedResolution === r ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFB000" stroke-width="4"><polyline points="20 6 9 17 4 12"/></svg>' : ''}`;
-                item.onclick = (e) => { 
-                    e.stopPropagation(); 
-                    selectedResolution = r; 
-                    updateLabel('v-resolution-btn-label', r);
-                    updateControlsForModel(selectedModel); 
-                    closeDropdown(); 
-                };
+                item.onclick = (e) => { e.stopPropagation(); selectedResolution = r; updateLabel('v-resolution-btn-label', r); updateControlsForModel(selectedModel); closeDropdown(); };
                 list.appendChild(item);
             });
             dropdown.appendChild(list);
@@ -495,13 +565,7 @@ export function VideoStudio() {
                 const item = document.createElement('div');
                 item.className = 'flex items-center justify-between p-3.5 hover:bg-white/5 rounded-2xl cursor-pointer transition-all group';
                 item.innerHTML = `<span class="text-xs font-bold text-white opacity-80 group-hover:opacity-100 capitalize">${m}</span>${selectedMode === m ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFB000" stroke-width="4"><polyline points="20 6 9 17 4 12"/></svg>' : ''}`;
-                item.onclick = (e) => { 
-                    e.stopPropagation(); 
-                    selectedMode = m; 
-                    updateLabel('v-mode-btn-label', m);
-                    updateControlsForModel(selectedModel); 
-                    closeDropdown(); 
-                };
+                item.onclick = (e) => { e.stopPropagation(); selectedMode = m; updateLabel('v-mode-btn-label', m); updateControlsForModel(selectedModel); closeDropdown(); };
                 list.appendChild(item);
             });
             dropdown.appendChild(list);
@@ -516,13 +580,7 @@ export function VideoStudio() {
                 const item = document.createElement('div');
                 item.className = 'flex items-center justify-between p-3 hover:bg-white/5 rounded-2xl cursor-pointer transition-all group';
                 item.innerHTML = `<span class="text-xs font-bold text-white opacity-80 group-hover:opacity-100">${e}</span>${selectedEffectName === e ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFB000" stroke-width="4"><polyline points="20 6 9 17 4 12"/></svg>' : ''}`;
-                item.onclick = (ev) => { 
-                    ev.stopPropagation(); 
-                    selectedEffectName = e; 
-                    updateLabel('v-effect-btn-label', e);
-                    updateControlsForModel(selectedModel); 
-                    closeDropdown(); 
-                };
+                item.onclick = (ev) => { ev.stopPropagation(); selectedEffectName = e; updateLabel('v-effect-btn-label', e); updateControlsForModel(selectedModel); closeDropdown(); };
                 list.appendChild(item);
             });
             dropdown.appendChild(list);
@@ -553,77 +611,8 @@ export function VideoStudio() {
     container.appendChild(dropdown);
 
     // ==========================================
-    // 4. FUNCIONES DE ACTUALIZACIÓN SEGURAS
+    // 4. CANVAS AREA + HISTORY
     // ==========================================
-    const updateControlsForModel = (modelId) => {
-        const model = getCurrentModels().find(m => m.id === modelId);
-
-        if (v2vMode) {
-            arBtn.style.display = 'none';
-            durationBtn.style.display = 'none';
-            resolutionBtn.style.display = 'none';
-            qualityBtn.style.display = 'none';
-            modeBtn.style.display = 'none';
-            effectNameBtn.style.display = 'none';
-            extendBanner.classList.add('hidden');
-            extendBanner.classList.remove('flex');
-        } else {
-            const availableArs = getCurrentAspectRatios(modelId);
-            if (availableArs.length > 0) {
-                if (!availableArs.includes(selectedAr)) selectedAr = availableArs[0];
-                updateLabel('v-ar-btn-label', selectedAr);
-                arBtn.style.display = 'flex';
-            } else arBtn.style.display = 'none';
-
-            const durations = getCurrentDurations(modelId);
-            if (durations.length > 0) {
-                if (!durations.includes(selectedDuration)) selectedDuration = durations[0];
-                updateLabel('v-duration-btn-label', `${selectedDuration}s`);
-                durationBtn.style.display = 'flex';
-            } else durationBtn.style.display = 'none';
-
-            const resolutions = getCurrentResolutions(modelId);
-            if (resolutions.length > 0) {
-                if (!resolutions.includes(selectedResolution)) selectedResolution = resolutions[0];
-                updateLabel('v-resolution-btn-label', selectedResolution);
-                resolutionBtn.style.display = 'flex';
-            } else resolutionBtn.style.display = 'none';
-
-            const qualities = getQualitiesForModel(modelId);
-            if (qualities.length > 0) {
-                if (!qualities.includes(selectedQuality)) selectedQuality = model?.inputs?.quality?.default || qualities[0];
-                updateLabel('v-quality-btn-label', selectedQuality);
-                qualityBtn.style.display = 'flex';
-            } else { selectedQuality = ''; qualityBtn.style.display = 'none'; }
-
-            const modes = getCurrentModes(modelId);
-            if (modes.length > 0) {
-                if (!modes.includes(selectedMode)) selectedMode = model?.inputs?.mode?.default || modes[0];
-                updateLabel('v-mode-btn-label', selectedMode);
-                modeBtn.style.display = 'flex';
-            } else { selectedMode = ''; modeBtn.style.display = 'none'; }
-
-            const effectNames = getEffectNamesForModel(modelId);
-            if (effectNames.length > 0) {
-                if (!effectNames.includes(selectedEffectName)) selectedEffectName = model?.inputs?.name?.default || effectNames[0];
-                updateLabel('v-effect-btn-label', selectedEffectName);
-                effectNameBtn.style.display = 'flex';
-            } else { selectedEffectName = ''; effectNameBtn.style.display = 'none'; }
-
-            if (model?.requiresRequestId || modelId.toLowerCase().includes('extend')) {
-                extendBanner.classList.remove('hidden');
-                extendBanner.classList.add('flex');
-            } else {
-                extendBanner.classList.add('hidden');
-                extendBanner.classList.remove('flex');
-            }
-        }
-
-        const cost = calculateVideoCost(selectedModel, selectedDuration);
-        generateBtn.innerHTML = `Generar ✨ <span class="bg-black/20 px-2 py-0.5 rounded-md text-[10px] md:text-xs font-mono ml-1 shadow-inner border border-black/10">${cost} 🪙</span>`;
-    };
-
-    // --- GALERÍA ---
     const generationHistory = [];
     const historySidebar = document.createElement('div');
     historySidebar.className = 'fixed right-0 top-0 h-full w-20 md:w-24 bg-black/60 backdrop-blur-xl border-l border-white/5 z-50 flex flex-col items-center py-4 gap-3 overflow-y-auto transition-all duration-500 translate-x-full opacity-0';
@@ -799,7 +788,7 @@ export function VideoStudio() {
             } catch (muapiErr) {
                 if (capturedRequestId && (muapiErr.message.includes('Tiempo de espera') || muapiErr.message.includes('timeout'))) {
                     const token = await auth.currentUser.getIdToken();
-                    generateBtn.innerHTML = `<span class="animate-spin inline-block mr-2 text-black">◌</span> Finalizando render...`;
+                    generateBtn.innerHTML = `<span class="animate-spin inline-block mr-2 text-black">◌</span> Renderizando vídeo...`;
                     res = await manualPolling(capturedRequestId, token);
                 } else {
                     throw muapiErr;
@@ -825,7 +814,7 @@ export function VideoStudio() {
         }
     };
 
-    // Inicializamos los botones visuales al final de todo para que no pete
+    // Inicialización segura de botones y precios al cargar la página
     updateControlsForModel(selectedModel);
 
     return container;
