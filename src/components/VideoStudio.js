@@ -21,38 +21,47 @@ const calculateVideoCost = (modelId, durationStr) => {
     const id = modelId.toLowerCase();
     
     let costPerSecond = MUAPI_COST_PER_SECOND.default;
+    // Reconocemos sd-2 o seedance como tarifa de Seedance
     if (id.includes('seedance') || id.includes('sd-2')) costPerSecond = MUAPI_COST_PER_SECOND['seedance'];
     else if (id.includes('veo')) costPerSecond = MUAPI_COST_PER_SECOND['veo'];
     else if (id.includes('kling')) costPerSecond = MUAPI_COST_PER_SECOND['kling'];
 
     let muapiCostCents = costPerSecond * durationInSeconds;
-    return Math.ceil(muapiCostCents * 2);
+    return Math.ceil(muapiCostCents * 2); // Beneficio x2
 };
 
-// --- FILTRO EXACTO (IDs precisos) ---
+// --- FILTRO ESTRICTO: Solo permite los 4 modelos indicados por ID EXACTO ---
 const filterAndRenameVideoModels = (modelsList) => {
     const result = [];
-    const addedNames = new Set(); 
+    const addedNames = new Set(); // Para evitar duplicados
 
     modelsList.forEach(m => {
         const id = m.id.toLowerCase();
         let newName = null;
         let order = 99;
 
-        if (id.includes('sd-2-text-to-video-fast') || id.includes('sd-2-i2v-480p') || id.includes('sd-2-omni-reference-no-video-fast')) {
+        // 1. KreateVideo 2 (CIRUJANO: Búsqueda estricta por cadena de texto EXACTA)
+        if (id === 'sd-2-text-to-video-fast' || id === 'sd-2-i2v-480p' || id === 'sd-2-omni-reference-no-video-fast') {
             newName = 'KreateVideo 2';
             order = 1;
-        } else if ((id.includes('seedance') || id.includes('sd-2')) && id.includes('extend')) {
+        } 
+        // 2. KreateVideo 2 Extend (id.includes para este)
+        else if ((id.includes('seedance') || id.includes('sd-2')) && id.includes('extend')) {
             newName = 'KreateVideo 2 Extend';
             order = 2;
-        } else if (id.includes('veo') && id.includes('fast')) {
+        } 
+        // 3. KreateVideo Fast (Veo 3.1 fast)
+        else if (id.includes('veo') && id.includes('fast')) {
             newName = 'KreateVideo Fast';
             order = 3;
-        } else if (id.includes('kling') && (id.includes('std') || id.includes('motion') || id.includes('mc'))) {
+        } 
+        // 4. KreateMotion Control (Kling 3.0 Std, Motion/MC)
+        else if (id.includes('kling') && (id.includes('std') || id.includes('motion') || id.includes('mc'))) {
             newName = 'KreateMotion Control';
             order = 4;
         }
 
+        // Si es uno de nuestros 4 elegidos y no lo hemos añadido ya a la lista
         if (newName && !addedNames.has(newName)) {
             addedNames.add(newName);
             result.push({ ...m, name: newName, __order: order });
@@ -66,11 +75,13 @@ export function VideoStudio() {
     const container = document.createElement('div');
     container.className = 'w-full h-full flex flex-col items-center bg-[#050505] relative p-2 md:p-6 pb-24 overflow-y-auto custom-scrollbar overflow-x-hidden';
 
+    // Función segura antibloqueos para actualizar textos en la UI
     const updateLabel = (id, text) => {
         const el = container.querySelector('#' + id);
         if (el) el.textContent = text;
     };
 
+    // Aplicamos el filtro estricto a las 3 categorías (T2V, I2V, V2V)
     const activeT2vModels = filterAndRenameVideoModels(t2vModels);
     const activeI2vModels = filterAndRenameVideoModels(i2vModels);
     const activeV2vModels = filterAndRenameVideoModels(v2vModels);
@@ -213,7 +224,6 @@ export function VideoStudio() {
         generateBtn.innerHTML = `Generar ✨ <span class="bg-black/20 px-2 py-0.5 rounded-md text-[10px] md:text-xs font-mono ml-1 shadow-inner border border-black/10">${cost} 🪙</span>`;
     };
 
-    // --- Image Picker ---
     const picker = createUploadPicker({
         anchorContainer: container,
         onSelect: ({ url }) => {
@@ -251,7 +261,6 @@ export function VideoStudio() {
     topRow.appendChild(picker.trigger);
     container.appendChild(picker.panel);
 
-    // --- Video Picker ---
     const videoFileInput = document.createElement('input');
     videoFileInput.type = 'file';
     videoFileInput.accept = 'video/*';
@@ -694,7 +703,7 @@ export function VideoStudio() {
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                         </button>
                         <button class="download-btn p-1.5 md:p-2 bg-white/20 hover:bg-[#FFB000] hover:text-black text-white rounded-lg md:rounded-xl backdrop-blur-md transition-all border border-white/20" title="Descargar">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2 2H5a2 2 0 01-2 2H5a2 2 0 01-2 2H5a2 2 0 01-2 2H5a2 2 0 01-2 2H5a2 2 0 01-2 2H5a2 2 0 01-2 2H5a2 2 0 01-2 2v-4M7 10l5 5 5-5M12 15V3"/></svg>
                         </button>
                     </div>
                 </div>
@@ -705,7 +714,7 @@ export function VideoStudio() {
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                  </button>
                  <button class="download-btn-mobile p-1.5 bg-black/50 text-white rounded-lg backdrop-blur-md border border-white/10">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2 2H5a2 2 0 01-2 2H5a2 2 0 01-2 2H5a2 2 0 01-2 2H5a2 2 0 01-2 2H5a2 2 0 01-2 2H5a2 2 0 01-2 2H5a2 2 0 01-2 2H5a2 2 0 01-2 2H5a2 2 0 01-2 2v-4M7 10l5 5 5-5M12 15V3"/></svg>
                  </button>
             </div>
         `;
