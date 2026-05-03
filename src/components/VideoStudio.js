@@ -21,52 +21,56 @@ const calculateVideoCost = (modelId, durationStr) => {
     const id = modelId.toLowerCase();
     
     let costPerSecond = MUAPI_COST_PER_SECOND.default;
-    // Reconocemos sd-2 o seedance como tarifa de Seedance
     if (id.includes('seedance') || id.includes('sd-2')) costPerSecond = MUAPI_COST_PER_SECOND['seedance'];
     else if (id.includes('veo')) costPerSecond = MUAPI_COST_PER_SECOND['veo'];
     else if (id.includes('kling')) costPerSecond = MUAPI_COST_PER_SECOND['kling'];
 
     let muapiCostCents = costPerSecond * durationInSeconds;
-    return Math.ceil(muapiCostCents * 2); // Beneficio x2
+    return Math.ceil(muapiCostCents * 2); 
 };
 
-// --- FILTRO ESTRICTO: Solo permite los 4 modelos indicados por ID EXACTO ---
-const filterAndRenameVideoModels = (modelsList) => {
+// --- FILTRO E INYECTOR: Asegura 100% que existan los 4 motores con tus nombres ---
+const filterAndRenameVideoModels = (modelsList, type) => {
     const result = [];
-    const addedNames = new Set(); // Para evitar duplicados
+    const addedNames = new Set(); 
 
-    modelsList.forEach(m => {
+    (modelsList || []).forEach(m => {
         const id = m.id.toLowerCase();
         let newName = null;
         let order = 99;
 
-        // 1. KreateVideo 2 (CIRUJANO: Búsqueda estricta por cadena de texto EXACTA)
-        if (id === 'sd-2-text-to-video-fast' || id === 'sd-2-i2v-480p' || id === 'sd-2-omni-reference-no-video-fast') {
-            newName = 'KreateVideo 2';
-            order = 1;
-        } 
-        // 2. KreateVideo 2 Extend (id.includes para este)
-        else if ((id.includes('seedance') || id.includes('sd-2')) && id.includes('extend')) {
-            newName = 'KreateVideo 2 Extend';
-            order = 2;
-        } 
-        // 3. KreateVideo Fast (Veo 3.1 fast)
-        else if (id.includes('veo') && id.includes('fast')) {
-            newName = 'KreateVideo Fast';
-            order = 3;
-        } 
-        // 4. KreateMotion Control (Kling 3.0 Std, Motion/MC)
-        else if (id.includes('kling') && (id.includes('std') || id.includes('motion') || id.includes('mc'))) {
-            newName = 'KreateMotion Control';
-            order = 4;
+        if (id.includes('extend') && (id.includes('sd-2') || id.includes('seedance'))) {
+            newName = 'KreateVideo 2 Extend'; order = 2;
+        } else if ((id.includes('sd-2') || id.includes('seedance')) && !id.includes('lite') && !id.includes('extend')) {
+            newName = 'KreateVideo 2'; order = 1;
+        } else if (id.includes('veo')) {
+            newName = 'KreateVideo Fast'; order = 3;
+        } else if (id.includes('kling')) {
+            newName = 'KreateMotion Control'; order = 4;
         }
 
-        // Si es uno de nuestros 4 elegidos y no lo hemos añadido ya a la lista
         if (newName && !addedNames.has(newName)) {
             addedNames.add(newName);
             result.push({ ...m, name: newName, __order: order });
         }
     });
+
+    // INYECCIÓN FORZADA: Si la librería falló al encontrarlos, los metemos a la fuerza
+    if (!addedNames.has('KreateVideo 2')) {
+        let fallbackId = 'sd-2-text-to-video-fast';
+        if (type === 'i2v') fallbackId = 'sd-2-i2v-480p';
+        if (type === 'v2v') fallbackId = 'sd-2-omni-reference-no-video-fast';
+        result.push({ id: fallbackId, name: 'KreateVideo 2', __order: 1, inputs: { aspect_ratio: { default: '16:9' }, duration: { default: 5 } } });
+    }
+    if (!addedNames.has('KreateVideo 2 Extend') && type !== 'v2v') {
+        result.push({ id: 'sd-2-extend', name: 'KreateVideo 2 Extend', __order: 2, requiresRequestId: true, inputs: { duration: { default: 5 } } });
+    }
+    if (!addedNames.has('KreateVideo Fast') && type !== 'v2v') {
+        result.push({ id: 'veo-3.1-fast', name: 'KreateVideo Fast', __order: 3, inputs: { aspect_ratio: { default: '16:9' }, duration: { default: 5 } } });
+    }
+    if (!addedNames.has('KreateMotion Control') && type !== 'v2v') {
+        result.push({ id: 'kling-3.0-std', name: 'KreateMotion Control', __order: 4, inputs: { aspect_ratio: { default: '16:9' }, duration: { default: 5 } } });
+    }
 
     return result.sort((a, b) => a.__order - b.__order);
 };
@@ -75,20 +79,18 @@ export function VideoStudio() {
     const container = document.createElement('div');
     container.className = 'w-full h-full flex flex-col items-center bg-[#050505] relative p-2 md:p-6 pb-24 overflow-y-auto custom-scrollbar overflow-x-hidden';
 
-    // Función segura antibloqueos para actualizar textos en la UI
     const updateLabel = (id, text) => {
         const el = container.querySelector('#' + id);
         if (el) el.textContent = text;
     };
 
-    // Aplicamos el filtro estricto a las 3 categorías (T2V, I2V, V2V)
-    const activeT2vModels = filterAndRenameVideoModels(t2vModels);
-    const activeI2vModels = filterAndRenameVideoModels(i2vModels);
-    const activeV2vModels = filterAndRenameVideoModels(v2vModels);
+    const activeT2vModels = filterAndRenameVideoModels(t2vModels, 't2v');
+    const activeI2vModels = filterAndRenameVideoModels(i2vModels, 'i2v');
+    const activeV2vModels = filterAndRenameVideoModels(v2vModels, 'v2v');
 
-    const defaultModel = activeT2vModels.length > 0 ? activeT2vModels[0] : (t2vModels[0] || {});
-    let selectedModel = defaultModel.id || '';
-    let selectedModelName = defaultModel.name || '';
+    const defaultModel = activeT2vModels[0];
+    let selectedModel = defaultModel.id;
+    let selectedModelName = defaultModel.name;
     let selectedAr = defaultModel.inputs?.aspect_ratio?.default || '16:9';
     let selectedDuration = defaultModel.inputs?.duration?.default || 5;
     let selectedResolution = defaultModel.inputs?.resolution?.default || '';
@@ -169,21 +171,21 @@ export function VideoStudio() {
             extendBanner.classList.add('hidden');
             extendBanner.classList.remove('flex');
         } else {
-            const availableArs = getCurrentAspectRatios(modelId);
+            const availableArs = getCurrentAspectRatios(modelId) || [];
             if (availableArs.length > 0) {
                 if (!availableArs.includes(selectedAr)) selectedAr = availableArs[0];
                 updateLabel('v-ar-btn-label', selectedAr);
                 arBtn.style.display = 'flex';
             } else arBtn.style.display = 'none';
 
-            const durations = getCurrentDurations(modelId);
+            const durations = getCurrentDurations(modelId) || [];
             if (durations.length > 0) {
                 if (!durations.includes(selectedDuration)) selectedDuration = durations[0];
                 updateLabel('v-duration-btn-label', `${selectedDuration}s`);
                 durationBtn.style.display = 'flex';
             } else durationBtn.style.display = 'none';
 
-            const resolutions = getCurrentResolutions(modelId);
+            const resolutions = getCurrentResolutions(modelId) || [];
             if (resolutions.length > 0) {
                 if (!resolutions.includes(selectedResolution)) selectedResolution = resolutions[0];
                 updateLabel('v-resolution-btn-label', selectedResolution);
@@ -197,7 +199,7 @@ export function VideoStudio() {
                 qualityBtn.style.display = 'flex';
             } else { selectedQuality = ''; qualityBtn.style.display = 'none'; }
 
-            const modes = getCurrentModes(modelId);
+            const modes = getCurrentModes(modelId) || [];
             if (modes.length > 0) {
                 if (!modes.includes(selectedMode)) selectedMode = model?.inputs?.mode?.default || modes[0];
                 updateLabel('v-mode-btn-label', selectedMode);
@@ -224,6 +226,7 @@ export function VideoStudio() {
         generateBtn.innerHTML = `Generar ✨ <span class="bg-black/20 px-2 py-0.5 rounded-md text-[10px] md:text-xs font-mono ml-1 shadow-inner border border-black/10">${cost} 🪙</span>`;
     };
 
+    // --- Image Picker ---
     const picker = createUploadPicker({
         anchorContainer: container,
         onSelect: ({ url }) => {
@@ -261,6 +264,7 @@ export function VideoStudio() {
     topRow.appendChild(picker.trigger);
     container.appendChild(picker.panel);
 
+    // --- Video Picker ---
     const videoFileInput = document.createElement('input');
     videoFileInput.type = 'file';
     videoFileInput.accept = 'video/*';
@@ -444,7 +448,6 @@ export function VideoStudio() {
     promptWrapper.appendChild(bar);
     container.appendChild(promptWrapper);
 
-    // Instrucciones
     const inlineInstructions = document.createElement('div');
     inlineInstructions.className = 'w-full text-center text-white/30 text-sm flex flex-col items-center gap-1 md:gap-2 py-2 px-4';
     inlineInstructions.innerHTML = `<p class="text-xs md:text-sm">🎬 Escribe un prompt y haz clic en <span class="text-[#FFB000] font-semibold">Generar</span>.</p><p class="text-[10px] md:text-xs text-white/20">Puedes lanzar varios vídeos a la vez sin esperar.</p>`;
@@ -525,7 +528,7 @@ export function VideoStudio() {
             dropdown.innerHTML = `<div class="text-[10px] font-bold text-white/50 uppercase tracking-widest px-2 py-2 border-b border-white/5 mb-2">Relación de Aspecto</div>`;
             const list = document.createElement('div');
             list.className = 'flex flex-col gap-1 max-h-[50vh] overflow-y-auto custom-scrollbar';
-            getCurrentAspectRatios(selectedModel).forEach(r => {
+            (getCurrentAspectRatios(selectedModel) || []).forEach(r => {
                 const item = document.createElement('div');
                 item.className = 'flex items-center justify-between p-2.5 md:p-3.5 hover:bg-white/5 rounded-xl md:rounded-2xl cursor-pointer transition-all group';
                 item.innerHTML = `<div class="flex items-center gap-3"><div class="w-5 h-5 border-2 border-white/20 rounded md:rounded-md shadow-inner flex items-center justify-center group-hover:border-[#FFB000]/50"><div class="w-2 h-2 bg-white/10 rounded-[1px]"></div></div><span class="text-xs md:text-sm font-bold text-white opacity-80 group-hover:opacity-100">${r}</span></div>${selectedAr === r ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFB000" stroke-width="4"><polyline points="20 6 9 17 4 12"/></svg>' : ''}`;
@@ -540,7 +543,7 @@ export function VideoStudio() {
             dropdown.innerHTML = `<div class="text-[10px] font-bold text-white/50 uppercase tracking-widest px-2 py-2 border-b border-white/5 mb-2">Duración</div>`;
             const list = document.createElement('div');
             list.className = 'flex flex-col gap-1 max-h-[50vh] overflow-y-auto custom-scrollbar';
-            getCurrentDurations(selectedModel).forEach(d => {
+            (getCurrentDurations(selectedModel) || []).forEach(d => {
                 const item = document.createElement('div');
                 item.className = 'flex items-center justify-between p-2.5 md:p-3.5 hover:bg-white/5 rounded-xl md:rounded-2xl cursor-pointer transition-all group';
                 item.innerHTML = `<span class="text-xs md:text-sm font-bold text-white opacity-80 group-hover:opacity-100">${d}s</span>${selectedDuration === d ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFB000" stroke-width="4"><polyline points="20 6 9 17 4 12"/></svg>' : ''}`;
@@ -555,7 +558,7 @@ export function VideoStudio() {
             dropdown.innerHTML = `<div class="text-[10px] font-bold text-white/50 uppercase tracking-widest px-2 py-2 border-b border-white/5 mb-2">Calidad</div>`;
             const list = document.createElement('div');
             list.className = 'flex flex-col gap-1 max-h-[50vh] overflow-y-auto custom-scrollbar';
-            getQualitiesForModel(selectedModel).forEach(q => {
+            (getQualitiesForModel(selectedModel) || []).forEach(q => {
                 const item = document.createElement('div');
                 item.className = 'flex items-center justify-between p-2.5 md:p-3.5 hover:bg-white/5 rounded-xl md:rounded-2xl cursor-pointer transition-all group';
                 item.innerHTML = `<span class="text-xs md:text-sm font-bold text-white opacity-80 group-hover:opacity-100 capitalize">${q}</span>${selectedQuality === q ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFB000" stroke-width="4"><polyline points="20 6 9 17 4 12"/></svg>' : ''}`;
@@ -570,7 +573,7 @@ export function VideoStudio() {
             dropdown.innerHTML = `<div class="text-[10px] font-bold text-white/50 uppercase tracking-widest px-2 py-2 border-b border-white/5 mb-2">Resolución</div>`;
             const list = document.createElement('div');
             list.className = 'flex flex-col gap-1 max-h-[50vh] overflow-y-auto custom-scrollbar';
-            getCurrentResolutions(selectedModel).forEach(r => {
+            (getCurrentResolutions(selectedModel) || []).forEach(r => {
                 const item = document.createElement('div');
                 item.className = 'flex items-center justify-between p-2.5 md:p-3.5 hover:bg-white/5 rounded-xl md:rounded-2xl cursor-pointer transition-all group';
                 item.innerHTML = `<span class="text-xs md:text-sm font-bold text-white opacity-80 group-hover:opacity-100">${r}</span>${selectedResolution === r ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFB000" stroke-width="4"><polyline points="20 6 9 17 4 12"/></svg>' : ''}`;
@@ -585,7 +588,7 @@ export function VideoStudio() {
             dropdown.innerHTML = `<div class="text-[10px] font-bold text-white/50 uppercase tracking-widest px-2 py-2 border-b border-white/5 mb-2">Modo</div>`;
             const list = document.createElement('div');
             list.className = 'flex flex-col gap-1 max-h-[50vh] overflow-y-auto custom-scrollbar';
-            getCurrentModes(selectedModel).forEach(m => {
+            (getCurrentModes(selectedModel) || []).forEach(m => {
                 const item = document.createElement('div');
                 item.className = 'flex items-center justify-between p-2.5 md:p-3.5 hover:bg-white/5 rounded-xl md:rounded-2xl cursor-pointer transition-all group';
                 item.innerHTML = `<span class="text-xs md:text-sm font-bold text-white opacity-80 group-hover:opacity-100 capitalize">${m}</span>${selectedMode === m ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFB000" stroke-width="4"><polyline points="20 6 9 17 4 12"/></svg>' : ''}`;
@@ -600,7 +603,7 @@ export function VideoStudio() {
             dropdown.innerHTML = `<div class="text-[10px] font-bold text-white/50 uppercase tracking-widest px-2 py-2 border-b border-white/5 mb-2">Tipo de Efecto</div>`;
             const list = document.createElement('div');
             list.className = 'flex flex-col gap-1 max-h-[50vh] overflow-y-auto custom-scrollbar';
-            getEffectNamesForModel(selectedModel).forEach(e => {
+            (getEffectNamesForModel(selectedModel) || []).forEach(e => {
                 const item = document.createElement('div');
                 item.className = 'flex items-center justify-between p-2.5 md:p-3.5 hover:bg-white/5 rounded-xl md:rounded-2xl cursor-pointer transition-all group';
                 item.innerHTML = `<span class="text-xs md:text-sm font-bold text-white opacity-80 group-hover:opacity-100">${e}</span>${selectedEffectName === e ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFB000" stroke-width="4"><polyline points="20 6 9 17 4 12"/></svg>' : ''}`;
@@ -648,7 +651,7 @@ export function VideoStudio() {
     document.body.appendChild(dropdown);
 
     // ==========================================
-    // 4. NUEVA GALERÍA MULTITAREA (FEED INFERIOR)
+    // 4. GALERÍA FEED MULTITAREA
     // ==========================================
     const galleryWrapper = document.createElement('div');
     galleryWrapper.className = 'w-full max-w-6xl mt-4 md:mt-8 flex-1 flex flex-col shrink-0 px-2 md:px-0';
@@ -659,7 +662,6 @@ export function VideoStudio() {
     galleryWrapper.appendChild(galleryHeader);
 
     const galleryGrid = document.createElement('div');
-    // Usamos columnas más grandes porque es vídeo
     galleryGrid.className = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-5 w-full';
     galleryWrapper.appendChild(galleryGrid);
 
@@ -703,7 +705,7 @@ export function VideoStudio() {
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                         </button>
                         <button class="download-btn p-1.5 md:p-2 bg-white/20 hover:bg-[#FFB000] hover:text-black text-white rounded-lg md:rounded-xl backdrop-blur-md transition-all border border-white/20" title="Descargar">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2 2H5a2 2 0 01-2 2H5a2 2 0 01-2 2H5a2 2 0 01-2 2H5a2 2 0 01-2 2H5a2 2 0 01-2 2H5a2 2 0 01-2 2H5a2 2 0 01-2 2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
                         </button>
                     </div>
                 </div>
@@ -714,20 +716,19 @@ export function VideoStudio() {
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                  </button>
                  <button class="download-btn-mobile p-1.5 bg-black/50 text-white rounded-lg backdrop-blur-md border border-white/10">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2 2H5a2 2 0 01-2 2H5a2 2 0 01-2 2H5a2 2 0 01-2 2H5a2 2 0 01-2 2H5a2 2 0 01-2 2H5a2 2 0 01-2 2H5a2 2 0 01-2 2H5a2 2 0 01-2 2H5a2 2 0 01-2 2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
                  </button>
             </div>
         `;
 
-        // Lógica del botón Extender si es compatible
+        // Botón Extender
         const isSeedance2 = entry.model && (entry.model.toLowerCase().includes('seedance') || entry.model.toLowerCase().includes('sd-2')) && !entry.model.toLowerCase().includes('extend');
         if (isSeedance2) {
             const showExtend = () => {
                 lastGenerationId = entry.id;
                 
-                // Buscamos el modelo Extend en nuestra lista activa (tiene __order = 2)
                 const extendModel = activeT2vModels.find(m => m.__order === 2) || activeI2vModels.find(m => m.__order === 2) || activeV2vModels.find(m => m.__order === 2);
-                selectedModel = extendModel ? extendModel.id : 'seedance-v2.0-extend';
+                selectedModel = extendModel ? extendModel.id : 'sd-2-extend';
                 selectedModelName = extendModel ? extendModel.name : 'KreateVideo 2 Extend';
                 
                 updateLabel('v-model-btn-label', selectedModelName);
@@ -735,8 +736,6 @@ export function VideoStudio() {
                 
                 textarea.placeholder = 'Opcional: describe cómo continuar este vídeo...';
                 textarea.disabled = false;
-                
-                // Scroll arriba del todo suave
                 container.scrollTo({ top: 0, behavior: 'smooth' });
                 textarea.focus();
             };
@@ -762,11 +761,8 @@ export function VideoStudio() {
         const btnMobile = card.querySelector('.download-btn-mobile');
         if (btnMobile) btnMobile.onclick = triggerDownload;
 
-        if (isPrepend) {
-            galleryGrid.prepend(card);
-        } else {
-            galleryGrid.appendChild(card);
-        }
+        if (isPrepend) galleryGrid.prepend(card); 
+        else galleryGrid.appendChild(card);
     };
 
     const loadFirebaseHistory = async (user) => {
@@ -774,16 +770,10 @@ export function VideoStudio() {
             const genRef = collection(db, 'artifacts', APP_ID, 'public', 'data', 'users', user.uid, 'video_generations');
             const q = query(genRef, orderBy('createdAt', 'desc'), limit(20));
             const snap = await getDocs(q);
-
             if (!snap.empty) {
-                snap.forEach(doc => {
-                    const data = doc.data();
-                    renderCard({ id: doc.id, ...data });
-                });
+                snap.forEach(doc => renderCard({ id: doc.id, ...doc.data() }));
             }
-        } catch (error) {
-            console.error("Error cargando historial de Firebase:", error);
-        }
+        } catch (error) { console.error("Error cargando historial", error); }
     };
 
     onAuthStateChanged(auth, (user) => {
@@ -795,23 +785,21 @@ export function VideoStudio() {
         while (attempts < 120) {
             await new Promise(r => setTimeout(r, 2000));
             try {
-                const poll = await fetch(`/api/v1/predictions/${requestId}/result`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+                const poll = await fetch(`/api/v1/predictions/${requestId}/result`, { headers: { 'Authorization': `Bearer ${token}` } });
                 if (poll.ok) {
                     const pollRes = await poll.json();
                     const finalUrl = pollRes.url || pollRes.video_url || pollRes.output?.url || pollRes.outputs?.[0] || pollRes.output?.outputs?.[0] || (pollRes.images && pollRes.images[0]?.url);
                     if (finalUrl) return { url: finalUrl, id: requestId };
                     if (pollRes.status === 'failed' || pollRes.status === 'error') throw new Error("Error interno del servidor de vídeo.");
                 }
-            } catch(e) { } // ignoramos errores de red temporales y seguimos preguntando
+            } catch(e) { } 
             attempts++;
         }
         throw new Error("Tiempo de espera agotado.");
     };
 
     // ==========================================
-    // 5. GENERACIÓN MULTITAREA Y FACTURACIÓN
+    // 5. GENERACIÓN Y FACTURACIÓN MULTITAREA
     // ==========================================
     generateBtn.onclick = async () => {
         const promptText = textarea.value.trim();
@@ -820,10 +808,8 @@ export function VideoStudio() {
         if (v2vMode && !uploadedVideoUrl) return alert('Sube un vídeo de referencia.');
         if (imageMode && !uploadedImageUrl) return alert('Sube una imagen.');
         if (!imageMode && !v2vMode && !promptText && !isExtendMode) return alert('Escribe un prompt.');
-
         if (!auth.currentUser) return AuthModal(() => generateBtn.click());
 
-        // FACTURACIÓN: Comprobar saldo antes de empezar
         const cost = calculateVideoCost(selectedModel, selectedDuration);
         const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', auth.currentUser.uid);
         
@@ -837,14 +823,20 @@ export function VideoStudio() {
             return alert("No hemos podido verificar tu saldo. Revisa tu conexión a internet.");
         }
 
-        // --- TARJETA DE CARGA EN LA GALERÍA ---
+        // Determinar ID exacto de la API para KreateVideo 2
+        let finalModelId = selectedModel;
+        if (selectedModelName === 'KreateVideo 2') {
+            if (v2vMode) finalModelId = 'sd-2-omni-reference-no-video-fast';
+            else if (imageMode) finalModelId = 'sd-2-i2v-480p';
+            else finalModelId = 'sd-2-text-to-video-fast';
+        }
+
         const tempId = Date.now().toString();
         galleryHeader.classList.remove('hidden');
         
         const loadingCard = document.createElement('div');
         loadingCard.id = `card-${tempId}`;
         loadingCard.className = 'relative aspect-video rounded-xl md:rounded-2xl overflow-hidden bg-white/5 border border-white/10 flex flex-col items-center justify-center animate-fade-in-up';
-        
         loadingCard.innerHTML = `
             <div class="absolute inset-0 bg-gradient-to-tr from-[#3B82F6]/5 to-[#FFB000]/5 animate-pulse"></div>
             <div class="z-10 flex flex-col items-center gap-2 md:gap-3">
@@ -853,10 +845,8 @@ export function VideoStudio() {
             </div>
             <div class="absolute bottom-2 md:bottom-4 left-2 right-2 md:left-4 md:right-4 text-[8px] md:text-[10px] text-center text-white/40 line-clamp-2 px-1 md:px-2 leading-tight">${promptText || (isExtendMode ? 'Extendiendo vídeo' : 'Procesando')}</div>
         `;
-        
         galleryGrid.prepend(loadingCard);
 
-        // Limpiamos UI para que el usuario pueda lanzar otro
         textarea.value = ''; 
         textarea.style.height = 'auto'; 
         
@@ -869,23 +859,18 @@ export function VideoStudio() {
             const token = await auth.currentUser.getIdToken();
             let capturedRequestId = null;
             
-            // --- EL PUENTE DIRECTO (Bypass a muapi.js para I2V y V2V) ---
+            // Bypass Directo a Fetch (I2V / V2V)
             if (v2vMode || imageMode) {
-                const params = { 
-                    model: selectedModel, 
-                    prompt: promptText || ''
-                };
-                
-                if (v2vMode) {
-                    params.video_url = uploadedVideoUrl;
-                } else {
+                const params = { model: finalModelId, prompt: promptText || '' };
+                if (v2vMode) { params.video_url = uploadedVideoUrl; } 
+                else {
                     params.image_url = uploadedImageUrl;
                     params.aspect_ratio = selectedAr;
                     const durs = getCurrentDurations(selectedModel); 
-                    if (durs.length > 0) params.duration = selectedDuration;
+                    if (durs && durs.length > 0) params.duration = selectedDuration;
                 }
 
-                const req = await fetch(`/api/v1/${selectedModel}`, {
+                const req = await fetch(`/api/v1/${finalModelId}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                     body: JSON.stringify(params)
@@ -900,36 +885,32 @@ export function VideoStudio() {
                 }
 
             } else {
-                // T2V estándar o Extend 
+                // T2V estándar o Extend mediante Muapi
                 const onRequestId = (rid) => { capturedRequestId = rid; };
-                const params = { model: selectedModel, aspect_ratio: selectedAr, onRequestId };
+                const params = { model: finalModelId, aspect_ratio: selectedAr, onRequestId };
                 if (promptText) params.prompt = promptText;
+                if (isExtendMode) params.request_id = lastGenerationId; 
                 
-                if (isExtendMode) { 
-                    params.request_id = lastGenerationId; 
-                }
-                
-                const durs = getCurrentDurations(selectedModel); if (durs.length > 0) params.duration = selectedDuration;
+                const durs = getCurrentDurations(selectedModel); 
+                if (durs && durs.length > 0) params.duration = selectedDuration;
                 
                 try {
                     res = await muapi.generateVideo(params);
                 } catch (muapiErr) {
                     if (capturedRequestId && (muapiErr.message.includes('Tiempo de espera') || muapiErr.message.includes('timeout') || muapiErr.message.includes('is not a function'))) {
                         res = await manualPolling(capturedRequestId, token);
-                    } else {
-                        throw muapiErr;
-                    }
+                    } else { throw muapiErr; }
                 }
             }
 
             if (res && res.url) {
-                // FACTURACIÓN: Cobrar ahora que tenemos éxito
+                // FACTURACIÓN
                 try { await updateDoc(userRef, { credits: increment(-cost) }); } catch (e) { /* silent */ }
 
                 const entryData = {
                     url: res.url,
                     prompt: promptText || (isExtendMode ? 'Extensión' : ''),
-                    model: selectedModel,
+                    model: finalModelId,
                     duration: selectedDuration,
                     aspect_ratio: selectedAr,
                     type: 'video'
@@ -945,12 +926,10 @@ export function VideoStudio() {
                 loadingCard.remove();
                 renderCard({ id: realId, ...entryData }, true);
                 
-                // Si la generación fue exitosa, limpiamos el extendMode del prompt bar (por si estaba activado)
                 if (isExtendMode) {
                     const closeExtBtn = container.querySelector('#cancel-extend-btn');
                     if (closeExtBtn) closeExtBtn.click();
                 }
-
             } else {
                 throw new Error('Sin respuesta de URL.');
             }
@@ -969,8 +948,6 @@ export function VideoStudio() {
         }
     };
 
-    // Inicialización segura
     updateControlsForModel(selectedModel);
-
     return container;
 }
