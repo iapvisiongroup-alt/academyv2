@@ -2,8 +2,6 @@ import { muapi } from '../lib/muapi.js';
 import { t2vModels, i2vModels, v2vModels, getAspectRatiosForVideoModel, getDurationsForModel, getResolutionsForVideoModel, getAspectRatiosForI2VModel, getDurationsForI2VModel, getResolutionsForI2VModel, getModesForModel } from '../lib/models.js';
 import { AuthModal } from './AuthModal.js';
 import { createUploadPicker } from './UploadPicker.js';
-
-// Importamos Firebase para cobros e historial
 import { auth, db, APP_ID } from '../lib/firebase.js';
 import { collection, addDoc, query, orderBy, limit, getDocs, serverTimestamp, doc, getDoc, updateDoc, increment } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -23,7 +21,7 @@ const getApiId = (uiId, mode) => {
         if (mode === 'i2v') return 'sd-2-i2v-480p';
         return 'sd-2-text-to-video-fast';
     }
-    if (uiId === 'kreate-2-extend') return 'sd-2-extend'; 
+    if (uiId === 'kreate-2-extend') return 'seedance-v2.0-extend'; 
     if (uiId === 'veo-fast') return 'veo-3.1-fast';
     if (uiId === 'kling-mc') return 'kling-3.0-std';
     return uiId; 
@@ -51,7 +49,7 @@ const calculateVideoCost = (apiId, durationStr) => {
     return Math.ceil((costPerSecond * durationInSeconds) * 2);
 };
 
-// Escudo anti-crashes para llamadas internas
+// Escudo anti-crashes interno
 const safeCall = (fn, ...args) => {
     try { return fn(...args) || []; } catch (e) { return []; }
 };
@@ -79,7 +77,6 @@ export function VideoStudio() {
     let uploadedImageUrl = null;
     let uploadedVideoUrl = null;
 
-    // Detectamos el modo automáticamente
     const getCurrentMode = () => uploadedVideoUrl ? 'v2v' : (uploadedImageUrl ? 'i2v' : 't2v');
 
     const generateBtn = document.createElement('button');
@@ -175,13 +172,13 @@ export function VideoStudio() {
             selectedUiId = 'kreate-2';
             selectedModelName = 'KreateVideo 2';
             updateControlsForModel();
-            textarea.placeholder = 'Describe el movimiento... (Ej: Cinematic shot)';
+            textarea.placeholder = 'Describe el movimiento...';
             textarea.disabled = false;
         },
         onClear: () => {
             uploadedImageUrl = null;
             updateControlsForModel();
-            textarea.placeholder = 'Describe el vídeo que quieres crear';
+            textarea.placeholder = 'Describe el vídeo que quieres crear...';
         }
     });
     topRow.appendChild(picker.trigger);
@@ -254,7 +251,10 @@ export function VideoStudio() {
         if (!file) return;
 
         const apiKey = localStorage.getItem('muapi_key');
-        if (!apiKey) return AuthModal(() => videoFileInput.click());
+        if (!apiKey) {
+            if (typeof AuthModal === 'function') return AuthModal(() => videoFileInput.click());
+            return alert("Inicia sesión o configura tu API Key.");
+        }
 
         showVideoSpinner();
         try {
@@ -567,67 +567,65 @@ export function VideoStudio() {
 
     onAuthStateChanged(auth, (user) => { if (user) loadFirebaseHistory(user); });
 
-    // --- RASTREADOR (POLLING) SEGURO VÍA SDK ---
-    const waitForVideoUrl = async (requestId, apiKey) => {
-        try {
-            // Usamos la función nativa del SDK para esperar el vídeo
-            return await muapi.pollForResult(requestId, apiKey, 150, 2000); 
-        } catch(e) {
-            throw e;
-        }
-    };
-
     // ==========================================
-    // 5. GENERACIÓN CONECTADA A LA API
+    // 5. GENERACIÓN FINAL CON SEGURIDAD TOTAL
     // ==========================================
     generateBtn.onclick = async () => {
-        let promptText = textarea.value.trim();
-        const currentMode = getCurrentMode();
-        const finalApiId = getApiId(selectedUiId, currentMode);
-        const isExtendMode = selectedUiId === 'kreate-2-extend';
-
-        if (currentMode === 'v2v' && !uploadedVideoUrl) return alert('Sube un vídeo de referencia.');
-        if (currentMode === 'i2v' && !uploadedImageUrl) return alert('Sube una imagen de referencia.');
-        if (currentMode === 't2v' && !promptText && !isExtendMode) return alert('Escribe un prompt para generar el vídeo.');
-
-        const apiKey = localStorage.getItem('muapi_key');
-        if (!apiKey) return AuthModal(() => generateBtn.click());
-
-        const cost = calculateVideoCost(finalApiId, selectedDuration);
-        const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', auth.currentUser.uid);
-        
         try {
-            const userSnap = await getDoc(userRef);
-            const currentCredits = userSnap.exists() ? (userSnap.data().credits || 0) : 0;
-            if (currentCredits < cost) {
-                return alert(`⚠️ Saldo insuficiente.\nRequiere ${cost} 🪙 y dispones de ${currentCredits} 🪙.`);
+            let promptText = textarea.value.trim();
+            const currentMode = getCurrentMode();
+            const finalApiId = getApiId(selectedUiId, currentMode);
+            const isExtendMode = selectedUiId === 'kreate-2-extend';
+
+            if (currentMode === 'v2v' && !uploadedVideoUrl) return alert('Sube un vídeo de referencia.');
+            if (currentMode === 'i2v' && !uploadedImageUrl) return alert('Sube una imagen de referencia.');
+            if (currentMode === 't2v' && !promptText && !isExtendMode) return alert('Escribe un prompt para generar el vídeo.');
+
+            if (!auth.currentUser) {
+                if (typeof AuthModal === 'function') return AuthModal(() => generateBtn.click());
+                return alert("Inicia sesión para generar.");
             }
-        } catch (err) {
-            return alert("No hemos podido verificar tu saldo.");
-        }
 
-        const tempId = Date.now().toString();
-        galleryHeader.classList.remove('hidden');
-        
-        const loadingCard = document.createElement('div');
-        loadingCard.id = `card-${tempId}`;
-        loadingCard.className = 'relative aspect-video rounded-xl md:rounded-2xl overflow-hidden bg-white/5 border border-white/10 flex flex-col items-center justify-center animate-fade-in-up';
-        loadingCard.innerHTML = `
-            <div class="absolute inset-0 bg-gradient-to-tr from-[#3B82F6]/5 to-[#FFB000]/5 animate-pulse"></div>
-            <div class="z-10 flex flex-col items-center gap-2 md:gap-3">
-                <div class="w-8 h-8 md:w-10 md:h-10 border-4 border-[#FFB000]/30 border-t-[#FFB000] rounded-full animate-spin"></div>
-                <span class="text-xs md:text-sm font-bold text-[#FFB000] animate-pulse">Conectando motor...</span>
-            </div>
-            <div class="absolute bottom-2 md:bottom-4 left-2 right-2 md:left-4 md:right-4 text-[8px] md:text-[10px] text-center text-white/40 line-clamp-2 px-1 md:px-2 leading-tight">${promptText || 'Procesando archivo'}</div>
-        `;
-        galleryGrid.prepend(loadingCard);
+            const apiKey = localStorage.getItem('muapi_key');
+            if (!apiKey) {
+                if (typeof AuthModal === 'function') return AuthModal(() => generateBtn.click());
+                return alert("Necesitas configurar tu API Key.");
+            }
 
-        textarea.value = ''; textarea.style.height = 'auto'; 
-        const originalText = generateBtn.innerHTML;
-        generateBtn.innerHTML = `Lanzado 🚀`;
-        setTimeout(() => { updateControlsForModel(); }, 1000);
+            const cost = calculateVideoCost(finalApiId, selectedDuration);
+            
+            try {
+                const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', auth.currentUser.uid);
+                const userSnap = await getDoc(userRef);
+                const currentCredits = userSnap.exists() ? (userSnap.data().credits || 0) : 0;
+                if (currentCredits < cost) {
+                    return alert(`⚠️ Saldo insuficiente.\nRequiere ${cost} 🪙 y dispones de ${currentCredits} 🪙.`);
+                }
+            } catch (err) {
+                return alert("No hemos podido conectar con el servidor de saldos.");
+            }
 
-        try {
+            // CREACIÓN DE LA TARJETA DE CARGA
+            const tempId = Date.now().toString();
+            galleryHeader.classList.remove('hidden');
+            
+            const loadingCard = document.createElement('div');
+            loadingCard.id = `card-${tempId}`;
+            loadingCard.className = 'relative aspect-video rounded-xl md:rounded-2xl overflow-hidden bg-white/5 border border-white/10 flex flex-col items-center justify-center animate-fade-in-up';
+            loadingCard.innerHTML = `
+                <div class="absolute inset-0 bg-gradient-to-tr from-[#3B82F6]/5 to-[#FFB000]/5 animate-pulse"></div>
+                <div class="z-10 flex flex-col items-center gap-2 md:gap-3">
+                    <div class="w-8 h-8 md:w-10 md:h-10 border-4 border-[#FFB000]/30 border-t-[#FFB000] rounded-full animate-spin"></div>
+                    <span class="text-xs md:text-sm font-bold text-[#FFB000] animate-pulse">Conectando motor...</span>
+                </div>
+                <div class="absolute bottom-2 md:bottom-4 left-2 right-2 md:left-4 md:right-4 text-[8px] md:text-[10px] text-center text-white/40 line-clamp-2 px-1 md:px-2 leading-tight">${promptText || (isExtendMode ? 'Extendiendo vídeo' : 'Procesando')}</div>
+            `;
+            galleryGrid.prepend(loadingCard);
+
+            textarea.value = ''; textarea.style.height = 'auto'; 
+            generateBtn.innerHTML = `Lanzado 🚀`;
+            setTimeout(() => { updateControlsForModel(); }, 1000);
+
             let capturedRequestId = null;
             const onRequestId = (rid) => { capturedRequestId = rid; };
             
@@ -635,10 +633,7 @@ export function VideoStudio() {
             const params = { model: finalApiId, onRequestId };
 
             if (currentMode === 'i2v') {
-                // MUAPI EXIGE array de imágenes
                 params.images_list = [uploadedImageUrl];
-                
-                // MUAPI EXIGE @image1 en el prompt para modelos SD-2
                 if ((finalApiId.includes('sd-2') || finalApiId.includes('seedance')) && !promptText.includes('@image1')) {
                     promptText = promptText ? `@image1 ${promptText}` : '@image1';
                 }
@@ -659,29 +654,31 @@ export function VideoStudio() {
 
             let res;
             try {
-                // LLAMADA AL SDK DE MUAPI
                 res = await muapi.generateVideo(params);
             } catch (muapiErr) {
-                // Si la librería falla porque el vídeo tarda en procesarse, entramos a la espera manual
+                // Poll manual si salta timeout del SDK
                 if (capturedRequestId && (muapiErr.message.includes('Tiempo de espera') || muapiErr.message.includes('timeout'))) {
                     loadingCard.querySelector('span.text-[#FFB000]').textContent = 'Renderizando (1-3 min)...';
-                    res = await waitForVideoUrl(capturedRequestId, apiKey);
+                    res = await muapi.pollForResult(capturedRequestId, apiKey, 150, 2000);
                 } else {
                     throw muapiErr;
                 }
             }
 
-            // Si la librería nos devuelve un ID pero sin URL (por ser asíncrona)
+            // A veces Muapi devuelve solo el ID si es muy pesado. Usamos pollForResult nativo.
             const rid = res?.request_id || res?.id || capturedRequestId;
             if (rid && (!res || !res.url)) {
                 loadingCard.querySelector('span.text-[#FFB000]').textContent = 'Renderizando (1-3 min)...';
-                res = await waitForVideoUrl(rid, apiKey);
+                res = await muapi.pollForResult(rid, apiKey, 150, 2000);
             }
 
             const finalUrl = res?.url || res?.video_url || res?.outputs?.[0] || res?.output?.url || res?.output?.outputs?.[0] || (res?.images && res.images[0]?.url);
             
             if (finalUrl) {
-                try { await updateDoc(userRef, { credits: increment(-cost) }); } catch (e) { /* silent */ }
+                try {
+                    const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', auth.currentUser.uid);
+                    await updateDoc(userRef, { credits: increment(-cost) }); 
+                } catch (e) {}
 
                 const entryData = {
                     url: finalUrl,
@@ -697,7 +694,7 @@ export function VideoStudio() {
                     const genRef = collection(db, 'artifacts', APP_ID, 'public', 'data', 'users', auth.currentUser.uid, 'video_generations');
                     const docRef = await addDoc(genRef, { ...entryData, createdAt: serverTimestamp() });
                     realId = docRef.id;
-                } catch (e) { }
+                } catch (e) {}
 
                 loadingCard.remove();
                 renderCard({ id: realId, ...entryData }, true);
@@ -707,20 +704,34 @@ export function VideoStudio() {
                     if (closeExtBtn) closeExtBtn.click();
                 }
             } else {
-                throw new Error('El servidor no devolvió el vídeo a tiempo.');
+                throw new Error('El motor no devolvió la respuesta a tiempo.');
             }
-        } catch (e) {
-            console.error(e);
-            loadingCard.innerHTML = `
-                <div class="absolute inset-0 bg-red-500/10"></div>
-                <div class="z-10 flex flex-col items-center gap-1 md:gap-2 p-2 md:p-4 text-center">
-                    <span class="text-lg md:text-xl">⚠️</span>
-                    <span class="text-[8px] md:text-[10px] font-bold text-red-400">Error de renderizado</span>
-                    <span class="text-white/50 text-[6px] px-2 text-center break-words w-full">${e.message.slice(0,50)}</span>
-                    <button class="retry-btn mt-1 bg-white/10 px-2 py-1 rounded-md text-[8px] text-white hover:bg-white/20 border border-white/10">Quitar</button>
-                </div>
-            `;
-            loadingCard.querySelector('.retry-btn').onclick = () => loadingCard.remove();
+
+        } catch (errorFatal) {
+            console.error(errorFatal);
+            
+            // Si hay un error, lo mostramos sí o sí en pantalla
+            alert("Error: " + errorFatal.message);
+            
+            // Si el error ocurrió después de pintar la tarjeta de carga, la cambiamos a roja
+            const loadingCards = container.querySelectorAll('[id^="card-"]');
+            if(loadingCards.length > 0) {
+                const targetCard = loadingCards[0];
+                if(targetCard && targetCard.innerHTML.includes('animate-spin')) {
+                    targetCard.innerHTML = `
+                        <div class="absolute inset-0 bg-red-500/10"></div>
+                        <div class="z-10 flex flex-col items-center gap-1 md:gap-2 p-2 md:p-4 text-center">
+                            <span class="text-lg md:text-xl">⚠️</span>
+                            <span class="text-[8px] md:text-[10px] font-bold text-red-400">Error interno</span>
+                            <span class="text-white/50 text-[6px] px-2 break-words w-full">${errorFatal.message.slice(0,50)}</span>
+                            <button class="retry-btn mt-1 bg-white/10 px-2 py-1 rounded-md text-[8px] text-white hover:bg-white/20 border border-white/10">Cerrar</button>
+                        </div>
+                    `;
+                    targetCard.querySelector('.retry-btn').onclick = () => targetCard.remove();
+                }
+            }
+        } finally {
+            setTimeout(() => { updateControlsForModel(); }, 100);
         }
     };
 
