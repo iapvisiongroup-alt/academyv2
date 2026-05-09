@@ -2,6 +2,8 @@ import { muapi } from '../lib/muapi.js';
 import { t2vModels, i2vModels, v2vModels, getAspectRatiosForVideoModel, getDurationsForModel, getResolutionsForVideoModel, getAspectRatiosForI2VModel, getDurationsForI2VModel, getResolutionsForI2VModel, getModesForModel } from '../lib/models.js';
 import { AuthModal } from './AuthModal.js';
 import { createUploadPicker } from './UploadPicker.js';
+
+// Importamos Firebase para cobros e historial
 import { auth, db, APP_ID } from '../lib/firebase.js';
 import { collection, addDoc, query, orderBy, limit, getDocs, serverTimestamp, doc, getDoc, updateDoc, increment } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -172,13 +174,13 @@ export function VideoStudio() {
             selectedUiId = 'kreate-2';
             selectedModelName = 'KreateVideo 2';
             updateControlsForModel();
-            textarea.placeholder = 'Describe el movimiento...';
+            textarea.placeholder = 'Describe el movimiento o efecto...';
             textarea.disabled = false;
         },
         onClear: () => {
             uploadedImageUrl = null;
             updateControlsForModel();
-            textarea.placeholder = 'Describe el vídeo que quieres crear...';
+            textarea.placeholder = 'Describe el vídeo que quieres crear';
         }
     });
     topRow.appendChild(picker.trigger);
@@ -253,12 +255,12 @@ export function VideoStudio() {
         const apiKey = localStorage.getItem('muapi_key');
         if (!apiKey) {
             if (typeof AuthModal === 'function') return AuthModal(() => videoFileInput.click());
-            return alert("Inicia sesión o configura tu API Key.");
+            return alert("Configura tu API Key primero.");
         }
 
         showVideoSpinner();
         try {
-            if(typeof muapi.uploadFile !== 'function') throw new Error("Función de subida no detectada en la librería.");
+            if(typeof muapi.uploadFile !== 'function') throw new Error("Librería de subida inaccesible.");
             const url = await muapi.uploadFile(file);
             uploadedVideoUrl = url;
             showVideoReady();
@@ -567,8 +569,38 @@ export function VideoStudio() {
 
     onAuthStateChanged(auth, (user) => { if (user) loadFirebaseHistory(user); });
 
+    // --- RASTREADOR (POLLING) BLINDADO Y PROPIO ---
+    // Si la librería falla al esperar, esto asume el control conectándose al backend usando el token de Firebase.
+    const manualPolling = async (requestId, token) => {
+        let attempts = 0;
+        while (attempts < 120) {
+            await new Promise(r => setTimeout(r, 3000)); // Preguntamos cada 3 segundos
+            try {
+                const poll = await fetch(`/api/v1/predictions/${requestId}/result`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (poll.ok) {
+                    const pollRes = await poll.json();
+                    
+                    // Buscador exhaustivo de la URL final en todos los posibles esquemas de respuesta
+                    const finalUrl = pollRes.url || pollRes.video_url || pollRes.outputs?.[0] || pollRes.output?.url || pollRes.output?.outputs?.[0] || pollRes.output?.urls?.get;
+                    
+                    if (finalUrl) return { url: finalUrl, id: requestId };
+                    if (pollRes.status === 'failed' || pollRes.status === 'error') {
+                        throw new Error(pollRes.error || "El modelo devolvió un estado fallido.");
+                    }
+                }
+            } catch(e) {
+                // Si es un error fatal de la API, cortamos el bucle. Si es de red, seguimos reintentando.
+                if (e.message.includes("fallido")) throw e; 
+            }
+            attempts++;
+        }
+        throw new Error("Tiempo de espera agotado (Timeout) del servidor de vídeo.");
+    };
+
     // ==========================================
-    // 5. GENERACIÓN FINAL CON SEGURIDAD TOTAL
+    // 5. GENERACIÓN FINAL
     // ==========================================
     generateBtn.onclick = async () => {
         try {
@@ -577,6 +609,7 @@ export function VideoStudio() {
             const finalApiId = getApiId(selectedUiId, currentMode);
             const isExtendMode = selectedUiId === 'kreate-2-extend';
 
+            // Validaciones iniciales
             if (currentMode === 'v2v' && !uploadedVideoUrl) return alert('Sube un vídeo de referencia.');
             if (currentMode === 'i2v' && !uploadedImageUrl) return alert('Sube una imagen de referencia.');
             if (currentMode === 't2v' && !promptText && !isExtendMode) return alert('Escribe un prompt para generar el vídeo.');
@@ -622,6 +655,7 @@ export function VideoStudio() {
             `;
             galleryGrid.prepend(loadingCard);
 
+            // Liberamos la UI para multitarea
             textarea.value = ''; textarea.style.height = 'auto'; 
             generateBtn.innerHTML = `Lanzado 🚀`;
             setTimeout(() => { updateControlsForModel(); }, 1000);
@@ -629,11 +663,14 @@ export function VideoStudio() {
             let capturedRequestId = null;
             const onRequestId = (rid) => { capturedRequestId = rid; };
             
-            // CONSTRUCCIÓN DE PARÁMETROS SEGÚN LA DOCUMENTACIÓN DE MUAPI (SD-2)
+            // CONSTRUCCIÓN EXACTA DE PARÁMETROS SEGÚN LA DOCUMENTACIÓN (Seedance 2)
             const params = { model: finalApiId, onRequestId };
 
             if (currentMode === 'i2v') {
+                // EXIGENCIA DE LA API: Array de imágenes
                 params.images_list = [uploadedImageUrl];
+                
+                // EXIGENCIA DE LA API: El tag @image1 en el prompt
                 if ((finalApiId.includes('sd-2') || finalApiId.includes('seedance')) && !promptText.includes('@image1')) {
                     promptText = promptText ? `@image1 ${promptText}` : '@image1';
                 }
@@ -647,41 +684,48 @@ export function VideoStudio() {
             } 
             else {
                 params.prompt = promptText || (isExtendMode ? 'Continue the video seamlessly' : '');
-                if (isExtendMode) params.request_id = lastGenerationId;
+                if (isExtendMode && lastGenerationId) params.request_id = lastGenerationId;
                 params.aspect_ratio = selectedAr;
                 params.duration = parseInt(selectedDuration);
             }
 
             let res;
             try {
+                // Usamos la SDK para lanzar el trabajo
                 res = await muapi.generateVideo(params);
             } catch (muapiErr) {
-                // Poll manual si salta timeout del SDK
+                // Si la librería lanza un error porque el vídeo tarda (timeout normal de 30s)
                 if (capturedRequestId && (muapiErr.message.includes('Tiempo de espera') || muapiErr.message.includes('timeout'))) {
+                    const token = await auth.currentUser.getIdToken();
                     loadingCard.querySelector('span.text-[#FFB000]').textContent = 'Renderizando (1-3 min)...';
-                    res = await muapi.pollForResult(capturedRequestId, apiKey, 150, 2000);
+                    // Entra nuestro rastreador manual a prueba de fallos
+                    res = await manualPolling(capturedRequestId, token);
                 } else {
                     throw muapiErr;
                 }
             }
 
-            // A veces Muapi devuelve solo el ID si es muy pesado. Usamos pollForResult nativo.
+            // Si la librería devuelve un éxito inmediato, pero es solo el ID del trabajo (suele pasar en llamadas asíncronas)
             const rid = res?.request_id || res?.id || capturedRequestId;
-            if (rid && (!res || !res.url)) {
+            const finalUrl = res?.url || res?.video_url || res?.outputs?.[0] || res?.output?.url || res?.output?.outputs?.[0] || res?.output?.urls?.get;
+            
+            if (rid && !finalUrl) {
+                const token = await auth.currentUser.getIdToken();
                 loadingCard.querySelector('span.text-[#FFB000]').textContent = 'Renderizando (1-3 min)...';
-                res = await muapi.pollForResult(rid, apiKey, 150, 2000);
+                res = await manualPolling(rid, token);
             }
 
-            const finalUrl = res?.url || res?.video_url || res?.outputs?.[0] || res?.output?.url || res?.output?.outputs?.[0] || (res?.images && res.images[0]?.url);
+            const verifiedUrl = res?.url || res?.video_url || res?.outputs?.[0] || res?.output?.url || res?.output?.outputs?.[0] || res?.output?.urls?.get;
             
-            if (finalUrl) {
+            if (verifiedUrl) {
+                // COBRAMOS LOS CRÉDITOS SOLO SI HAY ÉXITO
                 try {
                     const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', auth.currentUser.uid);
                     await updateDoc(userRef, { credits: increment(-cost) }); 
                 } catch (e) {}
 
                 const entryData = {
-                    url: finalUrl,
+                    url: verifiedUrl,
                     prompt: promptText.replace('@image1', '').trim() || (isExtendMode ? 'Extensión' : ''),
                     model: finalApiId,
                     duration: selectedDuration,
@@ -704,16 +748,12 @@ export function VideoStudio() {
                     if (closeExtBtn) closeExtBtn.click();
                 }
             } else {
-                throw new Error('El motor no devolvió la respuesta a tiempo.');
+                throw new Error('El servidor no devolvió el vídeo final.');
             }
 
         } catch (errorFatal) {
-            console.error(errorFatal);
+            console.error("Error en renderizado:", errorFatal);
             
-            // Si hay un error, lo mostramos sí o sí en pantalla
-            alert("Error: " + errorFatal.message);
-            
-            // Si el error ocurrió después de pintar la tarjeta de carga, la cambiamos a roja
             const loadingCards = container.querySelectorAll('[id^="card-"]');
             if(loadingCards.length > 0) {
                 const targetCard = loadingCards[0];
