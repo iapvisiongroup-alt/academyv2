@@ -2,30 +2,19 @@ import { muapi } from '../lib/muapi.js';
 import { getAspectRatiosForVideoModel, getDurationsForModel, getResolutionsForVideoModel, getAspectRatiosForI2VModel, getDurationsForI2VModel, getResolutionsForI2VModel, getModesForModel } from '../lib/models.js';
 import { AuthModal } from './AuthModal.js';
 import { createUploadPicker } from './UploadPicker.js';
-
-// Importamos Firebase para cobros e historial
 import { auth, db, APP_ID } from '../lib/firebase.js';
 import { collection, addDoc, query, orderBy, limit, getDocs, serverTimestamp, doc, getDoc, updateDoc, increment } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 
-// --- 1. CONFIGURACIÓN DE MODELOS Y PRECIOS ---
+// --- 1. MODELOS BLINDADOS (SOLO LOS 4 QUE PEDISTE) ---
 const V_MODELS = [
-    { id: 'kreate-2', name: 'KreateVideo 2' },
-    { id: 'kreate-2-extend', name: 'KreateVideo 2 Extend' },
-    { id: 'veo-fast', name: 'KreateVideo Fast' },
-    { id: 'kling-mc', name: 'KreateMotion Control' }
+    { uiId: 'kreate-2', name: 'KreateVideo 2' },
+    { uiId: 'kreate-2-extend', name: 'KreateVideo 2 Extend' },
+    { uiId: 'veo-fast', name: 'KreateVideo Fast' },
+    { uiId: 'kling-mc', name: 'KreateMotion Control' }
 ];
 
-const MUAPI_COST_PER_SECOND = {
-    'sd-2': 2.0,  
-    'seedance': 2.0,
-    'veo': 2.5,       
-    'kling': 3.0,     
-    'default': 2.0    
-};
-
-// --- 2. TRADUCTOR MAESTRO (UI -> API ID) ---
-// Transforma tu interfaz limpia en los IDs exactos que pide Muapi
+// --- 2. TRADUCTOR MAESTRO (UI -> API ID EXACTO) ---
 const getApiId = (uiId, mode) => {
     if (uiId === 'kreate-2') {
         if (mode === 'v2v') return 'sd-2-omni-reference-no-video-fast';
@@ -35,7 +24,16 @@ const getApiId = (uiId, mode) => {
     if (uiId === 'kreate-2-extend') return 'seedance-v2.0-extend'; 
     if (uiId === 'veo-fast') return 'veo-3.1-fast';
     if (uiId === 'kling-mc') return 'kling-3.0-std';
-    return uiId;
+    return uiId; // Fallback
+};
+
+// --- 3. SISTEMA DE PRECIOS POR SEGUNDO (x2) ---
+const MUAPI_COST_PER_SECOND = {
+    'sd-2': 2.0,  
+    'seedance': 2.0,
+    'veo': 2.5,       
+    'kling': 3.0,     
+    'default': 2.0    
 };
 
 const calculateVideoCost = (apiId, durationStr) => {
@@ -48,9 +46,10 @@ const calculateVideoCost = (apiId, durationStr) => {
     else if (id.includes('veo')) costPerSecond = MUAPI_COST_PER_SECOND['veo'];
     else if (id.includes('kling')) costPerSecond = MUAPI_COST_PER_SECOND['kling'];
 
-    return Math.ceil((costPerSecond * durationInSeconds) * 2); // Multiplicador SaaS (x2)
+    return Math.ceil((costPerSecond * durationInSeconds) * 2);
 };
 
+// Utilidad para evitar cuelgues si la librería no tiene opciones
 const safeCall = (fn, ...args) => {
     try { return fn(...args) || []; } catch (e) { return []; }
 };
@@ -66,20 +65,19 @@ export function VideoStudio() {
         } catch(e) {}
     };
 
-    // --- ESTADOS INTERNOS ---
-    let selectedModelUi = V_MODELS[0].id;
+    // ESTADOS INTERNOS CORREGIDOS
+    let selectedUiId = V_MODELS[0].uiId;
     let selectedModelName = V_MODELS[0].name;
     let selectedAr = '16:9';
     let selectedDuration = 5;
     let selectedResolution = '720p';
-    let selectedQuality = '';
-    let selectedMode = '';
     
     let lastGenerationId = null;
     let dropdownOpen = null;
     let uploadedImageUrl = null;
     let uploadedVideoUrl = null;
 
+    // Detectamos el modo automáticamente
     const getCurrentMode = () => uploadedVideoUrl ? 'v2v' : (uploadedImageUrl ? 'i2v' : 't2v');
 
     const generateBtn = document.createElement('button');
@@ -93,15 +91,9 @@ export function VideoStudio() {
         <div class="mb-6 md:mb-10 relative group">
              <div class="absolute inset-0 bg-[#FFB000]/20 blur-[60px] md:blur-[100px] rounded-full opacity-40 group-hover:opacity-70 transition-opacity duration-1000"></div>
              <div class="relative w-16 h-16 md:w-32 md:h-32 bg-[#111111] rounded-2xl md:rounded-3xl flex items-center justify-center border border-white/5 overflow-hidden">
-                <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" class="text-[#FFB000] opacity-20 absolute -right-2 -bottom-2 md:-right-4 md:-bottom-4 w-12 md:w-20">
-                    <polygon points="23 7 16 12 23 17 23 7"/>
-                    <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
-                </svg>
+                <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" class="text-[#FFB000] opacity-20 absolute -right-2 -bottom-2 md:-right-4 md:-bottom-4 w-12 md:w-20"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
                 <div class="w-10 h-10 md:w-16 md:h-16 bg-[#FFB000]/10 rounded-xl md:rounded-2xl flex items-center justify-center border border-[#FFB000]/20 shadow-glow relative z-10">
-                    <svg width="50%" height="50%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="text-[#FFB000] w-5 md:w-8">
-                        <polygon points="23 7 16 12 23 17 23 7"/>
-                        <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
-                    </svg>
+                    <svg width="50%" height="50%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="text-[#FFB000] w-5 md:w-8"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
                 </div>
                 <div class="absolute top-2 right-2 md:top-4 md:right-4 text-[#3B82F6] animate-pulse text-xs md:text-base">✨</div>
              </div>
@@ -122,80 +114,74 @@ export function VideoStudio() {
     const topRow = document.createElement('div');
     topRow.className = 'flex items-start gap-3 md:gap-5 px-1 md:px-2';
 
-    // --- ACTUALIZADOR DE INTERFAZ SEGURO ---
+    // ACTUALIZADOR DE INTERFAZ SEGURO Y CORREGIDO
     const updateControlsForModel = () => {
         try {
             const currentMode = getCurrentMode();
-            const finalApiId = getApiId(selectedModelUi, currentMode);
-            const isExtend = selectedModelUi === 'kreate-2-extend';
+            const finalApiId = getApiId(selectedUiId, currentMode);
+            const isExtend = selectedUiId === 'kreate-2-extend';
 
             updateLabel('v-model-btn-label', selectedModelName);
 
-            if (currentMode === 'v2v') {
-                if(arBtn) arBtn.style.display = 'none';
-                if(durationBtn) durationBtn.style.display = 'none';
-                if(resolutionBtn) resolutionBtn.style.display = 'none';
-                if(extendBanner) { extendBanner.classList.add('hidden'); extendBanner.classList.remove('flex'); }
+            // Cargar datos de la librería basándonos en el API ID
+            const availableArs = currentMode === 'i2v' ? safeCall(getAspectRatiosForI2VModel, finalApiId) : safeCall(getAspectRatiosForVideoModel, finalApiId);
+            const durations = currentMode === 'i2v' ? safeCall(getDurationsForI2VModel, finalApiId) : safeCall(getDurationsForModel, finalApiId);
+            const resolutions = currentMode === 'i2v' ? safeCall(getResolutionsForI2VModel, finalApiId) : safeCall(getResolutionsForVideoModel, finalApiId);
+
+            if (availableArs.length > 0) {
+                if (!availableArs.includes(selectedAr)) selectedAr = availableArs[0];
+                updateLabel('v-ar-btn-label', selectedAr);
+                if(arBtn) arBtn.style.display = 'flex';
+            } else if(arBtn) arBtn.style.display = 'none';
+
+            if (durations.length > 0) {
+                if (!durations.includes(selectedDuration)) selectedDuration = durations[0];
+                updateLabel('v-duration-btn-label', `${selectedDuration}s`);
+                if(durationBtn) durationBtn.style.display = 'flex';
+            } else if(durationBtn) durationBtn.style.display = 'none';
+
+            if (resolutions.length > 0) {
+                if (!resolutions.includes(selectedResolution)) selectedResolution = resolutions[0];
+                updateLabel('v-resolution-btn-label', selectedResolution);
+                if(resolutionBtn) resolutionBtn.style.display = 'flex';
+            } else if(resolutionBtn) resolutionBtn.style.display = 'none';
+
+            if (isExtend) {
+                if(extendBanner) { extendBanner.classList.remove('hidden'); extendBanner.classList.add('flex'); }
             } else {
-                const availableArs = currentMode === 'i2v' ? safeCall(getAspectRatiosForI2VModel, finalApiId) : safeCall(getAspectRatiosForVideoModel, finalApiId);
-                if (availableArs && availableArs.length > 0) {
-                    if (!availableArs.includes(selectedAr)) selectedAr = availableArs[0];
-                    updateLabel('v-ar-btn-label', selectedAr);
-                    if(arBtn) arBtn.style.display = 'flex';
-                } else if(arBtn) arBtn.style.display = 'none';
-
-                const durations = currentMode === 'i2v' ? safeCall(getDurationsForI2VModel, finalApiId) : safeCall(getDurationsForModel, finalApiId);
-                if (durations && durations.length > 0) {
-                    if (!durations.includes(selectedDuration)) selectedDuration = durations[0];
-                    updateLabel('v-duration-btn-label', `${selectedDuration}s`);
-                    if(durationBtn) durationBtn.style.display = 'flex';
-                } else if(durationBtn) durationBtn.style.display = 'none';
-
-                const resolutions = currentMode === 'i2v' ? safeCall(getResolutionsForI2VModel, finalApiId) : safeCall(getResolutionsForVideoModel, finalApiId);
-                if (resolutions && resolutions.length > 0) {
-                    if (!resolutions.includes(selectedResolution)) selectedResolution = resolutions[0];
-                    updateLabel('v-resolution-btn-label', selectedResolution);
-                    if(resolutionBtn) resolutionBtn.style.display = 'flex';
-                } else if(resolutionBtn) resolutionBtn.style.display = 'none';
-
-                if (isExtend) {
-                    if(extendBanner) { extendBanner.classList.remove('hidden'); extendBanner.classList.add('flex'); }
-                } else {
-                    if(extendBanner) { extendBanner.classList.add('hidden'); extendBanner.classList.remove('flex'); }
-                }
+                if(extendBanner) { extendBanner.classList.add('hidden'); extendBanner.classList.remove('flex'); }
             }
 
+            // Calculamos el precio real
             const cost = calculateVideoCost(finalApiId, selectedDuration);
             generateBtn.innerHTML = `Generar ✨ <span class="bg-black/20 px-2 py-0.5 rounded-md text-[10px] md:text-xs font-mono ml-1 shadow-inner border border-black/10">${cost} 🪙</span>`;
-        } catch(e) { console.error("Error UI:", e); }
+        } catch(e) { console.error("Error actualizando controles UI:", e); }
     };
 
-    // --- SELECTOR IMAGEN ---
+    // --- CARGA DE FOTOS ---
     const picker = createUploadPicker({
         anchorContainer: container,
         onSelect: ({ url }) => {
             uploadedImageUrl = url;
-            if (uploadedVideoUrl) {
-                uploadedVideoUrl = null;
-                showVideoIcon();
-            }
-            // Forzamos KreateVideo 2 porque es el modelo principal I2V
-            selectedModelUi = 'kreate-2';
+            if (uploadedVideoUrl) { uploadedVideoUrl = null; showVideoIcon(); }
+            
+            // Forzamos KreateVideo 2 porque es el modelo principal
+            selectedUiId = 'kreate-2';
             selectedModelName = 'KreateVideo 2';
             updateControlsForModel();
-            textarea.placeholder = 'Describe el movimiento o efecto (opcional)';
+            textarea.placeholder = 'Describe el movimiento o efecto (Ej: The camera pans down...)';
             textarea.disabled = false;
         },
         onClear: () => {
             uploadedImageUrl = null;
             updateControlsForModel();
-            textarea.placeholder = 'Describe el vídeo que quieres crear';
+            textarea.placeholder = 'Describe el vídeo que quieres crear...';
         }
     });
     topRow.appendChild(picker.trigger);
     container.appendChild(picker.panel);
 
-    // --- SELECTOR VÍDEO ---
+    // --- CARGA DE VÍDEOS ---
     const videoFileInput = document.createElement('input');
     videoFileInput.type = 'file';
     videoFileInput.accept = 'video/*';
@@ -251,7 +237,7 @@ export function VideoStudio() {
             uploadedVideoUrl = null;
             showVideoIcon();
             updateControlsForModel();
-            textarea.placeholder = 'Describe el vídeo que quieres crear';
+            textarea.placeholder = 'Describe el vídeo que quieres crear...';
             textarea.disabled = false;
         } else {
             videoFileInput.click();
@@ -267,7 +253,7 @@ export function VideoStudio() {
 
         showVideoSpinner();
         try {
-            // Conexión oficial de Muapi para subir
+            if(typeof muapi.uploadFile !== 'function') throw new Error("Función de subida no detectada en la librería.");
             const url = await muapi.uploadFile(file);
             uploadedVideoUrl = url;
             showVideoReady();
@@ -278,15 +264,15 @@ export function VideoStudio() {
                 if(clearBtn) clearBtn.click();
             }
             
-            selectedModelUi = 'kreate-2';
+            selectedUiId = 'kreate-2';
             selectedModelName = 'KreateVideo 2';
             updateControlsForModel();
-            textarea.placeholder = 'Vídeo cargado — escribe un prompt y haz clic en Generar';
+            textarea.placeholder = 'Vídeo de referencia cargado — escribe un prompt...';
             textarea.disabled = false;
         } catch (err) {
             console.error(err);
             showVideoIcon();
-            alert(`Error de conexión al subir vídeo: ${err.message}`);
+            alert(`Error al subir vídeo: ${err.message}`);
         }
         videoFileInput.value = '';
     };
@@ -325,7 +311,7 @@ export function VideoStudio() {
 
     extendBanner.querySelector('#cancel-extend-btn').onclick = () => {
         lastGenerationId = null;
-        selectedModelUi = 'kreate-2';
+        selectedUiId = 'kreate-2';
         selectedModelName = 'KreateVideo 2';
         updateControlsForModel();
         textarea.placeholder = 'Describe el vídeo que quieres crear...';
@@ -364,7 +350,7 @@ export function VideoStudio() {
 
     const inlineInstructions = document.createElement('div');
     inlineInstructions.className = 'w-full text-center text-white/30 text-sm flex flex-col items-center gap-1 md:gap-2 py-2 px-4';
-    inlineInstructions.innerHTML = `<p class="text-xs md:text-sm">🎬 Escribe un prompt y haz clic en <span class="text-[#FFB000] font-semibold">Generar</span>.</p><p class="text-[10px] md:text-xs text-white/20">Puedes lanzar varios vídeos a la vez sin esperar.</p>`;
+    inlineInstructions.innerHTML = `<p class="text-[10px] md:text-xs text-white/20">Puedes lanzar varios vídeos a la vez sin esperar.</p>`;
     container.appendChild(inlineInstructions);
 
     // --- MENÚS DESPLEGABLES ---
@@ -377,7 +363,7 @@ export function VideoStudio() {
         dropdown.classList.add('opacity-100', 'pointer-events-auto');
         
         const currentMode = getCurrentMode();
-        const finalApiId = getApiId(selectedModelUi, currentMode);
+        const finalApiId = getApiId(selectedUiId, currentMode);
 
         if (type === 'model') {
             dropdown.classList.add('w-[calc(100vw-3rem)]', 'max-w-xs', 'md:w-[300px]');
@@ -390,10 +376,11 @@ export function VideoStudio() {
             const list = dropdown.querySelector('#v-model-list-container');
 
             V_MODELS.forEach(m => {
-                if (currentMode !== 't2v' && m.id !== 'kreate-2') return;
+                // Solo mostrar Kreate 2 si hay foto/video, o si estamos en Extend, lo permitimos 
+                if (currentMode !== 't2v' && m.uiId !== 'kreate-2' && m.uiId !== 'kreate-2-extend') return;
 
                 const item = document.createElement('div');
-                item.className = `flex items-center justify-between p-2.5 md:p-3.5 hover:bg-white/5 rounded-xl md:rounded-2xl cursor-pointer transition-all border border-transparent ${selectedModelUi === m.id ? 'bg-white/5 border-white/5' : ''}`;
+                item.className = `flex items-center justify-between p-2.5 md:p-3.5 hover:bg-white/5 rounded-xl md:rounded-2xl cursor-pointer transition-all border border-transparent ${selectedUiId === m.uiId ? 'bg-white/5 border-white/5' : ''}`;
                 item.innerHTML = `
                     <div class="flex items-center gap-3">
                          <div class="w-8 h-8 md:w-10 md:h-10 bg-[#FFB000]/10 text-[#FFB000] border border-white/5 rounded-lg md:rounded-xl flex items-center justify-center font-black text-xs shadow-inner uppercase">K</div>
@@ -401,11 +388,11 @@ export function VideoStudio() {
                             <span class="text-xs md:text-sm font-bold text-white tracking-tight">${m.name}</span>
                          </div>
                     </div>
-                    ${selectedModelUi === m.id ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFB000" stroke-width="4"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+                    ${selectedUiId === m.uiId ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFB000" stroke-width="4"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
                 `;
                 item.onclick = (e) => {
                     e.stopPropagation();
-                    selectedModelUi = m.id; 
+                    selectedUiId = m.uiId; 
                     selectedModelName = m.name;
                     updateControlsForModel();
                     closeDropdown();
@@ -466,7 +453,8 @@ export function VideoStudio() {
             dropdown.style.top = 'auto'; dropdown.style.bottom = '16px'; dropdown.style.left = '16px'; dropdown.style.right = '16px'; dropdown.style.transformOrigin = 'bottom center';
         } else {
             dropdown.style.bottom = 'auto'; dropdown.style.top = `${btnRect.bottom + 8}px`; dropdown.style.left = `${btnRect.left}px`; dropdown.style.right = 'auto'; dropdown.style.transformOrigin = 'top left';
-            if (btnRect.bottom + 300 > window.innerHeight) {
+            const dropdownHeight = 300; 
+            if (btnRect.bottom + dropdownHeight > window.innerHeight) {
                 dropdown.style.top = 'auto'; dropdown.style.bottom = `${window.innerHeight - btnRect.top + 8}px`; dropdown.style.transformOrigin = 'bottom left';
             }
         }
@@ -514,6 +502,7 @@ export function VideoStudio() {
 
     const renderCard = (entry, isPrepend = false) => {
         galleryHeader.classList.remove('hidden');
+
         const card = document.createElement('div');
         card.id = `card-${entry.id}`;
         card.className = 'relative aspect-video rounded-xl md:rounded-2xl overflow-hidden bg-white/5 border border-white/10 group animate-fade-in-up';
@@ -535,11 +524,11 @@ export function VideoStudio() {
             </div>
         `;
 
-        const isSeedance2 = entry.model && (entry.model.toLowerCase().includes('seedance') || entry.model.toLowerCase().includes('sd-2')) && !entry.model.toLowerCase().includes('extend');
-        if (isSeedance2) {
+        const isKreate2 = entry.model && (entry.model.toLowerCase().includes('seedance') || entry.model.toLowerCase().includes('sd-2')) && !entry.model.toLowerCase().includes('extend');
+        if (isKreate2) {
             const showExtend = () => {
                 lastGenerationId = entry.id;
-                selectedModelUi = 'kreate-2-extend';
+                selectedUiId = 'kreate-2-extend';
                 selectedModelName = 'KreateVideo 2 Extend';
                 updateControlsForModel();
                 textarea.placeholder = 'Opcional: describe cómo continuar este vídeo...';
@@ -561,7 +550,8 @@ export function VideoStudio() {
         const btnDesktop = card.querySelector('.download-btn');
         if (btnDesktop) btnDesktop.onclick = triggerDownload;
 
-        if (isPrepend) galleryGrid.prepend(card); else galleryGrid.appendChild(card);
+        if (isPrepend) galleryGrid.prepend(card); 
+        else galleryGrid.appendChild(card);
     };
 
     const loadFirebaseHistory = async (user) => {
@@ -575,19 +565,20 @@ export function VideoStudio() {
 
     onAuthStateChanged(auth, (user) => { if (user) loadFirebaseHistory(user); });
 
-    // CONEXIÓN DIRECTA OFICIAL DE MUAPI (SDK ORIGINAL)
+    // ==========================================
+    // 5. GENERACIÓN Y FACTURACIÓN MULTITAREA
+    // ==========================================
     generateBtn.onclick = async () => {
         const promptText = textarea.value.trim();
         const currentMode = getCurrentMode();
-        const finalApiId = getApiId(selectedModelUi, currentMode);
-        const isExtendMode = selectedModelUi === 'kreate-2-extend';
+        const finalApiId = getApiId(selectedUiId, currentMode);
+        const isExtendMode = selectedUiId === 'kreate-2-extend';
 
         if (currentMode === 'v2v' && !uploadedVideoUrl) return alert('Sube un vídeo de referencia.');
         if (currentMode === 'i2v' && !uploadedImageUrl) return alert('Sube una imagen.');
         if (currentMode === 't2v' && !promptText && !isExtendMode) return alert('Escribe un prompt.');
 
-        const apiKey = localStorage.getItem('muapi_key');
-        if (!apiKey) return AuthModal(() => generateBtn.click());
+        if (!auth.currentUser) return AuthModal(() => generateBtn.click());
 
         const cost = calculateVideoCost(finalApiId, selectedDuration);
         const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', auth.currentUser.uid);
@@ -599,7 +590,7 @@ export function VideoStudio() {
                 return alert(`⚠️ Saldo insuficiente.\nRequiere ${cost} 🪙 y dispones de ${currentCredits} 🪙.\nRecarga créditos en el panel superior.`);
             }
         } catch (err) {
-            return alert("No hemos podido verificar tu saldo.");
+            return alert("No hemos podido verificar tu saldo. Revisa tu conexión a internet.");
         }
 
         const tempId = Date.now().toString();
@@ -612,9 +603,9 @@ export function VideoStudio() {
             <div class="absolute inset-0 bg-gradient-to-tr from-[#3B82F6]/5 to-[#FFB000]/5 animate-pulse"></div>
             <div class="z-10 flex flex-col items-center gap-2 md:gap-3">
                 <div class="w-8 h-8 md:w-10 md:h-10 border-4 border-[#FFB000]/30 border-t-[#FFB000] rounded-full animate-spin"></div>
-                <span class="text-xs md:text-sm font-bold text-[#FFB000] animate-pulse">Conectando motor...</span>
+                <span class="text-xs md:text-sm font-bold text-[#FFB000] animate-pulse">Renderizando vídeo...</span>
             </div>
-            <div class="absolute bottom-2 md:bottom-4 left-2 right-2 md:left-4 md:right-4 text-[8px] md:text-[10px] text-center text-white/40 line-clamp-2 px-1 md:px-2 leading-tight">${promptText || 'Procesando archivo'}</div>
+            <div class="absolute bottom-2 md:bottom-4 left-2 right-2 md:left-4 md:right-4 text-[8px] md:text-[10px] text-center text-white/40 line-clamp-2 px-1 md:px-2 leading-tight">${promptText || (isExtendMode ? 'Extendiendo vídeo' : 'Procesando')}</div>
         `;
         galleryGrid.prepend(loadingCard);
 
@@ -624,50 +615,64 @@ export function VideoStudio() {
         setTimeout(() => { updateControlsForModel(); }, 1000);
 
         try {
+            let res;
             let capturedRequestId = null;
             const onRequestId = (rid) => { capturedRequestId = rid; };
             
-            // CONSTRUCCIÓN ESTRICTA PARA MUAPI.JS
+            // CONSTRUCCIÓN EXACTA SEGÚN DOCUMENTACIÓN MUAPI (SD-2)
             const params = { model: finalApiId, onRequestId };
-            if (promptText) params.prompt = promptText;
             
+            if (promptText) {
+                params.prompt = promptText;
+            } else {
+                params.prompt = isExtendMode ? 'Continue the video' : '';
+            }
+
             if (currentMode === 'v2v') {
-                params.video_url = uploadedVideoUrl;
+                params.video_url = uploadedVideoUrl; // Según SDK actual de Muapi
             } else if (currentMode === 'i2v') {
-                params.image_url = uploadedImageUrl;
+                // MUAPI EXIGE array y @image1 en el prompt para Seedance
+                params.images_list = [uploadedImageUrl];
+                if (finalApiId.includes('sd-2') && !params.prompt.includes('@image1')) {
+                    params.prompt = `@image1 ${params.prompt}`;
+                }
                 params.aspect_ratio = selectedAr;
-                params.duration = selectedDuration;
+                params.duration = parseInt(selectedDuration);
             } else {
                 params.aspect_ratio = selectedAr;
-                params.duration = selectedDuration;
+                params.duration = parseInt(selectedDuration);
             }
-            
+
             if (isExtendMode) {
                 params.request_id = lastGenerationId;
             }
 
-            let res;
-            try {
-                // LLAMADA MAESTRA UNIVERSAL DEL SDK
-                res = await muapi.generateVideo(params);
-            } catch (muapiErr) {
-                // Si la librería falla por timeout, nos enganchamos manualmente con su propio poll
-                if (capturedRequestId && (muapiErr.message.includes('Tiempo de espera') || muapiErr.message.includes('timeout'))) {
-                    loadingCard.querySelector('span.text-[#FFB000]').textContent = 'Renderizando vídeo...';
-                    res = await muapi.pollForResult(capturedRequestId, apiKey, 120, 2000);
-                } else {
-                    throw muapiErr;
+            // LLAMADA EXCLUSIVA A MUAPI
+            res = await muapi.generateVideo(params);
+
+            // Rastreador Manual por si la librería hace timeout pero el servidor sí devolvió un ID
+            if (capturedRequestId && !res?.url) {
+                const token = await auth.currentUser.getIdToken();
+                let attempts = 0;
+                while (attempts < 120) {
+                    await new Promise(r => setTimeout(r, 2000));
+                    try {
+                        const poll = await fetch(`/api/v1/predictions/${capturedRequestId}/result`, { headers: { 'Authorization': `Bearer ${token}` } });
+                        if (poll.ok) {
+                            const pollRes = await poll.json();
+                            const finalUrl = pollRes.url || pollRes.video_url || pollRes.outputs?.[0] || pollRes.output?.url || pollRes.output?.outputs?.[0];
+                            if (finalUrl) { res = { url: finalUrl, id: capturedRequestId }; break; }
+                        }
+                    } catch(e) {}
+                    attempts++;
                 }
             }
 
-            // BUSCADOR EXHAUSTIVO DE LA URL FINAL EN LA RESPUESTA
-            const finalUrl = res.url || res.video_url || res.outputs?.[0] || res.output?.url || res.output?.outputs?.[0] || (res.images && res.images[0]?.url);
-            
-            if (finalUrl) {
-                try { await updateDoc(userRef, { credits: increment(-cost) }); } catch (e) { /* silent */ }
+            if (res && res.url) {
+                try { await updateDoc(userRef, { credits: increment(-cost) }); } catch (e) {}
 
                 const entryData = {
-                    url: finalUrl,
+                    url: res.url,
                     prompt: promptText || (isExtendMode ? 'Extensión' : ''),
                     model: finalApiId,
                     duration: selectedDuration,
@@ -675,12 +680,12 @@ export function VideoStudio() {
                     type: 'video'
                 };
 
-                let realId = capturedRequestId || Date.now().toString();
+                let realId = capturedRequestId || res.id || Date.now().toString();
                 try {
                     const genRef = collection(db, 'artifacts', APP_ID, 'public', 'data', 'users', auth.currentUser.uid, 'video_generations');
                     const docRef = await addDoc(genRef, { ...entryData, createdAt: serverTimestamp() });
                     realId = docRef.id;
-                } catch (e) { }
+                } catch (e) {}
 
                 loadingCard.remove();
                 renderCard({ id: realId, ...entryData }, true);
@@ -690,7 +695,7 @@ export function VideoStudio() {
                     if (closeExtBtn) closeExtBtn.click();
                 }
             } else {
-                throw new Error('No se recibió la URL de Muapi.');
+                throw new Error('Tiempo de espera agotado.');
             }
         } catch (e) {
             console.error(e);
@@ -698,17 +703,17 @@ export function VideoStudio() {
                 <div class="absolute inset-0 bg-red-500/10"></div>
                 <div class="z-10 flex flex-col items-center gap-1 md:gap-2 p-2 md:p-4 text-center">
                     <span class="text-lg md:text-xl">⚠️</span>
-                    <span class="text-[8px] md:text-[10px] font-bold text-red-400">Error de conexión</span>
+                    <span class="text-[8px] md:text-[10px] font-bold text-red-400">Error en renderizado</span>
                     <span class="text-white/50 text-[6px]">No se han descontado créditos</span>
                     <button class="retry-btn mt-1 md:mt-2 bg-white/10 px-2 py-1 md:px-3 rounded-md md:rounded-lg text-[8px] md:text-xs text-white hover:bg-white/20 transition-all border border-white/10">Quitar</button>
                 </div>
             `;
             loadingCard.querySelector('.retry-btn').onclick = () => loadingCard.remove();
-        } finally {
-            generateBtn.innerHTML = `Generar ✨ <span class="bg-black/20 px-2 py-0.5 rounded-md text-[10px] md:text-xs font-mono ml-1 shadow-inner border border-black/10">${calculateVideoCost(getApiId(selectedModelUi, getCurrentMode()), selectedDuration)} 🪙</span>`;
         }
     };
 
+    // AL FINAL: Inicializamos UI de forma segura
     setTimeout(() => { updateControlsForModel(); }, 50);
+
     return container;
 }
