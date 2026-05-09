@@ -1,12 +1,14 @@
 import { muapi } from '../lib/muapi.js';
-import { getAspectRatiosForVideoModel, getDurationsForModel, getResolutionsForVideoModel, getAspectRatiosForI2VModel, getDurationsForI2VModel, getResolutionsForI2VModel, getModesForModel } from '../lib/models.js';
+import { t2vModels, i2vModels, v2vModels, getAspectRatiosForVideoModel, getDurationsForModel, getResolutionsForVideoModel, getAspectRatiosForI2VModel, getDurationsForI2VModel, getResolutionsForI2VModel, getModesForModel } from '../lib/models.js';
 import { AuthModal } from './AuthModal.js';
 import { createUploadPicker } from './UploadPicker.js';
+
+// Importamos Firebase para cobros e historial
 import { auth, db, APP_ID } from '../lib/firebase.js';
 import { collection, addDoc, query, orderBy, limit, getDocs, serverTimestamp, doc, getDoc, updateDoc, increment } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 
-// --- 1. MODELOS BLINDADOS (SOLO LOS 4 QUE PEDISTE) ---
+// --- 1. MODELOS BLINDADOS FRONTEND ---
 const V_MODELS = [
     { uiId: 'kreate-2', name: 'KreateVideo 2' },
     { uiId: 'kreate-2-extend', name: 'KreateVideo 2 Extend' },
@@ -21,10 +23,10 @@ const getApiId = (uiId, mode) => {
         if (mode === 'i2v') return 'sd-2-i2v-480p';
         return 'sd-2-text-to-video-fast';
     }
-    if (uiId === 'kreate-2-extend') return 'seedance-v2.0-extend'; 
+    if (uiId === 'kreate-2-extend') return 'sd-2-extend'; 
     if (uiId === 'veo-fast') return 'veo-3.1-fast';
     if (uiId === 'kling-mc') return 'kling-3.0-std';
-    return uiId; // Fallback
+    return uiId; 
 };
 
 // --- 3. SISTEMA DE PRECIOS POR SEGUNDO (x2) ---
@@ -49,7 +51,7 @@ const calculateVideoCost = (apiId, durationStr) => {
     return Math.ceil((costPerSecond * durationInSeconds) * 2);
 };
 
-// Utilidad para evitar cuelgues si la librería no tiene opciones
+// Escudo anti-crashes para llamadas internas
 const safeCall = (fn, ...args) => {
     try { return fn(...args) || []; } catch (e) { return []; }
 };
@@ -65,7 +67,7 @@ export function VideoStudio() {
         } catch(e) {}
     };
 
-    // ESTADOS INTERNOS CORREGIDOS
+    // --- ESTADOS INTERNOS ---
     let selectedUiId = V_MODELS[0].uiId;
     let selectedModelName = V_MODELS[0].name;
     let selectedAr = '16:9';
@@ -114,7 +116,6 @@ export function VideoStudio() {
     const topRow = document.createElement('div');
     topRow.className = 'flex items-start gap-3 md:gap-5 px-1 md:px-2';
 
-    // ACTUALIZADOR DE INTERFAZ SEGURO Y CORREGIDO
     const updateControlsForModel = () => {
         try {
             const currentMode = getCurrentMode();
@@ -123,39 +124,43 @@ export function VideoStudio() {
 
             updateLabel('v-model-btn-label', selectedModelName);
 
-            // Cargar datos de la librería basándonos en el API ID
-            const availableArs = currentMode === 'i2v' ? safeCall(getAspectRatiosForI2VModel, finalApiId) : safeCall(getAspectRatiosForVideoModel, finalApiId);
-            const durations = currentMode === 'i2v' ? safeCall(getDurationsForI2VModel, finalApiId) : safeCall(getDurationsForModel, finalApiId);
-            const resolutions = currentMode === 'i2v' ? safeCall(getResolutionsForI2VModel, finalApiId) : safeCall(getResolutionsForVideoModel, finalApiId);
-
-            if (availableArs.length > 0) {
-                if (!availableArs.includes(selectedAr)) selectedAr = availableArs[0];
-                updateLabel('v-ar-btn-label', selectedAr);
-                if(arBtn) arBtn.style.display = 'flex';
-            } else if(arBtn) arBtn.style.display = 'none';
-
-            if (durations.length > 0) {
-                if (!durations.includes(selectedDuration)) selectedDuration = durations[0];
-                updateLabel('v-duration-btn-label', `${selectedDuration}s`);
-                if(durationBtn) durationBtn.style.display = 'flex';
-            } else if(durationBtn) durationBtn.style.display = 'none';
-
-            if (resolutions.length > 0) {
-                if (!resolutions.includes(selectedResolution)) selectedResolution = resolutions[0];
-                updateLabel('v-resolution-btn-label', selectedResolution);
-                if(resolutionBtn) resolutionBtn.style.display = 'flex';
-            } else if(resolutionBtn) resolutionBtn.style.display = 'none';
-
-            if (isExtend) {
-                if(extendBanner) { extendBanner.classList.remove('hidden'); extendBanner.classList.add('flex'); }
-            } else {
+            if (currentMode === 'v2v') {
+                if(arBtn) arBtn.style.display = 'none';
+                if(durationBtn) durationBtn.style.display = 'none';
+                if(resolutionBtn) resolutionBtn.style.display = 'none';
                 if(extendBanner) { extendBanner.classList.add('hidden'); extendBanner.classList.remove('flex'); }
+            } else {
+                const availableArs = currentMode === 'i2v' ? safeCall(getAspectRatiosForI2VModel, finalApiId) : safeCall(getAspectRatiosForVideoModel, finalApiId);
+                if (availableArs && availableArs.length > 0) {
+                    if (!availableArs.includes(selectedAr)) selectedAr = availableArs[0];
+                    updateLabel('v-ar-btn-label', selectedAr);
+                    if(arBtn) arBtn.style.display = 'flex';
+                } else if(arBtn) arBtn.style.display = 'none';
+
+                const durations = currentMode === 'i2v' ? safeCall(getDurationsForI2VModel, finalApiId) : safeCall(getDurationsForModel, finalApiId);
+                if (durations && durations.length > 0) {
+                    if (!durations.includes(selectedDuration)) selectedDuration = durations[0];
+                    updateLabel('v-duration-btn-label', `${selectedDuration}s`);
+                    if(durationBtn) durationBtn.style.display = 'flex';
+                } else if(durationBtn) durationBtn.style.display = 'none';
+
+                const resolutions = currentMode === 'i2v' ? safeCall(getResolutionsForI2VModel, finalApiId) : safeCall(getResolutionsForVideoModel, finalApiId);
+                if (resolutions && resolutions.length > 0) {
+                    if (!resolutions.includes(selectedResolution)) selectedResolution = resolutions[0];
+                    updateLabel('v-resolution-btn-label', selectedResolution);
+                    if(resolutionBtn) resolutionBtn.style.display = 'flex';
+                } else if(resolutionBtn) resolutionBtn.style.display = 'none';
+
+                if (isExtend) {
+                    if(extendBanner) { extendBanner.classList.remove('hidden'); extendBanner.classList.add('flex'); }
+                } else {
+                    if(extendBanner) { extendBanner.classList.add('hidden'); extendBanner.classList.remove('flex'); }
+                }
             }
 
-            // Calculamos el precio real
             const cost = calculateVideoCost(finalApiId, selectedDuration);
             generateBtn.innerHTML = `Generar ✨ <span class="bg-black/20 px-2 py-0.5 rounded-md text-[10px] md:text-xs font-mono ml-1 shadow-inner border border-black/10">${cost} 🪙</span>`;
-        } catch(e) { console.error("Error actualizando controles UI:", e); }
+        } catch(e) { console.error("Error UI:", e); }
     };
 
     // --- CARGA DE FOTOS ---
@@ -163,19 +168,20 @@ export function VideoStudio() {
         anchorContainer: container,
         onSelect: ({ url }) => {
             uploadedImageUrl = url;
-            if (uploadedVideoUrl) { uploadedVideoUrl = null; showVideoIcon(); }
-            
-            // Forzamos KreateVideo 2 porque es el modelo principal
+            if (uploadedVideoUrl) {
+                uploadedVideoUrl = null;
+                showVideoIcon();
+            }
             selectedUiId = 'kreate-2';
             selectedModelName = 'KreateVideo 2';
             updateControlsForModel();
-            textarea.placeholder = 'Describe el movimiento o efecto (Ej: The camera pans down...)';
+            textarea.placeholder = 'Describe el movimiento... (Ej: Cinematic shot)';
             textarea.disabled = false;
         },
         onClear: () => {
             uploadedImageUrl = null;
             updateControlsForModel();
-            textarea.placeholder = 'Describe el vídeo que quieres crear...';
+            textarea.placeholder = 'Describe el vídeo que quieres crear';
         }
     });
     topRow.appendChild(picker.trigger);
@@ -238,7 +244,6 @@ export function VideoStudio() {
             showVideoIcon();
             updateControlsForModel();
             textarea.placeholder = 'Describe el vídeo que quieres crear...';
-            textarea.disabled = false;
         } else {
             videoFileInput.click();
         }
@@ -267,7 +272,7 @@ export function VideoStudio() {
             selectedUiId = 'kreate-2';
             selectedModelName = 'KreateVideo 2';
             updateControlsForModel();
-            textarea.placeholder = 'Vídeo de referencia cargado — escribe un prompt...';
+            textarea.placeholder = 'Vídeo cargado — escribe un prompt...';
             textarea.disabled = false;
         } catch (err) {
             console.error(err);
@@ -331,11 +336,10 @@ export function VideoStudio() {
         return btn;
     };
 
-    let modelBtn, arBtn, durationBtn, resolutionBtn;
-    modelBtn = createControlBtn(`<div class="w-4 h-4 md:w-5 md:h-5 bg-[#FFB000] rounded flex items-center justify-center shadow-[0_0_10px_rgba(255,176,0,0.3)] shrink-0"><span class="text-[8px] md:text-[10px] font-black text-black">K</span></div>`, selectedModelName, 'v-model-btn');
-    arBtn = createControlBtn(`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="opacity-60 text-white/50 shrink-0 md:w-4 md:h-4"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>`, selectedAr, 'v-ar-btn');
-    durationBtn = createControlBtn(`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="opacity-60 text-white/50 shrink-0 md:w-4 md:h-4"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`, `${selectedDuration}s`, 'v-duration-btn');
-    resolutionBtn = createControlBtn(`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="opacity-60 text-white/50 shrink-0 md:w-4 md:h-4"><path d="M6 2L3 6v15a2 2 0 002 2h14a2 2 0 002-2V6l-3-4H6z"/></svg>`, selectedResolution || '720p', 'v-resolution-btn');
+    let modelBtn = createControlBtn(`<div class="w-4 h-4 md:w-5 md:h-5 bg-[#FFB000] rounded flex items-center justify-center shadow-[0_0_10px_rgba(255,176,0,0.3)] shrink-0"><span class="text-[8px] md:text-[10px] font-black text-black">K</span></div>`, selectedModelName, 'v-model-btn');
+    let arBtn = createControlBtn(`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="opacity-60 text-white/50 shrink-0 md:w-4 md:h-4"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>`, selectedAr, 'v-ar-btn');
+    let durationBtn = createControlBtn(`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="opacity-60 text-white/50 shrink-0 md:w-4 md:h-4"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`, `${selectedDuration}s`, 'v-duration-btn');
+    let resolutionBtn = createControlBtn(`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="opacity-60 text-white/50 shrink-0 md:w-4 md:h-4"><path d="M6 2L3 6v15a2 2 0 002 2h14a2 2 0 002-2V6l-3-4H6z"/></svg>`, selectedResolution || '720p', 'v-resolution-btn');
 
     controlsLeft.appendChild(modelBtn);
     controlsLeft.appendChild(arBtn);
@@ -376,7 +380,6 @@ export function VideoStudio() {
             const list = dropdown.querySelector('#v-model-list-container');
 
             V_MODELS.forEach(m => {
-                // Solo mostrar Kreate 2 si hay foto/video, o si estamos en Extend, lo permitimos 
                 if (currentMode !== 't2v' && m.uiId !== 'kreate-2' && m.uiId !== 'kreate-2-extend') return;
 
                 const item = document.createElement('div');
@@ -406,7 +409,7 @@ export function VideoStudio() {
             const list = document.createElement('div');
             list.className = 'flex flex-col gap-1 max-h-[50vh] overflow-y-auto custom-scrollbar';
             const availableArs = currentMode === 'i2v' ? safeCall(getAspectRatiosForI2VModel, finalApiId) : safeCall(getAspectRatiosForVideoModel, finalApiId);
-            (availableArs || ['16:9', '9:16', '1:1']).forEach(r => {
+            (availableArs.length > 0 ? availableArs : ['16:9', '9:16', '1:1']).forEach(r => {
                 const item = document.createElement('div');
                 item.className = 'flex items-center justify-between p-2.5 md:p-3.5 hover:bg-white/5 rounded-xl md:rounded-2xl cursor-pointer transition-all group';
                 item.innerHTML = `<div class="flex items-center gap-3"><div class="w-5 h-5 border-2 border-white/20 rounded md:rounded-md shadow-inner flex items-center justify-center group-hover:border-[#FFB000]/50"><div class="w-2 h-2 bg-white/10 rounded-[1px]"></div></div><span class="text-xs md:text-sm font-bold text-white opacity-80 group-hover:opacity-100">${r}</span></div>${selectedAr === r ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFB000" stroke-width="4"><polyline points="20 6 9 17 4 12"/></svg>' : ''}`;
@@ -422,7 +425,7 @@ export function VideoStudio() {
             const list = document.createElement('div');
             list.className = 'flex flex-col gap-1 max-h-[50vh] overflow-y-auto custom-scrollbar';
             const durations = currentMode === 'i2v' ? safeCall(getDurationsForI2VModel, finalApiId) : safeCall(getDurationsForModel, finalApiId);
-            (durations || [5]).forEach(d => {
+            (durations.length > 0 ? durations : [5]).forEach(d => {
                 const item = document.createElement('div');
                 item.className = 'flex items-center justify-between p-2.5 md:p-3.5 hover:bg-white/5 rounded-xl md:rounded-2xl cursor-pointer transition-all group';
                 item.innerHTML = `<span class="text-xs md:text-sm font-bold text-white opacity-80 group-hover:opacity-100">${d}s</span>${selectedDuration === d ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFB000" stroke-width="4"><polyline points="20 6 9 17 4 12"/></svg>' : ''}`;
@@ -438,7 +441,7 @@ export function VideoStudio() {
             const list = document.createElement('div');
             list.className = 'flex flex-col gap-1 max-h-[50vh] overflow-y-auto custom-scrollbar';
             const resolutions = currentMode === 'i2v' ? safeCall(getResolutionsForI2VModel, finalApiId) : safeCall(getResolutionsForVideoModel, finalApiId);
-            (resolutions || ['720p', '1080p']).forEach(r => {
+            (resolutions.length > 0 ? resolutions : ['720p']).forEach(r => {
                 const item = document.createElement('div');
                 item.className = 'flex items-center justify-between p-2.5 md:p-3.5 hover:bg-white/5 rounded-xl md:rounded-2xl cursor-pointer transition-all group';
                 item.innerHTML = `<span class="text-xs md:text-sm font-bold text-white opacity-80 group-hover:opacity-100">${r}</span>${selectedResolution === r ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFB000" stroke-width="4"><polyline points="20 6 9 17 4 12"/></svg>' : ''}`;
@@ -453,8 +456,7 @@ export function VideoStudio() {
             dropdown.style.top = 'auto'; dropdown.style.bottom = '16px'; dropdown.style.left = '16px'; dropdown.style.right = '16px'; dropdown.style.transformOrigin = 'bottom center';
         } else {
             dropdown.style.bottom = 'auto'; dropdown.style.top = `${btnRect.bottom + 8}px`; dropdown.style.left = `${btnRect.left}px`; dropdown.style.right = 'auto'; dropdown.style.transformOrigin = 'top left';
-            const dropdownHeight = 300; 
-            if (btnRect.bottom + dropdownHeight > window.innerHeight) {
+            if (btnRect.bottom + 300 > window.innerHeight) {
                 dropdown.style.top = 'auto'; dropdown.style.bottom = `${window.innerHeight - btnRect.top + 8}px`; dropdown.style.transformOrigin = 'bottom left';
             }
         }
@@ -524,7 +526,7 @@ export function VideoStudio() {
             </div>
         `;
 
-        const isKreate2 = entry.model && (entry.model.toLowerCase().includes('seedance') || entry.model.toLowerCase().includes('sd-2')) && !entry.model.toLowerCase().includes('extend');
+        const isKreate2 = entry.model && (entry.model.toLowerCase().includes('sd-2') || entry.model.toLowerCase().includes('seedance')) && !entry.model.toLowerCase().includes('extend');
         if (isKreate2) {
             const showExtend = () => {
                 lastGenerationId = entry.id;
@@ -565,20 +567,31 @@ export function VideoStudio() {
 
     onAuthStateChanged(auth, (user) => { if (user) loadFirebaseHistory(user); });
 
+    // --- RASTREADOR (POLLING) SEGURO VÍA SDK ---
+    const waitForVideoUrl = async (requestId, apiKey) => {
+        try {
+            // Usamos la función nativa del SDK para esperar el vídeo
+            return await muapi.pollForResult(requestId, apiKey, 150, 2000); 
+        } catch(e) {
+            throw e;
+        }
+    };
+
     // ==========================================
-    // 5. GENERACIÓN Y FACTURACIÓN MULTITAREA
+    // 5. GENERACIÓN CONECTADA A LA API
     // ==========================================
     generateBtn.onclick = async () => {
-        const promptText = textarea.value.trim();
+        let promptText = textarea.value.trim();
         const currentMode = getCurrentMode();
         const finalApiId = getApiId(selectedUiId, currentMode);
         const isExtendMode = selectedUiId === 'kreate-2-extend';
 
         if (currentMode === 'v2v' && !uploadedVideoUrl) return alert('Sube un vídeo de referencia.');
-        if (currentMode === 'i2v' && !uploadedImageUrl) return alert('Sube una imagen.');
-        if (currentMode === 't2v' && !promptText && !isExtendMode) return alert('Escribe un prompt.');
+        if (currentMode === 'i2v' && !uploadedImageUrl) return alert('Sube una imagen de referencia.');
+        if (currentMode === 't2v' && !promptText && !isExtendMode) return alert('Escribe un prompt para generar el vídeo.');
 
-        if (!auth.currentUser) return AuthModal(() => generateBtn.click());
+        const apiKey = localStorage.getItem('muapi_key');
+        if (!apiKey) return AuthModal(() => generateBtn.click());
 
         const cost = calculateVideoCost(finalApiId, selectedDuration);
         const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', auth.currentUser.uid);
@@ -587,10 +600,10 @@ export function VideoStudio() {
             const userSnap = await getDoc(userRef);
             const currentCredits = userSnap.exists() ? (userSnap.data().credits || 0) : 0;
             if (currentCredits < cost) {
-                return alert(`⚠️ Saldo insuficiente.\nRequiere ${cost} 🪙 y dispones de ${currentCredits} 🪙.\nRecarga créditos en el panel superior.`);
+                return alert(`⚠️ Saldo insuficiente.\nRequiere ${cost} 🪙 y dispones de ${currentCredits} 🪙.`);
             }
         } catch (err) {
-            return alert("No hemos podido verificar tu saldo. Revisa tu conexión a internet.");
+            return alert("No hemos podido verificar tu saldo.");
         }
 
         const tempId = Date.now().toString();
@@ -603,9 +616,9 @@ export function VideoStudio() {
             <div class="absolute inset-0 bg-gradient-to-tr from-[#3B82F6]/5 to-[#FFB000]/5 animate-pulse"></div>
             <div class="z-10 flex flex-col items-center gap-2 md:gap-3">
                 <div class="w-8 h-8 md:w-10 md:h-10 border-4 border-[#FFB000]/30 border-t-[#FFB000] rounded-full animate-spin"></div>
-                <span class="text-xs md:text-sm font-bold text-[#FFB000] animate-pulse">Renderizando vídeo...</span>
+                <span class="text-xs md:text-sm font-bold text-[#FFB000] animate-pulse">Conectando motor...</span>
             </div>
-            <div class="absolute bottom-2 md:bottom-4 left-2 right-2 md:left-4 md:right-4 text-[8px] md:text-[10px] text-center text-white/40 line-clamp-2 px-1 md:px-2 leading-tight">${promptText || (isExtendMode ? 'Extendiendo vídeo' : 'Procesando')}</div>
+            <div class="absolute bottom-2 md:bottom-4 left-2 right-2 md:left-4 md:right-4 text-[8px] md:text-[10px] text-center text-white/40 line-clamp-2 px-1 md:px-2 leading-tight">${promptText || 'Procesando archivo'}</div>
         `;
         galleryGrid.prepend(loadingCard);
 
@@ -615,77 +628,76 @@ export function VideoStudio() {
         setTimeout(() => { updateControlsForModel(); }, 1000);
 
         try {
-            let res;
             let capturedRequestId = null;
             const onRequestId = (rid) => { capturedRequestId = rid; };
             
-            // CONSTRUCCIÓN EXACTA SEGÚN DOCUMENTACIÓN MUAPI (SD-2)
+            // CONSTRUCCIÓN DE PARÁMETROS SEGÚN LA DOCUMENTACIÓN DE MUAPI (SD-2)
             const params = { model: finalApiId, onRequestId };
-            
-            if (promptText) {
-                params.prompt = promptText;
-            } else {
-                params.prompt = isExtendMode ? 'Continue the video' : '';
-            }
 
-            if (currentMode === 'v2v') {
-                params.video_url = uploadedVideoUrl; // Según SDK actual de Muapi
-            } else if (currentMode === 'i2v') {
-                // MUAPI EXIGE array y @image1 en el prompt para Seedance
+            if (currentMode === 'i2v') {
+                // MUAPI EXIGE array de imágenes
                 params.images_list = [uploadedImageUrl];
-                if (finalApiId.includes('sd-2') && !params.prompt.includes('@image1')) {
-                    params.prompt = `@image1 ${params.prompt}`;
+                
+                // MUAPI EXIGE @image1 en el prompt para modelos SD-2
+                if ((finalApiId.includes('sd-2') || finalApiId.includes('seedance')) && !promptText.includes('@image1')) {
+                    promptText = promptText ? `@image1 ${promptText}` : '@image1';
                 }
+                params.prompt = promptText;
                 params.aspect_ratio = selectedAr;
                 params.duration = parseInt(selectedDuration);
-            } else {
+            } 
+            else if (currentMode === 'v2v') {
+                params.video_url = uploadedVideoUrl;
+                params.prompt = promptText || 'Apply motion effect';
+            } 
+            else {
+                params.prompt = promptText || (isExtendMode ? 'Continue the video seamlessly' : '');
+                if (isExtendMode) params.request_id = lastGenerationId;
                 params.aspect_ratio = selectedAr;
                 params.duration = parseInt(selectedDuration);
             }
 
-            if (isExtendMode) {
-                params.request_id = lastGenerationId;
-            }
-
-            // LLAMADA EXCLUSIVA A MUAPI
-            res = await muapi.generateVideo(params);
-
-            // Rastreador Manual por si la librería hace timeout pero el servidor sí devolvió un ID
-            if (capturedRequestId && !res?.url) {
-                const token = await auth.currentUser.getIdToken();
-                let attempts = 0;
-                while (attempts < 120) {
-                    await new Promise(r => setTimeout(r, 2000));
-                    try {
-                        const poll = await fetch(`/api/v1/predictions/${capturedRequestId}/result`, { headers: { 'Authorization': `Bearer ${token}` } });
-                        if (poll.ok) {
-                            const pollRes = await poll.json();
-                            const finalUrl = pollRes.url || pollRes.video_url || pollRes.outputs?.[0] || pollRes.output?.url || pollRes.output?.outputs?.[0];
-                            if (finalUrl) { res = { url: finalUrl, id: capturedRequestId }; break; }
-                        }
-                    } catch(e) {}
-                    attempts++;
+            let res;
+            try {
+                // LLAMADA AL SDK DE MUAPI
+                res = await muapi.generateVideo(params);
+            } catch (muapiErr) {
+                // Si la librería falla porque el vídeo tarda en procesarse, entramos a la espera manual
+                if (capturedRequestId && (muapiErr.message.includes('Tiempo de espera') || muapiErr.message.includes('timeout'))) {
+                    loadingCard.querySelector('span.text-[#FFB000]').textContent = 'Renderizando (1-3 min)...';
+                    res = await waitForVideoUrl(capturedRequestId, apiKey);
+                } else {
+                    throw muapiErr;
                 }
             }
 
-            if (res && res.url) {
-                try { await updateDoc(userRef, { credits: increment(-cost) }); } catch (e) {}
+            // Si la librería nos devuelve un ID pero sin URL (por ser asíncrona)
+            const rid = res?.request_id || res?.id || capturedRequestId;
+            if (rid && (!res || !res.url)) {
+                loadingCard.querySelector('span.text-[#FFB000]').textContent = 'Renderizando (1-3 min)...';
+                res = await waitForVideoUrl(rid, apiKey);
+            }
+
+            const finalUrl = res?.url || res?.video_url || res?.outputs?.[0] || res?.output?.url || res?.output?.outputs?.[0] || (res?.images && res.images[0]?.url);
+            
+            if (finalUrl) {
+                try { await updateDoc(userRef, { credits: increment(-cost) }); } catch (e) { /* silent */ }
 
                 const entryData = {
-                    url: res.url,
-                    prompt: promptText || (isExtendMode ? 'Extensión' : ''),
+                    url: finalUrl,
+                    prompt: promptText.replace('@image1', '').trim() || (isExtendMode ? 'Extensión' : ''),
                     model: finalApiId,
                     duration: selectedDuration,
                     aspect_ratio: selectedAr,
                     type: 'video'
                 };
 
-                let realId = capturedRequestId || res.id || Date.now().toString();
+                let realId = rid || Date.now().toString();
                 try {
                     const genRef = collection(db, 'artifacts', APP_ID, 'public', 'data', 'users', auth.currentUser.uid, 'video_generations');
                     const docRef = await addDoc(genRef, { ...entryData, createdAt: serverTimestamp() });
                     realId = docRef.id;
-                } catch (e) {}
+                } catch (e) { }
 
                 loadingCard.remove();
                 renderCard({ id: realId, ...entryData }, true);
@@ -695,7 +707,7 @@ export function VideoStudio() {
                     if (closeExtBtn) closeExtBtn.click();
                 }
             } else {
-                throw new Error('Tiempo de espera agotado.');
+                throw new Error('El servidor no devolvió el vídeo a tiempo.');
             }
         } catch (e) {
             console.error(e);
@@ -703,17 +715,15 @@ export function VideoStudio() {
                 <div class="absolute inset-0 bg-red-500/10"></div>
                 <div class="z-10 flex flex-col items-center gap-1 md:gap-2 p-2 md:p-4 text-center">
                     <span class="text-lg md:text-xl">⚠️</span>
-                    <span class="text-[8px] md:text-[10px] font-bold text-red-400">Error en renderizado</span>
-                    <span class="text-white/50 text-[6px]">No se han descontado créditos</span>
-                    <button class="retry-btn mt-1 md:mt-2 bg-white/10 px-2 py-1 md:px-3 rounded-md md:rounded-lg text-[8px] md:text-xs text-white hover:bg-white/20 transition-all border border-white/10">Quitar</button>
+                    <span class="text-[8px] md:text-[10px] font-bold text-red-400">Error de renderizado</span>
+                    <span class="text-white/50 text-[6px] px-2 text-center break-words w-full">${e.message.slice(0,50)}</span>
+                    <button class="retry-btn mt-1 bg-white/10 px-2 py-1 rounded-md text-[8px] text-white hover:bg-white/20 border border-white/10">Quitar</button>
                 </div>
             `;
             loadingCard.querySelector('.retry-btn').onclick = () => loadingCard.remove();
         }
     };
 
-    // AL FINAL: Inicializamos UI de forma segura
     setTimeout(() => { updateControlsForModel(); }, 50);
-
     return container;
 }
