@@ -1,7 +1,10 @@
 import { AuthModal } from './AuthModal.js';
 import { createUploadPicker } from './UploadPicker.js';
 import { auth, db, APP_ID } from '../lib/firebase.js';
-import { collection, addDoc, query, orderBy, limit, getDocs, serverTimestamp, doc, getDoc, updateDoc, increment } from 'firebase/firestore';
+import {
+    collection, addDoc, query, orderBy, limit, getDocs,
+    serverTimestamp, doc, getDoc, updateDoc, increment
+} from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 
 // ===============================
@@ -17,6 +20,8 @@ const V_MODELS = [
 
 // ===============================
 // TRADUCTOR UI -> MUAPI MODEL ID
+// IMPORTANTE: estos son los nombres EXACTOS del endpoint en MuAPI
+// Cámbialos si tu panel de MuAPI usa nombres distintos
 // ===============================
 
 const getApiId = (uiId, mode) => {
@@ -37,57 +42,36 @@ const getApiId = (uiId, mode) => {
 
 const getVideoCost = (apiId, duration) => {
     const seconds = parseInt(duration) || 5;
-    let costPerSecond = 2.0;
-    if (apiId.includes('veo'))   costPerSecond = 2.5;
-    if (apiId.includes('kling')) costPerSecond = 3.0;
-    return Math.ceil(seconds * costPerSecond * 2);
+    let cpp = 2.0;
+    if (apiId.includes('veo'))   cpp = 2.5;
+    if (apiId.includes('kling')) cpp = 3.0;
+    return Math.ceil(seconds * cpp * 2);
 };
 
 // ===============================
-// ENDPOINT POR MODELO
-// ===============================
-
-const getVideoEndpoint = (apiId) => {
-    // Mapeamos cada apiId a su endpoint en el proxy de Cloudflare
-    const map = {
-        'sd-2-text-to-video-fast':               'sd-2-text-to-video-fast',
-        'sd-2-i2v-480p':                         'sd-2-i2v-480p',
-        'sd-2-omni-reference-no-video-fast':     'sd-2-omni-reference-no-video-fast',
-        'sd-2-extend':                            'sd-2-extend',
-        'veo-3.1-fast':                           'veo-3.1-fast',
-        'kling-3.0-std':                          'kling-3.0-std',
-    };
-    return map[apiId] || apiId;
-};
-
-// ===============================
-// PARAMS SEGÚN SCHEMA MUAPI
+// PARAMS POR MODELO
 // ===============================
 
 const buildVideoParams = ({ finalApiId, promptText, selectedAr, selectedDuration, uploadedImageUrl, uploadedVideoUrl, lastGenerationId }) => {
     const duration = parseInt(selectedDuration) || 5;
 
-    if (finalApiId === 'sd-2-text-to-video-fast' || finalApiId === 'veo-3.1-fast' || finalApiId === 'kling-3.0-std') {
+    if (['sd-2-text-to-video-fast', 'veo-3.1-fast', 'kling-3.0-std'].includes(finalApiId)) {
         return { prompt: promptText, aspect_ratio: selectedAr, duration };
     }
-
     if (finalApiId === 'sd-2-i2v-480p') {
-        let finalPrompt = promptText || 'Animate this image';
-        if (!finalPrompt.includes('@image1')) finalPrompt = `@image1 ${finalPrompt}`;
-        return { prompt: finalPrompt, images_list: [uploadedImageUrl], aspect_ratio: selectedAr, duration };
+        let p = promptText || 'Animate this image';
+        if (!p.includes('@image1')) p = `@image1 ${p}`;
+        return { prompt: p, images_list: [uploadedImageUrl], aspect_ratio: selectedAr, duration };
     }
-
     if (finalApiId === 'sd-2-omni-reference-no-video-fast') {
-        let finalPrompt = promptText || 'Create a cinematic video using the reference video';
-        if (!finalPrompt.includes('@video1')) finalPrompt = `@video1 ${finalPrompt}`;
-        return { prompt: finalPrompt, video_files: [uploadedVideoUrl], aspect_ratio: selectedAr, duration };
+        let p = promptText || 'Create a cinematic video using the reference video';
+        if (!p.includes('@video1')) p = `@video1 ${p}`;
+        return { prompt: p, video_files: [uploadedVideoUrl], aspect_ratio: selectedAr, duration };
     }
-
     if (finalApiId === 'sd-2-extend') {
         if (!lastGenerationId) throw new Error('No hay request_id válido para extender.');
         return { request_id: lastGenerationId, prompt: promptText || 'Continue the video seamlessly', aspect_ratio: selectedAr, duration };
     }
-
     return { prompt: promptText, aspect_ratio: selectedAr, duration };
 };
 
@@ -109,8 +93,6 @@ export function VideoStudio() {
     let lastGenerationId  = null;
     let dropdownOpen      = null;
     let isGenerating      = false;
-
-    const BASE_URL = window.location.origin;
 
     const getCurrentMode = () => {
         if (selectedUiId === 'kreate-2-extend') return 'extend';
@@ -163,14 +145,13 @@ export function VideoStudio() {
     textarea.placeholder = 'Describe el vídeo que quieres crear...';
     textarea.className = 'flex-1 bg-transparent border-none text-white text-sm md:text-xl placeholder:text-muted focus:outline-none resize-none pt-2 md:pt-2.5 leading-relaxed min-h-[40px] max-h-[150px] md:max-h-[250px] overflow-y-auto custom-scrollbar';
     textarea.rows = 1;
-
     textarea.oninput = () => {
         textarea.style.height = 'auto';
         textarea.style.height = Math.min(textarea.scrollHeight, window.innerWidth < 768 ? 120 : 250) + 'px';
     };
 
     // ===============================
-    // BOTÓN GENERAR (definido aquí para usarlo en el textarea)
+    // BOTÓN GENERAR
     // ===============================
 
     const generateBtn = document.createElement('button');
@@ -185,7 +166,7 @@ export function VideoStudio() {
     });
 
     // ===============================
-    // UPLOAD IMAGE
+    // UPLOAD IMAGEN
     // ===============================
 
     let showVideoIcon;
@@ -213,7 +194,7 @@ export function VideoStudio() {
     container.appendChild(picker.panel);
 
     // ===============================
-    // UPLOAD VIDEO
+    // UPLOAD VÍDEO
     // ===============================
 
     const videoFileInput = document.createElement('input');
@@ -244,23 +225,21 @@ export function VideoStudio() {
     videoPickerBtn.appendChild(videoReadyEl);
 
     showVideoIcon = () => {
-        videoIconEl.classList.remove('hidden');   videoIconEl.classList.add('flex');
-        videoSpinnerEl.classList.add('hidden');    videoSpinnerEl.classList.remove('flex');
-        videoReadyEl.classList.add('hidden');      videoReadyEl.classList.remove('flex');
+        videoIconEl.classList.remove('hidden');  videoIconEl.classList.add('flex');
+        videoSpinnerEl.classList.add('hidden');  videoSpinnerEl.classList.remove('flex');
+        videoReadyEl.classList.add('hidden');    videoReadyEl.classList.remove('flex');
         videoPickerBtn.classList.remove('border-[#FFB000]/60', 'bg-[#FFB000]/10');
         videoPickerBtn.classList.add('border-white/10');
     };
-
     const showVideoSpinner = () => {
-        videoIconEl.classList.add('hidden');        videoIconEl.classList.remove('flex');
-        videoSpinnerEl.classList.remove('hidden');  videoSpinnerEl.classList.add('flex');
-        videoReadyEl.classList.add('hidden');       videoReadyEl.classList.remove('flex');
-    };
-
-    const showVideoReady = () => {
         videoIconEl.classList.add('hidden');       videoIconEl.classList.remove('flex');
-        videoSpinnerEl.classList.add('hidden');    videoSpinnerEl.classList.remove('flex');
-        videoReadyEl.classList.remove('hidden');   videoReadyEl.classList.add('flex');
+        videoSpinnerEl.classList.remove('hidden'); videoSpinnerEl.classList.add('flex');
+        videoReadyEl.classList.add('hidden');      videoReadyEl.classList.remove('flex');
+    };
+    const showVideoReady = () => {
+        videoIconEl.classList.add('hidden');     videoIconEl.classList.remove('flex');
+        videoSpinnerEl.classList.add('hidden');  videoSpinnerEl.classList.remove('flex');
+        videoReadyEl.classList.remove('hidden'); videoReadyEl.classList.add('flex');
         videoPickerBtn.classList.remove('border-white/10');
         videoPickerBtn.classList.add('border-[#FFB000]/60', 'bg-[#FFB000]/10');
     };
@@ -280,28 +259,29 @@ export function VideoStudio() {
     videoFileInput.onchange = async (e) => {
         const file = e.target.files[0];
         if (!file) return;
-
         if (!auth?.currentUser) {
             if (typeof AuthModal === 'function') return AuthModal(() => videoFileInput.click());
             return alert('Inicia sesión para subir vídeos.');
         }
-
         showVideoSpinner();
         try {
+            const token = await auth.currentUser.getIdToken();
             const formData = new FormData();
             formData.append('file', file);
-            const resp = await fetch(`${BASE_URL}/api/v1/upload_file`, { method: 'POST', body: formData });
+            const resp = await fetch('/api/v1/upload_file', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: formData
+            });
             if (!resp.ok) throw new Error(`Error subiendo: ${resp.status}`);
             const data = await resp.json();
             const fileUrl = data.url || data.file_url || data.data?.url;
             if (!fileUrl) throw new Error('No se recibió URL del vídeo subido.');
-
             uploadedVideoUrl  = fileUrl;
             uploadedImageUrl  = null;
             lastGenerationId  = null;
             selectedUiId      = 'kreate-2';
             selectedModelName = 'KreateVideo 2';
-
             showVideoReady();
             textarea.placeholder = 'Vídeo cargado — describe qué quieres generar...';
             updateControlsForModel();
@@ -328,7 +308,9 @@ export function VideoStudio() {
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
             <span>Extendiendo vídeo anterior. Puedes escribir un prompt opcional.</span>
         </div>
-        <button id="cancel-extend-btn" class="text-white/50 hover:text-white"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+        <button id="cancel-extend-btn" class="text-white/50 hover:text-white">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
     `;
     bar.appendChild(extendBanner);
 
@@ -341,7 +323,7 @@ export function VideoStudio() {
     });
 
     // ===============================
-    // CONTROLES
+    // CONTROLES INFERIORES
     // ===============================
 
     const bottomRow = document.createElement('div');
@@ -368,7 +350,6 @@ export function VideoStudio() {
     controlsLeft.appendChild(arBtn);
     controlsLeft.appendChild(durationBtn);
     controlsLeft.appendChild(qualityBtn);
-
     bottomRow.appendChild(controlsLeft);
     bottomRow.appendChild(generateBtn);
     bar.appendChild(bottomRow);
@@ -389,10 +370,10 @@ export function VideoStudio() {
         const finalApiId  = getApiId(selectedUiId, currentMode);
         const cost        = getVideoCost(finalApiId, selectedDuration);
 
-        updateLabel('v-model-btn-label',   selectedModelName);
-        updateLabel('v-ar-btn-label',      selectedAr);
+        updateLabel('v-model-btn-label',    selectedModelName);
+        updateLabel('v-ar-btn-label',       selectedAr);
         updateLabel('v-duration-btn-label', `${selectedDuration}s`);
-        updateLabel('v-quality-btn-label', selectedQuality === 'high' ? 'Alta' : 'Básica');
+        updateLabel('v-quality-btn-label',  selectedQuality === 'high' ? 'Alta' : 'Básica');
 
         if (selectedUiId === 'kreate-2-extend') {
             extendBanner.classList.remove('hidden'); extendBanner.classList.add('flex');
@@ -429,8 +410,10 @@ export function VideoStudio() {
             dropdown.style.left   = '16px'; dropdown.style.right  = '16px';
             dropdown.style.width  = 'auto';
         } else {
-            dropdown.style.bottom = 'auto'; dropdown.style.top  = `${rect.bottom + 8}px`;
-            dropdown.style.left   = `${rect.left}px`; dropdown.style.right = 'auto';
+            dropdown.style.bottom = 'auto';
+            dropdown.style.top    = `${rect.bottom + 8}px`;
+            dropdown.style.left   = `${rect.left}px`;
+            dropdown.style.right  = 'auto';
             dropdown.style.width  = width;
         }
     };
@@ -451,8 +434,7 @@ export function VideoStudio() {
                     e.stopPropagation();
                     selectedUiId = m.uiId; selectedModelName = m.name;
                     if (m.uiId !== 'kreate-2-extend') lastGenerationId = null;
-                    updateControlsForModel();
-                    closeDropdown();
+                    updateControlsForModel(); closeDropdown();
                 });
                 list.appendChild(item);
             });
@@ -460,10 +442,9 @@ export function VideoStudio() {
         }
 
         if (type === 'ar') {
-            const mode = getCurrentMode();
-            const finalApiId = getApiId(selectedUiId, mode);
+            const finalApiId = getApiId(selectedUiId, getCurrentMode());
             let ars = ['16:9', '9:16', '4:3', '3:4'];
-            if (finalApiId === 'sd-2-omni-reference-no-video-fast' || finalApiId === 'sd-2-extend') {
+            if (['sd-2-omni-reference-no-video-fast', 'sd-2-extend'].includes(finalApiId)) {
                 ars = ['21:9', '16:9', '4:3', '1:1', '3:4', '9:16'];
             }
             dropdown.innerHTML = `<div class="text-[10px] font-bold text-white/50 uppercase tracking-widest px-2 py-2 border-b border-white/5 mb-2">Relación de aspecto</div><div class="flex flex-col gap-1"></div>`;
@@ -518,9 +499,8 @@ export function VideoStudio() {
     durationBtn.addEventListener('click', toggleDropdown('duration', durationBtn));
     qualityBtn.addEventListener('click',  toggleDropdown('quality',  qualityBtn));
 
-    // Cerramos dropdown al hacer click fuera — pero NO con window para no
-    // interferir con generateBtn. Usamos document con capture: false.
-    document.addEventListener('click', (e) => {
+    // Cierra dropdown al hacer click fuera, sin interferir con generateBtn
+    window.addEventListener('click', (e) => {
         if (!dropdown.contains(e.target)) closeDropdown();
     });
 
@@ -546,35 +526,33 @@ export function VideoStudio() {
 
     const downloadFile = async (url, filename) => {
         try {
-            const response = await fetch(url);
-            const blob = await response.blob();
-            const blobUrl = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = blobUrl; a.download = filename;
+            const blob = await fetch(url).then(r => r.blob());
+            const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: filename });
             document.body.appendChild(a); a.click(); document.body.removeChild(a);
-            URL.revokeObjectURL(blobUrl);
         } catch { window.open(url, '_blank'); }
     };
 
     const renderCard = (entry, isPrepend = false) => {
         galleryHeader.classList.remove('hidden');
-
         const card = document.createElement('div');
         card.id = `card-${entry.id}`;
         card.className = 'relative aspect-video rounded-xl md:rounded-2xl overflow-hidden bg-white/5 border border-white/10 group animate-fade-in-up';
-
         card.innerHTML = `
             <video src="${entry.url}" autoplay loop muted playsinline class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"></video>
             <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-3 md:p-4">
-                <p class="text-white text-[10px] md:text-xs font-medium line-clamp-2 md:line-clamp-3 mb-2 md:mb-3 shadow-black drop-shadow-md leading-tight">${entry.prompt || 'Vídeo generado'}</p>
+                <p class="text-white text-[10px] md:text-xs font-medium line-clamp-2 md:line-clamp-3 mb-2 md:mb-3 leading-tight">${entry.prompt || 'Vídeo generado'}</p>
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-1.5">
-                        <span class="text-[8px] md:text-[10px] text-white/70 bg-black/60 px-1.5 py-0.5 md:px-2 md:py-1 rounded-md backdrop-blur-sm border border-white/10">${entry.duration || 5}s</span>
-                        <span class="text-[8px] md:text-[10px] text-[#FFB000] font-bold bg-[#FFB000]/10 px-1.5 py-0.5 md:px-2 md:py-1 rounded-md backdrop-blur-sm border border-[#FFB000]/20">${entry.quality === 'high' ? 'Alta' : 'Básica'}</span>
+                        <span class="text-[8px] md:text-[10px] text-white/70 bg-black/60 px-1.5 py-0.5 md:px-2 md:py-1 rounded-md border border-white/10">${entry.duration || 5}s</span>
+                        <span class="text-[8px] md:text-[10px] text-[#FFB000] font-bold bg-[#FFB000]/10 px-1.5 py-0.5 md:px-2 md:py-1 rounded-md border border-[#FFB000]/20">${entry.quality === 'high' ? 'Alta' : 'Básica'}</span>
                     </div>
                     <div class="flex items-center gap-2">
-                        <button class="extend-btn p-1.5 md:p-2 bg-[#3B82F6]/20 hover:bg-[#3B82F6] text-[#3B82F6] hover:text-white rounded-lg md:rounded-xl backdrop-blur-md transition-all border border-[#3B82F6]/30" title="Extender vídeo"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg></button>
-                        <button class="download-btn p-1.5 md:p-2 bg-white/20 hover:bg-[#FFB000] hover:text-black text-white rounded-lg md:rounded-xl backdrop-blur-md transition-all border border-white/20" title="Descargar"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg></button>
+                        <button class="extend-btn p-1.5 md:p-2 bg-[#3B82F6]/20 hover:bg-[#3B82F6] text-[#3B82F6] hover:text-white rounded-lg md:rounded-xl transition-all border border-[#3B82F6]/30" title="Extender vídeo">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                        </button>
+                        <button class="download-btn p-1.5 md:p-2 bg-white/20 hover:bg-[#FFB000] hover:text-black text-white rounded-lg md:rounded-xl transition-all border border-white/20" title="Descargar">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -620,8 +598,7 @@ export function VideoStudio() {
     onAuthStateChanged(auth, (user) => { if (user) loadFirebaseHistory(user); });
 
     // ===============================
-    // LÓGICA PRINCIPAL DE GENERACIÓN
-    // Llamada directa al proxy de Cloudflare — sin depender de muapi.generateVideo
+    // GENERACIÓN — mismo patrón exacto que ImageStudio
     // ===============================
 
     async function handleGenerate() {
@@ -632,27 +609,32 @@ export function VideoStudio() {
         const finalApiId  = getApiId(selectedUiId, currentMode);
         const cost        = getVideoCost(finalApiId, selectedDuration);
 
-        // --- Validaciones ---
+        // Validaciones
         if (!auth?.currentUser) {
             if (typeof AuthModal === 'function') return AuthModal(() => handleGenerate());
             return alert('Debes iniciar sesión para generar vídeos.');
         }
-        if (finalApiId === 'sd-2-text-to-video-fast' && !promptText) return alert('Escribe un prompt para generar el vídeo.');
-        if (finalApiId === 'veo-3.1-fast'             && !promptText) return alert('Escribe un prompt para generar el vídeo.');
-        if (finalApiId === 'kling-3.0-std'            && !promptText) return alert('Escribe un prompt para generar el vídeo.');
-        if (finalApiId === 'sd-2-i2v-480p'            && !uploadedImageUrl) return alert('Sube una imagen de referencia primero.');
-        if (finalApiId === 'sd-2-omni-reference-no-video-fast' && !uploadedVideoUrl) return alert('Sube un vídeo de referencia primero.');
-        if (finalApiId === 'sd-2-extend'              && !lastGenerationId) return alert('No hay vídeo anterior para extender.');
+        if (['sd-2-text-to-video-fast', 'veo-3.1-fast', 'kling-3.0-std'].includes(finalApiId) && !promptText) {
+            return alert('Escribe un prompt para generar el vídeo.');
+        }
+        if (finalApiId === 'sd-2-i2v-480p' && !uploadedImageUrl) {
+            return alert('Sube una imagen de referencia primero.');
+        }
+        if (finalApiId === 'sd-2-omni-reference-no-video-fast' && !uploadedVideoUrl) {
+            return alert('Sube un vídeo de referencia primero.');
+        }
+        if (finalApiId === 'sd-2-extend' && !lastGenerationId) {
+            return alert('No hay vídeo anterior para extender.');
+        }
 
-        // --- Verificar saldo ---
-        const userRef  = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', auth.currentUser.uid);
+        // Verificar saldo — igual que ImageStudio
+        const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', auth.currentUser.uid);
         let userSnap;
         try {
             userSnap = await getDoc(userRef);
         } catch (e) {
             return alert('Error consultando tu saldo. Inténtalo de nuevo.');
         }
-
         const currentCredits = userSnap.exists() ? (userSnap.data().credits || 0) : 0;
         const isAdmin        = userSnap.exists() && userSnap.data().role === 'admin';
 
@@ -660,17 +642,15 @@ export function VideoStudio() {
             return alert(`⚠️ Saldo insuficiente.\n\nEste vídeo requiere ${cost} 🪙 y tienes ${currentCredits} 🪙.\nRecarga créditos en tu perfil.`);
         }
 
-        // --- Preparar UI ---
+        // Preparar UI
         isGenerating = true;
         updateControlsForModel();
         galleryHeader.classList.remove('hidden');
 
-        const tempId = `tmp-${Date.now()}`;
-        const params = buildVideoParams({ finalApiId, promptText, selectedAr, selectedDuration, uploadedImageUrl, uploadedVideoUrl, lastGenerationId });
+        const params      = buildVideoParams({ finalApiId, promptText, selectedAr, selectedDuration, uploadedImageUrl, uploadedVideoUrl, lastGenerationId });
         const cleanPrompt = String(params.prompt || promptText || '').replace('@image1', '').replace('@video1', '').trim();
 
         const loadingCard = document.createElement('div');
-        loadingCard.id = `card-${tempId}`;
         loadingCard.className = 'relative aspect-video rounded-xl md:rounded-2xl overflow-hidden bg-white/5 border border-white/10 flex flex-col items-center justify-center animate-fade-in-up';
         loadingCard.innerHTML = `
             <div class="absolute inset-0 bg-gradient-to-tr from-[#3B82F6]/5 to-[#FFB000]/5 animate-pulse"></div>
@@ -678,7 +658,7 @@ export function VideoStudio() {
                 <div class="w-8 h-8 md:w-10 md:h-10 border-4 border-[#FFB000]/30 border-t-[#FFB000] rounded-full animate-spin"></div>
                 <span class="status-text text-xs md:text-sm font-bold text-[#FFB000] animate-pulse">Enviando petición...</span>
             </div>
-            <div class="absolute bottom-2 md:bottom-4 left-2 right-2 md:left-4 md:right-4 text-[8px] md:text-[10px] text-center text-white/40 line-clamp-2 px-1 md:px-2 leading-tight">${cleanPrompt || 'Procesando...'}</div>
+            <div class="absolute bottom-2 md:bottom-4 left-2 right-2 text-[8px] md:text-[10px] text-center text-white/40 line-clamp-2 px-2 leading-tight">${cleanPrompt || 'Procesando...'}</div>
         `;
         galleryGrid.prepend(loadingCard);
         const statusText = loadingCard.querySelector('.status-text');
@@ -687,91 +667,95 @@ export function VideoStudio() {
         textarea.style.height = 'auto';
 
         try {
-            // --- 1. Llamada inicial al proxy ---
-            const endpoint = getVideoEndpoint(finalApiId);
-            const submitResp = await fetch(`${BASE_URL}/api/v1/${endpoint}`, {
+            // Token igual que ImageStudio
+            const token = await auth.currentUser.getIdToken();
+
+            // Llamada al proxy — RUTA RELATIVA igual que ImageStudio
+            const req = await fetch(`/api/v1/${finalApiId}`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
                 body: JSON.stringify(params)
             });
 
-            if (!submitResp.ok) {
-                const errText = await submitResp.text();
-                throw new Error(`Error del servidor: ${submitResp.status} — ${errText.slice(0, 200)}`);
+            if (!req.ok) {
+                const errText = await req.text();
+                throw new Error(`Error del servidor (${req.status}): ${errText.slice(0, 300)}`);
             }
 
-            const submitData = await submitResp.json();
-            console.log('[VideoStudio] Respuesta inicial:', submitData);
+            let res = await req.json();
+            console.log('[VideoStudio] Respuesta inicial:', res);
 
-            // --- 2. Extraer URL o request_id ---
-            const rid      = submitData.request_id || submitData.id || submitData.output?.id;
-            let   finalUrl = submitData.output?.outputs?.[0]
-                          || submitData.outputs?.[0]
-                          || submitData.url
-                          || submitData.video_url;
-
-            // --- 3. Polling si la URL no vino inmediata ---
-            if (!finalUrl && rid) {
+            // Polling igual que ImageStudio
+            if (res.request_id && !res.url && !res.video_url) {
                 statusText.textContent = 'Renderizando (1-3 min)...';
-                const pollUrl = `${BASE_URL}/api/v1/predictions/${rid}/result`;
-
                 let attempts = 0;
-                const maxAttempts = 150; // 5 minutos a 2s por intento
 
-                while (attempts < maxAttempts) {
+                while (attempts < 150) {
                     await new Promise(r => setTimeout(r, 2000));
                     attempts++;
 
-                    let pollData;
                     try {
-                        const pollResp = await fetch(pollUrl);
-                        if (!pollResp.ok) { if (pollResp.status >= 500) continue; throw new Error(`Poll error: ${pollResp.status}`); }
-                        pollData = await pollResp.json();
+                        const poll = await fetch(`/api/v1/predictions/${res.request_id}/result`, {
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        });
+
+                        if (poll.ok) {
+                            const pollRes = await poll.json();
+                            const status  = (pollRes.status || pollRes.output?.status || '').toLowerCase();
+                            console.log(`[VideoStudio] Poll ${attempts}: status=${status}`);
+
+                            const finalUrl = pollRes.output?.outputs?.[0]
+                                          || pollRes.outputs?.[0]
+                                          || pollRes.url
+                                          || pollRes.video_url;
+
+                            if (finalUrl) { res.url = finalUrl; break; }
+
+                            if (status === 'failed' || status === 'error') {
+                                throw new Error(pollRes.error || pollRes.output?.error || 'La generación falló.');
+                            }
+                        }
                     } catch (pollErr) {
-                        console.warn(`[VideoStudio] Poll intento ${attempts} fallido:`, pollErr.message);
-                        continue;
+                        if (attempts >= 150) throw pollErr;
+                        console.warn(`[VideoStudio] Poll ${attempts}:`, pollErr.message);
                     }
 
-                    const status = (pollData.status || pollData.output?.status || '').toLowerCase();
-                    console.log(`[VideoStudio] Poll ${attempts}: status=${status}`);
-
-                    finalUrl = pollData.output?.outputs?.[0]
-                             || pollData.outputs?.[0]
-                             || pollData.url
-                             || pollData.video_url;
-
-                    if (finalUrl) break;
-
-                    if (status === 'failed' || status === 'error') {
-                        throw new Error(pollData.error || pollData.output?.error || 'La generación falló en el servidor.');
-                    }
-
-                    // Actualizar texto de estado con tiempo transcurrido
-                    statusText.textContent = `Renderizando... (${Math.round(attempts * 2 / 60)}min)`;
+                    const mins = Math.floor(attempts * 2 / 60);
+                    const secs = (attempts * 2) % 60;
+                    statusText.textContent = `Renderizando... ${mins > 0 ? mins + 'min ' : ''}${secs}s`;
                 }
             }
 
-            if (!finalUrl) throw new Error('El servidor no devolvió la URL del vídeo a tiempo. Inténtalo de nuevo.');
+            // Extraer URL final (cubre distintas estructuras de respuesta)
+            const finalUrl = res.url
+                          || res.video_url
+                          || res.output?.outputs?.[0]
+                          || res.outputs?.[0];
 
-            // --- 4. Descontar créditos ---
+            if (!finalUrl) throw new Error('El servidor no devolvió la URL del vídeo. Inténtalo de nuevo.');
+
+            // Descontar créditos
             if (!isAdmin) {
-                try { await updateDoc(userRef, { credits: increment(-cost) }); } catch (e) {
-                    console.warn('[VideoStudio] No se pudieron descontar créditos:', e);
-                }
+                try { await updateDoc(userRef, { credits: increment(-cost) }); }
+                catch (e) { console.warn('[VideoStudio] No se pudieron descontar créditos:', e); }
             }
 
-            // --- 5. Guardar en Firebase ---
+            // Guardar en Firebase
+            const rid = res.request_id || res.id || null;
             const entryData = {
-                url:          finalUrl,
-                prompt:       cleanPrompt || 'Vídeo generado',
-                model:        finalApiId,
-                duration:     selectedDuration,
-                quality:      selectedQuality,
-                aspect_ratio: selectedAr,
-                type:         'video',
-                request_id:   rid || null,
-                muapi_request_id: rid || null,
-                createdAt:    serverTimestamp()
+                url:              finalUrl,
+                prompt:           cleanPrompt || 'Vídeo generado',
+                model:            finalApiId,
+                duration:         selectedDuration,
+                quality:          selectedQuality,
+                aspect_ratio:     selectedAr,
+                type:             'video',
+                request_id:       rid,
+                muapi_request_id: rid,
+                createdAt:        serverTimestamp()
             };
 
             let realId = rid || Date.now().toString();
@@ -781,11 +765,9 @@ export function VideoStudio() {
                 realId = docRef.id;
             } catch (e) { console.warn('[VideoStudio] No se guardó en Firebase:', e); }
 
-            // --- 6. Renderizar card ---
             loadingCard.remove();
             renderCard({ id: realId, ...entryData }, true);
 
-            // Reset extend
             if (finalApiId === 'sd-2-extend') {
                 lastGenerationId  = null;
                 selectedUiId      = 'kreate-2';
@@ -794,13 +776,12 @@ export function VideoStudio() {
 
         } catch (err) {
             console.error('[VideoStudio] Error fatal:', err);
-
             loadingCard.innerHTML = `
                 <div class="absolute inset-0 bg-red-500/10"></div>
                 <div class="z-10 flex flex-col items-center gap-1 md:gap-2 p-2 md:p-4 text-center">
                     <span class="text-lg md:text-xl">⚠️</span>
                     <span class="text-[8px] md:text-[10px] font-bold text-red-400">Error al generar</span>
-                    <span class="text-white/50 text-[6px] px-2 break-words w-full">${String(err.message || '').slice(0, 120)}</span>
+                    <span class="text-white/50 text-[7px] px-2 break-words w-full">${String(err.message || '').slice(0, 150)}</span>
                     <button class="retry-btn mt-1 bg-white/10 px-2 py-1 rounded-md text-[8px] text-white hover:bg-white/20 border border-white/10">Cerrar</button>
                 </div>
             `;
@@ -812,18 +793,11 @@ export function VideoStudio() {
         }
     }
 
-    // ===============================
-    // CONECTAR BOTÓN GENERAR
-    // ===============================
-
+    // Conectar botón con stopPropagation para que el dropdown no interfiera
     generateBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         if (!isGenerating) handleGenerate();
     });
-
-    // ===============================
-    // INIT
-    // ===============================
 
     updateControlsForModel();
     return container;
