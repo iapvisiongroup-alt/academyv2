@@ -15,7 +15,8 @@ const V_MODELS = [
     { uiId: 'kreate-2',        name: 'KreateVideo 2' },
     { uiId: 'kreate-2-extend', name: 'KreateVideo 2 Extend' },
     { uiId: 'veo-fast',        name: 'KreateVideo Fast' },
-    { uiId: 'kling-mc',        name: 'KreateMotion Control' }
+    { uiId: 'kling-mc',        name: 'KreateMotion Control' },
+    { uiId: 'veo-i2v',         name: 'KreateVideo Fast I2V' }
 ];
 
 // ===============================
@@ -23,15 +24,16 @@ const V_MODELS = [
 // ===============================
 
 const getApiId = (uiId, mode) => {
-    if (uiId === 'kreate-2-extend') return 'sd-2-extend';
-    if (uiId === 'veo-fast')        return 'veo-3.1-fast';
-    if (uiId === 'kling-mc')        return 'kling-3.0-std';
+    if (uiId === 'kreate-2-extend') return 'sd-2-vip-extend';
+    if (uiId === 'veo-fast')        return 'veo3.1-fast-text-to-video';
+    if (uiId === 'veo-i2v')         return 'veo3.1-lite-image-to-video';
+    if (uiId === 'kling-mc')        return 'kling-v3.0-std-motion-control';
     if (uiId === 'kreate-2') {
-        if (mode === 'i2v') return 'sd-2-i2v-480p';
-        if (mode === 'v2v') return 'sd-2-omni-reference-no-video-fast';
-        return 'sd-2-t2v-480p';   // ✅ nombre correcto confirmado
+        if (mode === 'i2v') return 'seedance-v2.0-i2v';
+        if (mode === 'v2v') return 'seedance-2.0-omni-reference-480p';
+        return 'seedance-v2.0-t2v';   // ✅ nombre correcto confirmado
     }
-    return 'sd-2-t2v-480p';
+    return 'seedance-v2.0-t2v';
 };
 
 // ===============================
@@ -54,20 +56,25 @@ const buildVideoParams = ({ finalApiId, promptText, selectedAr, selectedDuration
     const duration = parseInt(selectedDuration) || 5;
     const quality  = selectedQuality || 'basic';
 
-    if (['sd-2-t2v-480p', 'veo-3.1-fast', 'kling-3.0-std'].includes(finalApiId)) {
+    if (['seedance-v2.0-t2v', 'veo3.1-fast-text-to-video', 'kling-v3.0-std-motion-control'].includes(finalApiId)) {
         return { prompt: promptText, aspect_ratio: selectedAr, duration, quality };
     }
-    if (finalApiId === 'sd-2-i2v-480p') {
+    if (finalApiId === 'seedance-v2.0-i2v') {
         let p = promptText || 'Animate this image';
         if (!p.includes('@image1')) p = `@image1 ${p}`;
         return { prompt: p, images_list: [uploadedImageUrl], aspect_ratio: selectedAr, duration, quality };
     }
-    if (finalApiId === 'sd-2-omni-reference-no-video-fast') {
+    if (finalApiId === 'veo3.1-lite-image-to-video') {
+        let p = promptText || 'Animate this image smoothly';
+        if (!p.includes('@image1')) p = `@image1 ${p}`;
+        return { prompt: p, images_list: [uploadedImageUrl], aspect_ratio: selectedAr, duration, quality };
+    }
+    if (finalApiId === 'seedance-2.0-omni-reference-480p') {
         let p = promptText || 'Create a cinematic video using the reference video';
         if (!p.includes('@video1')) p = `@video1 ${p}`;
         return { prompt: p, video_files: [uploadedVideoUrl], aspect_ratio: selectedAr, duration, quality };
     }
-    if (finalApiId === 'sd-2-extend') {
+    if (finalApiId === 'sd-2-vip-extend') {
         if (!lastGenerationId) throw new Error('No hay request_id válido para extender.');
         const p = { request_id: lastGenerationId, duration, quality };
         if (promptText)  p.prompt = promptText;
@@ -459,7 +466,7 @@ export function VideoStudio() {
         if (type === 'ar') {
             const finalApiId = getApiId(selectedUiId, getCurrentMode());
             let ars = ['16:9', '9:16', '4:3', '3:4'];
-            if (['sd-2-omni-reference-no-video-fast', 'sd-2-extend'].includes(finalApiId)) {
+            if (['seedance-2.0-omni-reference-480p', 'sd-2-vip-extend'].includes(finalApiId)) {
                 ars = ['21:9', '16:9', '4:3', '1:1', '3:4', '9:16'];
             }
             dropdown.innerHTML = `<div class="text-[10px] font-bold text-white/50 uppercase tracking-widest px-2 py-2 border-b border-white/5 mb-2">Relación de aspecto</div><div class="flex flex-col gap-1"></div>`;
@@ -613,13 +620,15 @@ export function VideoStudio() {
             if (typeof AuthModal === 'function') return AuthModal(() => handleGenerate());
             return alert('Debes iniciar sesión para generar vídeos.');
         }
-        if (['sd-2-t2v-480p', 'veo-3.1-fast', 'kling-3.0-std'].includes(finalApiId) && !promptText)
+        if (['seedance-v2.0-t2v', 'veo3.1-fast-text-to-video', 'kling-v3.0-std-motion-control'].includes(finalApiId) && !promptText)
             return alert('Escribe un prompt para generar el vídeo.');
-        if (finalApiId === 'sd-2-i2v-480p' && !uploadedImageUrl)
+        if (finalApiId === 'veo3.1-lite-image-to-video' && !uploadedImageUrl)
+            return alert('Sube una imagen de referencia para KreateVideo Fast I2V.');
+        if (finalApiId === 'seedance-v2.0-i2v' && !uploadedImageUrl)
             return alert('Sube una imagen de referencia primero.');
-        if (finalApiId === 'sd-2-omni-reference-no-video-fast' && !uploadedVideoUrl)
+        if (finalApiId === 'seedance-2.0-omni-reference-480p' && !uploadedVideoUrl)
             return alert('Sube un vídeo de referencia primero.');
-        if (finalApiId === 'sd-2-extend' && !lastGenerationId)
+        if (finalApiId === 'sd-2-vip-extend' && !lastGenerationId)
             return alert('No hay vídeo anterior para extender.');
 
         // Verificar saldo
@@ -737,7 +746,7 @@ export function VideoStudio() {
             loadingCard.remove();
             renderCard({ id: realId, ...entryData }, true);
 
-            if (finalApiId === 'sd-2-extend') {
+            if (finalApiId === 'sd-2-vip-extend') {
                 lastGenerationId = null; selectedUiId = 'kreate-2'; selectedModelName = 'KreateVideo 2';
             }
 
