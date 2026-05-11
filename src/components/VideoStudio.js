@@ -29,7 +29,7 @@ const getApiId = (uiId, mode) => {
     if (uiId === 'veo-i2v')         return 'veo3.1-lite-image-to-video';
     if (uiId === 'kling-mc')        return 'kling-v3.0-std-motion-control';
     if (uiId === 'kreate-2') {
-        if (mode === 'i2v') return 'seedance-v2.0-i2v';
+        if (mode === 'i2v') return 'seedance-2-vip-image-to-video-fast';
         if (mode === 'v2v') return 'seedance-2.0-omni-reference-480p';
         return 'seedance-v2.0-t2v';   // ✅ nombre correcto confirmado
     }
@@ -59,7 +59,7 @@ const buildVideoParams = ({ finalApiId, promptText, selectedAr, selectedDuration
     if (['seedance-v2.0-t2v', 'veo3.1-fast-text-to-video', 'kling-v3.0-std-motion-control'].includes(finalApiId)) {
         return { prompt: promptText, aspect_ratio: selectedAr, duration, quality };
     }
-    if (finalApiId === 'seedance-v2.0-i2v') {
+    if (finalApiId === 'seedance-2-vip-image-to-video-fast') {
         let p = promptText || 'Animate this image';
         if (!p.includes('@image1')) p = `@image1 ${p}`;
         return { prompt: p, images_list: [uploadedImageUrl], aspect_ratio: selectedAr, duration, quality };
@@ -624,7 +624,7 @@ export function VideoStudio() {
             return alert('Escribe un prompt para generar el vídeo.');
         if (finalApiId === 'veo3.1-lite-image-to-video' && !uploadedImageUrl)
             return alert('Sube una imagen de referencia para KreateVideo Fast I2V.');
-        if (finalApiId === 'seedance-v2.0-i2v' && !uploadedImageUrl)
+        if (finalApiId === 'seedance-2-vip-image-to-video-fast' && !uploadedImageUrl)
             return alert('Sube una imagen de referencia primero.');
         if (finalApiId === 'seedance-2.0-omni-reference-480p' && !uploadedVideoUrl)
             return alert('Sube un vídeo de referencia primero.');
