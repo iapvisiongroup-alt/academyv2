@@ -19,9 +19,7 @@ const V_MODELS = [
 ];
 
 // ===============================
-// TRADUCTOR UI -> MUAPI MODEL ID
-// IMPORTANTE: estos son los nombres EXACTOS del endpoint en MuAPI
-// Cámbialos si tu panel de MuAPI usa nombres distintos
+// TRADUCTOR UI -> ENDPOINT MUAPI (nombres exactos de MuAPI)
 // ===============================
 
 const getApiId = (uiId, mode) => {
@@ -31,9 +29,9 @@ const getApiId = (uiId, mode) => {
     if (uiId === 'kreate-2') {
         if (mode === 'i2v') return 'sd-2-i2v-480p';
         if (mode === 'v2v') return 'sd-2-omni-reference-no-video-fast';
-        return 'sd-2-text-to-video-fast';
+        return 'sd-2-t2v-480p';   // ✅ nombre correcto confirmado
     }
-    return 'sd-2-text-to-video-fast';
+    return 'sd-2-t2v-480p';
 };
 
 // ===============================
@@ -49,30 +47,53 @@ const getVideoCost = (apiId, duration) => {
 };
 
 // ===============================
-// PARAMS POR MODELO
+// CONSTRUIR PARAMS SEGÚN SCHEMA MUAPI
 // ===============================
 
-const buildVideoParams = ({ finalApiId, promptText, selectedAr, selectedDuration, uploadedImageUrl, uploadedVideoUrl, lastGenerationId }) => {
+const buildVideoParams = ({ finalApiId, promptText, selectedAr, selectedDuration, selectedQuality, uploadedImageUrl, uploadedVideoUrl, lastGenerationId }) => {
     const duration = parseInt(selectedDuration) || 5;
+    const quality  = selectedQuality || 'basic';
 
-    if (['sd-2-text-to-video-fast', 'veo-3.1-fast', 'kling-3.0-std'].includes(finalApiId)) {
-        return { prompt: promptText, aspect_ratio: selectedAr, duration };
+    if (['sd-2-t2v-480p', 'veo-3.1-fast', 'kling-3.0-std'].includes(finalApiId)) {
+        return { prompt: promptText, aspect_ratio: selectedAr, duration, quality };
     }
     if (finalApiId === 'sd-2-i2v-480p') {
         let p = promptText || 'Animate this image';
         if (!p.includes('@image1')) p = `@image1 ${p}`;
-        return { prompt: p, images_list: [uploadedImageUrl], aspect_ratio: selectedAr, duration };
+        return { prompt: p, images_list: [uploadedImageUrl], aspect_ratio: selectedAr, duration, quality };
     }
     if (finalApiId === 'sd-2-omni-reference-no-video-fast') {
         let p = promptText || 'Create a cinematic video using the reference video';
         if (!p.includes('@video1')) p = `@video1 ${p}`;
-        return { prompt: p, video_files: [uploadedVideoUrl], aspect_ratio: selectedAr, duration };
+        return { prompt: p, video_files: [uploadedVideoUrl], aspect_ratio: selectedAr, duration, quality };
     }
     if (finalApiId === 'sd-2-extend') {
         if (!lastGenerationId) throw new Error('No hay request_id válido para extender.');
-        return { request_id: lastGenerationId, prompt: promptText || 'Continue the video seamlessly', aspect_ratio: selectedAr, duration };
+        const p = { request_id: lastGenerationId, duration, quality };
+        if (promptText)  p.prompt = promptText;
+        if (selectedAr)  p.aspect_ratio = selectedAr;
+        return p;
     }
-    return { prompt: promptText, aspect_ratio: selectedAr, duration };
+    return { prompt: promptText, aspect_ratio: selectedAr, duration, quality };
+};
+
+// ===============================
+// EXTRAER URL FINAL — schema MuAPI real: output.outputs[0]
+// ===============================
+
+const extractVideoUrl = (data) => {
+    if (!data) return null;
+    if (data.output?.outputs?.length)  return data.output.outputs[0];
+    if (data.outputs?.length)          return data.outputs[0];
+    if (data.url)                      return data.url;
+    if (data.video_url)                return data.video_url;
+    if (data.output?.url)              return data.output.url;
+    return null;
+};
+
+const extractStatus = (data) => {
+    if (!data) return '';
+    return (data.status || data.output?.status || '').toLowerCase();
 };
 
 // ===============================
@@ -114,14 +135,14 @@ export function VideoStudio() {
     hero.className = 'flex flex-col items-center mb-6 md:mb-16 mt-4 md:mt-0 animate-fade-in-up transition-all duration-700 shrink-0';
     hero.innerHTML = `
         <div class="mb-6 md:mb-10 relative group">
-             <div class="absolute inset-0 bg-[#FFB000]/20 blur-[60px] md:blur-[100px] rounded-full opacity-40 group-hover:opacity-70 transition-opacity duration-1000"></div>
-             <div class="relative w-16 h-16 md:w-32 md:h-32 bg-[#111111] rounded-2xl md:rounded-3xl flex items-center justify-center border border-white/5 overflow-hidden">
+            <div class="absolute inset-0 bg-[#FFB000]/20 blur-[60px] md:blur-[100px] rounded-full opacity-40 group-hover:opacity-70 transition-opacity duration-1000"></div>
+            <div class="relative w-16 h-16 md:w-32 md:h-32 bg-[#111111] rounded-2xl md:rounded-3xl flex items-center justify-center border border-white/5 overflow-hidden">
                 <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" class="text-[#FFB000] opacity-20 absolute -right-2 -bottom-2 md:-right-4 md:-bottom-4 w-12 md:w-20"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
                 <div class="w-10 h-10 md:w-16 md:h-16 bg-[#FFB000]/10 rounded-xl md:rounded-2xl flex items-center justify-center border border-[#FFB000]/20 shadow-glow relative z-10">
                     <svg width="50%" height="50%" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="text-[#FFB000] w-5 md:w-8"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
                 </div>
                 <div class="absolute top-2 right-2 md:top-4 md:right-4 text-[#3B82F6] animate-pulse text-xs md:text-base">✨</div>
-             </div>
+            </div>
         </div>
         <h1 class="text-xl sm:text-4xl md:text-7xl font-black text-white tracking-widest uppercase mb-2 md:mb-4 text-center px-4">Estudio de Vídeo</h1>
         <p class="text-white/50 text-[10px] md:text-sm font-medium tracking-wide opacity-60 text-center px-4">Anima imágenes y crea vídeos increíbles con IA</p>
@@ -356,19 +377,18 @@ export function VideoStudio() {
     promptWrapper.appendChild(bar);
     container.appendChild(promptWrapper);
 
-    const inlineInstructions = document.createElement('div');
-    inlineInstructions.className = 'w-full text-center text-white/30 text-sm flex flex-col items-center gap-1 md:gap-2 py-2 px-4';
-    inlineInstructions.innerHTML = `<p class="text-[10px] md:text-xs text-white/20">Puedes lanzar varios vídeos a la vez sin esperar.</p>`;
-    container.appendChild(inlineInstructions);
+    container.appendChild(Object.assign(document.createElement('div'), {
+        className: 'w-full text-center flex flex-col items-center gap-1 py-2 px-4',
+        innerHTML: `<p class="text-[10px] md:text-xs text-white/20">Puedes lanzar varios vídeos a la vez sin esperar.</p>`
+    }));
 
     // ===============================
     // UPDATE UI
     // ===============================
 
     function updateControlsForModel() {
-        const currentMode = getCurrentMode();
-        const finalApiId  = getApiId(selectedUiId, currentMode);
-        const cost        = getVideoCost(finalApiId, selectedDuration);
+        const finalApiId = getApiId(selectedUiId, getCurrentMode());
+        const cost       = getVideoCost(finalApiId, selectedDuration);
 
         updateLabel('v-model-btn-label',    selectedModelName);
         updateLabel('v-ar-btn-label',       selectedAr);
@@ -406,15 +426,11 @@ export function VideoStudio() {
     const positionDropdown = (anchorBtn, width = '240px') => {
         const rect = anchorBtn.getBoundingClientRect();
         if (window.innerWidth < 768) {
-            dropdown.style.top    = 'auto'; dropdown.style.bottom = '16px';
-            dropdown.style.left   = '16px'; dropdown.style.right  = '16px';
-            dropdown.style.width  = 'auto';
+            dropdown.style.top = 'auto'; dropdown.style.bottom = '16px';
+            dropdown.style.left = '16px'; dropdown.style.right = '16px'; dropdown.style.width = 'auto';
         } else {
-            dropdown.style.bottom = 'auto';
-            dropdown.style.top    = `${rect.bottom + 8}px`;
-            dropdown.style.left   = `${rect.left}px`;
-            dropdown.style.right  = 'auto';
-            dropdown.style.width  = width;
+            dropdown.style.bottom = 'auto'; dropdown.style.top = `${rect.bottom + 8}px`;
+            dropdown.style.left = `${rect.left}px`; dropdown.style.right = 'auto'; dropdown.style.width = width;
         }
     };
 
@@ -425,7 +441,6 @@ export function VideoStudio() {
 
         if (type === 'model') {
             dropdown.innerHTML = `<div class="text-[10px] font-bold text-white/50 uppercase tracking-widest px-2 py-2 border-b border-white/5 mb-2">Modelos KreateIA</div><div class="flex flex-col gap-1"></div>`;
-            const list = dropdown.querySelector('div:last-child');
             V_MODELS.forEach((m) => {
                 const item = document.createElement('div');
                 item.className = 'flex items-center justify-between p-3 hover:bg-white/5 rounded-xl cursor-pointer transition-all';
@@ -436,7 +451,7 @@ export function VideoStudio() {
                     if (m.uiId !== 'kreate-2-extend') lastGenerationId = null;
                     updateControlsForModel(); closeDropdown();
                 });
-                list.appendChild(item);
+                dropdown.querySelector('div:last-child').appendChild(item);
             });
             positionDropdown(anchorBtn, '300px');
         }
@@ -448,41 +463,36 @@ export function VideoStudio() {
                 ars = ['21:9', '16:9', '4:3', '1:1', '3:4', '9:16'];
             }
             dropdown.innerHTML = `<div class="text-[10px] font-bold text-white/50 uppercase tracking-widest px-2 py-2 border-b border-white/5 mb-2">Relación de aspecto</div><div class="flex flex-col gap-1"></div>`;
-            const list = dropdown.querySelector('div:last-child');
             ars.forEach((ar) => {
                 const item = document.createElement('div');
                 item.className = 'flex items-center justify-between p-3 hover:bg-white/5 rounded-xl cursor-pointer transition-all';
                 item.innerHTML = `<span class="text-xs md:text-sm font-bold text-white">${ar}</span>${selectedAr === ar ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFB000" stroke-width="4"><polyline points="20 6 9 17 4 12"/></svg>' : ''}`;
                 item.addEventListener('click', (e) => { e.stopPropagation(); selectedAr = ar; updateControlsForModel(); closeDropdown(); });
-                list.appendChild(item);
+                dropdown.querySelector('div:last-child').appendChild(item);
             });
             positionDropdown(anchorBtn, '220px');
         }
 
         if (type === 'duration') {
-            const durations = [5, 10, 15];
             dropdown.innerHTML = `<div class="text-[10px] font-bold text-white/50 uppercase tracking-widest px-2 py-2 border-b border-white/5 mb-2">Duración</div><div class="flex flex-col gap-1"></div>`;
-            const list = dropdown.querySelector('div:last-child');
-            durations.forEach((d) => {
+            [5, 10, 15].forEach((d) => {
                 const item = document.createElement('div');
                 item.className = 'flex items-center justify-between p-3 hover:bg-white/5 rounded-xl cursor-pointer transition-all';
                 item.innerHTML = `<span class="text-xs md:text-sm font-bold text-white">${d}s</span>${selectedDuration === d ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFB000" stroke-width="4"><polyline points="20 6 9 17 4 12"/></svg>' : ''}`;
                 item.addEventListener('click', (e) => { e.stopPropagation(); selectedDuration = d; updateControlsForModel(); closeDropdown(); });
-                list.appendChild(item);
+                dropdown.querySelector('div:last-child').appendChild(item);
             });
             positionDropdown(anchorBtn, '180px');
         }
 
         if (type === 'quality') {
-            const qualities = [{ id: 'basic', name: 'Básica' }, { id: 'high', name: 'Alta' }];
             dropdown.innerHTML = `<div class="text-[10px] font-bold text-white/50 uppercase tracking-widest px-2 py-2 border-b border-white/5 mb-2">Calidad</div><div class="flex flex-col gap-1"></div>`;
-            const list = dropdown.querySelector('div:last-child');
-            qualities.forEach((q) => {
+            [{ id: 'basic', name: 'Básica' }, { id: 'high', name: 'Alta' }].forEach((q) => {
                 const item = document.createElement('div');
                 item.className = 'flex items-center justify-between p-3 hover:bg-white/5 rounded-xl cursor-pointer transition-all';
                 item.innerHTML = `<span class="text-xs md:text-sm font-bold text-white">${q.name}</span>${selectedQuality === q.id ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFB000" stroke-width="4"><polyline points="20 6 9 17 4 12"/></svg>' : ''}`;
                 item.addEventListener('click', (e) => { e.stopPropagation(); selectedQuality = q.id; updateControlsForModel(); closeDropdown(); });
-                list.appendChild(item);
+                dropdown.querySelector('div:last-child').appendChild(item);
             });
             positionDropdown(anchorBtn, '180px');
         }
@@ -498,12 +508,7 @@ export function VideoStudio() {
     arBtn.addEventListener('click',       toggleDropdown('ar',       arBtn));
     durationBtn.addEventListener('click', toggleDropdown('duration', durationBtn));
     qualityBtn.addEventListener('click',  toggleDropdown('quality',  qualityBtn));
-
-    // Cierra dropdown al hacer click fuera, sin interferir con generateBtn
-    window.addEventListener('click', (e) => {
-        if (!dropdown.contains(e.target)) closeDropdown();
-    });
-
+    window.addEventListener('click', (e) => { if (!dropdown.contains(e.target)) closeDropdown(); });
     document.body.appendChild(dropdown);
 
     // ===============================
@@ -512,22 +517,18 @@ export function VideoStudio() {
 
     const galleryWrapper = document.createElement('div');
     galleryWrapper.className = 'w-full max-w-6xl mt-4 md:mt-8 flex-1 flex flex-col shrink-0 px-2 md:px-0';
-
     const galleryHeader = document.createElement('h3');
     galleryHeader.className = 'text-[10px] md:text-xs font-bold text-white/40 uppercase tracking-widest mb-3 md:mb-4 px-2 hidden';
     galleryHeader.textContent = 'Tus Creaciones';
-
     const galleryGrid = document.createElement('div');
     galleryGrid.className = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-5 w-full';
-
     galleryWrapper.appendChild(galleryHeader);
     galleryWrapper.appendChild(galleryGrid);
     container.appendChild(galleryWrapper);
 
     const downloadFile = async (url, filename) => {
         try {
-            const blob = await fetch(url).then(r => r.blob());
-            const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: filename });
+            const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(await fetch(url).then(r => r.blob())), download: filename });
             document.body.appendChild(a); a.click(); document.body.removeChild(a);
         } catch { window.open(url, '_blank'); }
     };
@@ -540,17 +541,17 @@ export function VideoStudio() {
         card.innerHTML = `
             <video src="${entry.url}" autoplay loop muted playsinline class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"></video>
             <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-3 md:p-4">
-                <p class="text-white text-[10px] md:text-xs font-medium line-clamp-2 md:line-clamp-3 mb-2 md:mb-3 leading-tight">${entry.prompt || 'Vídeo generado'}</p>
+                <p class="text-white text-[10px] md:text-xs font-medium line-clamp-2 mb-2 leading-tight">${entry.prompt || 'Vídeo generado'}</p>
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-1.5">
-                        <span class="text-[8px] md:text-[10px] text-white/70 bg-black/60 px-1.5 py-0.5 md:px-2 md:py-1 rounded-md border border-white/10">${entry.duration || 5}s</span>
-                        <span class="text-[8px] md:text-[10px] text-[#FFB000] font-bold bg-[#FFB000]/10 px-1.5 py-0.5 md:px-2 md:py-1 rounded-md border border-[#FFB000]/20">${entry.quality === 'high' ? 'Alta' : 'Básica'}</span>
+                        <span class="text-[8px] md:text-[10px] text-white/70 bg-black/60 px-1.5 py-0.5 rounded-md border border-white/10">${entry.duration || 5}s</span>
+                        <span class="text-[8px] md:text-[10px] text-[#FFB000] font-bold bg-[#FFB000]/10 px-1.5 py-0.5 rounded-md border border-[#FFB000]/20">${entry.quality === 'high' ? 'Alta' : 'Básica'}</span>
                     </div>
                     <div class="flex items-center gap-2">
-                        <button class="extend-btn p-1.5 md:p-2 bg-[#3B82F6]/20 hover:bg-[#3B82F6] text-[#3B82F6] hover:text-white rounded-lg md:rounded-xl transition-all border border-[#3B82F6]/30" title="Extender vídeo">
+                        <button class="extend-btn p-1.5 md:p-2 bg-[#3B82F6]/20 hover:bg-[#3B82F6] text-[#3B82F6] hover:text-white rounded-lg transition-all border border-[#3B82F6]/30" title="Extender">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                         </button>
-                        <button class="download-btn p-1.5 md:p-2 bg-white/20 hover:bg-[#FFB000] hover:text-black text-white rounded-lg md:rounded-xl transition-all border border-white/20" title="Descargar">
+                        <button class="download-btn p-1.5 md:p-2 bg-white/20 hover:bg-[#FFB000] hover:text-black text-white rounded-lg transition-all border border-white/20" title="Descargar">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
                         </button>
                     </div>
@@ -558,14 +559,14 @@ export function VideoStudio() {
             </div>
         `;
 
-        const requestId = entry.request_id || entry.muapi_request_id || null;
+        const rid = entry.request_id || entry.muapi_request_id || null;
         const extendBtn = card.querySelector('.extend-btn');
-        if (!requestId) {
+        if (!rid) {
             extendBtn.style.display = 'none';
         } else {
             extendBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                lastGenerationId  = requestId;
+                lastGenerationId  = rid;
                 selectedUiId      = 'kreate-2-extend';
                 selectedModelName = 'KreateVideo 2 Extend';
                 uploadedImageUrl  = null;
@@ -577,7 +578,6 @@ export function VideoStudio() {
                 textarea.focus();
             });
         }
-
         card.querySelector('.download-btn').addEventListener('click', (e) => {
             e.stopPropagation();
             downloadFile(entry.url, `KreateVideo-${Date.now()}.mp4`);
@@ -588,17 +588,16 @@ export function VideoStudio() {
 
     const loadFirebaseHistory = async (user) => {
         try {
-            const genRef = collection(db, 'artifacts', APP_ID, 'public', 'data', 'users', user.uid, 'video_generations');
-            const q      = query(genRef, orderBy('createdAt', 'desc'), limit(20));
-            const snap   = await getDocs(q);
-            snap.forEach((docSnap) => renderCard({ id: docSnap.id, ...docSnap.data() }));
-        } catch (err) { console.error('[VideoStudio] Error cargando historial:', err); }
+            const q    = query(collection(db, 'artifacts', APP_ID, 'public', 'data', 'users', user.uid, 'video_generations'), orderBy('createdAt', 'desc'), limit(20));
+            const snap = await getDocs(q);
+            snap.forEach((d) => renderCard({ id: d.id, ...d.data() }));
+        } catch (err) { console.error('[VideoStudio] Historial:', err); }
     };
 
     onAuthStateChanged(auth, (user) => { if (user) loadFirebaseHistory(user); });
 
     // ===============================
-    // GENERACIÓN — mismo patrón exacto que ImageStudio
+    // GENERACIÓN — patrón idéntico a ImageStudio
     // ===============================
 
     async function handleGenerate() {
@@ -614,41 +613,34 @@ export function VideoStudio() {
             if (typeof AuthModal === 'function') return AuthModal(() => handleGenerate());
             return alert('Debes iniciar sesión para generar vídeos.');
         }
-        if (['sd-2-text-to-video-fast', 'veo-3.1-fast', 'kling-3.0-std'].includes(finalApiId) && !promptText) {
+        if (['sd-2-t2v-480p', 'veo-3.1-fast', 'kling-3.0-std'].includes(finalApiId) && !promptText)
             return alert('Escribe un prompt para generar el vídeo.');
-        }
-        if (finalApiId === 'sd-2-i2v-480p' && !uploadedImageUrl) {
+        if (finalApiId === 'sd-2-i2v-480p' && !uploadedImageUrl)
             return alert('Sube una imagen de referencia primero.');
-        }
-        if (finalApiId === 'sd-2-omni-reference-no-video-fast' && !uploadedVideoUrl) {
+        if (finalApiId === 'sd-2-omni-reference-no-video-fast' && !uploadedVideoUrl)
             return alert('Sube un vídeo de referencia primero.');
-        }
-        if (finalApiId === 'sd-2-extend' && !lastGenerationId) {
+        if (finalApiId === 'sd-2-extend' && !lastGenerationId)
             return alert('No hay vídeo anterior para extender.');
-        }
 
-        // Verificar saldo — igual que ImageStudio
+        // Verificar saldo
         const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', auth.currentUser.uid);
         let userSnap;
-        try {
-            userSnap = await getDoc(userRef);
-        } catch (e) {
-            return alert('Error consultando tu saldo. Inténtalo de nuevo.');
-        }
+        try { userSnap = await getDoc(userRef); }
+        catch { return alert('Error consultando tu saldo. Inténtalo de nuevo.'); }
+
         const currentCredits = userSnap.exists() ? (userSnap.data().credits || 0) : 0;
         const isAdmin        = userSnap.exists() && userSnap.data().role === 'admin';
 
-        if (!isAdmin && currentCredits < cost) {
-            return alert(`⚠️ Saldo insuficiente.\n\nEste vídeo requiere ${cost} 🪙 y tienes ${currentCredits} 🪙.\nRecarga créditos en tu perfil.`);
-        }
+        if (!isAdmin && currentCredits < cost)
+            return alert(`⚠️ Saldo insuficiente.\n\nEste vídeo requiere ${cost} 🪙 y tienes ${currentCredits} 🪙.`);
 
         // Preparar UI
         isGenerating = true;
         updateControlsForModel();
         galleryHeader.classList.remove('hidden');
 
-        const params      = buildVideoParams({ finalApiId, promptText, selectedAr, selectedDuration, uploadedImageUrl, uploadedVideoUrl, lastGenerationId });
-        const cleanPrompt = String(params.prompt || promptText || '').replace('@image1', '').replace('@video1', '').trim();
+        const params      = buildVideoParams({ finalApiId, promptText, selectedAr, selectedDuration, selectedQuality, uploadedImageUrl, uploadedVideoUrl, lastGenerationId });
+        const cleanPrompt = String(params.prompt || promptText || '').replace(/@image\d/g, '').replace(/@video\d/g, '').trim();
 
         const loadingCard = document.createElement('div');
         loadingCard.className = 'relative aspect-video rounded-xl md:rounded-2xl overflow-hidden bg-white/5 border border-white/10 flex flex-col items-center justify-center animate-fade-in-up';
@@ -667,16 +659,12 @@ export function VideoStudio() {
         textarea.style.height = 'auto';
 
         try {
-            // Token igual que ImageStudio
             const token = await auth.currentUser.getIdToken();
 
-            // Llamada al proxy — RUTA RELATIVA igual que ImageStudio
+            // 1. Petición inicial — ruta relativa como ImageStudio
             const req = await fetch(`/api/v1/${finalApiId}`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify(params)
             });
 
@@ -688,8 +676,8 @@ export function VideoStudio() {
             let res = await req.json();
             console.log('[VideoStudio] Respuesta inicial:', res);
 
-            // Polling igual que ImageStudio
-            if (res.request_id && !res.url && !res.video_url) {
+            // 2. Polling si viene request_id sin URL — igual que ImageStudio
+            if (res.request_id && !extractVideoUrl(res)) {
                 statusText.textContent = 'Renderizando (1-3 min)...';
                 let attempts = 0;
 
@@ -698,102 +686,79 @@ export function VideoStudio() {
                     attempts++;
 
                     try {
-                        const poll = await fetch(`/api/v1/predictions/${res.request_id}/result`, {
+                        const poll    = await fetch(`/api/v1/predictions/${res.request_id}/result`, {
                             headers: { 'Authorization': `Bearer ${token}` }
                         });
+                        if (!poll.ok) { if (poll.status >= 500) continue; throw new Error(`Poll ${poll.status}`); }
 
-                        if (poll.ok) {
-                            const pollRes = await poll.json();
-                            const status  = (pollRes.status || pollRes.output?.status || '').toLowerCase();
-                            console.log(`[VideoStudio] Poll ${attempts}: status=${status}`);
+                        const pollRes = await poll.json();
+                        const status  = extractStatus(pollRes);
+                        console.log(`[VideoStudio] Poll ${attempts}: status=${status}`, pollRes);
 
-                            const finalUrl = pollRes.output?.outputs?.[0]
-                                          || pollRes.outputs?.[0]
-                                          || pollRes.url
-                                          || pollRes.video_url;
+                        if (extractVideoUrl(pollRes)) { res = pollRes; break; }
+                        if (status === 'failed' || status === 'error')
+                            throw new Error(pollRes.error || pollRes.output?.error || 'La generación falló.');
 
-                            if (finalUrl) { res.url = finalUrl; break; }
-
-                            if (status === 'failed' || status === 'error') {
-                                throw new Error(pollRes.error || pollRes.output?.error || 'La generación falló.');
-                            }
-                        }
-                    } catch (pollErr) {
-                        if (attempts >= 150) throw pollErr;
-                        console.warn(`[VideoStudio] Poll ${attempts}:`, pollErr.message);
+                    } catch (pe) {
+                        if (attempts >= 150) throw pe;
+                        console.warn(`[VideoStudio] Poll ${attempts}:`, pe.message);
                     }
 
-                    const mins = Math.floor(attempts * 2 / 60);
-                    const secs = (attempts * 2) % 60;
-                    statusText.textContent = `Renderizando... ${mins > 0 ? mins + 'min ' : ''}${secs}s`;
+                    const elapsed = attempts * 2;
+                    statusText.textContent = `Renderizando... ${Math.floor(elapsed / 60)}min ${elapsed % 60}s`;
                 }
             }
 
-            // Extraer URL final (cubre distintas estructuras de respuesta)
-            const finalUrl = res.url
-                          || res.video_url
-                          || res.output?.outputs?.[0]
-                          || res.outputs?.[0];
-
+            const finalUrl = extractVideoUrl(res);
             if (!finalUrl) throw new Error('El servidor no devolvió la URL del vídeo. Inténtalo de nuevo.');
 
-            // Descontar créditos
+            // 3. Descontar créditos
             if (!isAdmin) {
                 try { await updateDoc(userRef, { credits: increment(-cost) }); }
-                catch (e) { console.warn('[VideoStudio] No se pudieron descontar créditos:', e); }
+                catch (e) { console.warn('[VideoStudio] No se descontaron créditos:', e); }
             }
 
-            // Guardar en Firebase
-            const rid = res.request_id || res.id || null;
+            // 4. Guardar en Firebase y mostrar card
+            const rid = res.request_id || res.output?.id || res.id || null;
             const entryData = {
-                url:              finalUrl,
-                prompt:           cleanPrompt || 'Vídeo generado',
-                model:            finalApiId,
-                duration:         selectedDuration,
-                quality:          selectedQuality,
-                aspect_ratio:     selectedAr,
-                type:             'video',
-                request_id:       rid,
-                muapi_request_id: rid,
-                createdAt:        serverTimestamp()
+                url: finalUrl, prompt: cleanPrompt || 'Vídeo generado',
+                model: finalApiId, duration: selectedDuration, quality: selectedQuality,
+                aspect_ratio: selectedAr, type: 'video',
+                request_id: rid, muapi_request_id: rid,
+                createdAt: serverTimestamp()
             };
 
             let realId = rid || Date.now().toString();
             try {
-                const genRef = collection(db, 'artifacts', APP_ID, 'public', 'data', 'users', auth.currentUser.uid, 'video_generations');
-                const docRef = await addDoc(genRef, entryData);
+                const docRef = await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'users', auth.currentUser.uid, 'video_generations'), entryData);
                 realId = docRef.id;
-            } catch (e) { console.warn('[VideoStudio] No se guardó en Firebase:', e); }
+            } catch (e) { console.warn('[VideoStudio] Firebase:', e); }
 
             loadingCard.remove();
             renderCard({ id: realId, ...entryData }, true);
 
             if (finalApiId === 'sd-2-extend') {
-                lastGenerationId  = null;
-                selectedUiId      = 'kreate-2';
-                selectedModelName = 'KreateVideo 2';
+                lastGenerationId = null; selectedUiId = 'kreate-2'; selectedModelName = 'KreateVideo 2';
             }
 
         } catch (err) {
             console.error('[VideoStudio] Error fatal:', err);
             loadingCard.innerHTML = `
                 <div class="absolute inset-0 bg-red-500/10"></div>
-                <div class="z-10 flex flex-col items-center gap-1 md:gap-2 p-2 md:p-4 text-center">
-                    <span class="text-lg md:text-xl">⚠️</span>
-                    <span class="text-[8px] md:text-[10px] font-bold text-red-400">Error al generar</span>
+                <div class="z-10 flex flex-col items-center gap-2 p-4 text-center">
+                    <span class="text-xl">⚠️</span>
+                    <span class="text-[10px] font-bold text-red-400">Error al generar</span>
                     <span class="text-white/50 text-[7px] px-2 break-words w-full">${String(err.message || '').slice(0, 150)}</span>
                     <button class="retry-btn mt-1 bg-white/10 px-2 py-1 rounded-md text-[8px] text-white hover:bg-white/20 border border-white/10">Cerrar</button>
                 </div>
             `;
             loadingCard.querySelector('.retry-btn').addEventListener('click', () => loadingCard.remove());
-
         } finally {
             isGenerating = false;
             updateControlsForModel();
         }
     }
 
-    // Conectar botón con stopPropagation para que el dropdown no interfiera
     generateBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         if (!isGenerating) handleGenerate();
