@@ -100,9 +100,9 @@ export function PricingModal() {
             }
 
             const stripeLinks = {
-                starter: "https://buy.stripe.com/5kQdRbdff73IfNI7wr",
-                pro: "https://buy.stripe.com/fZu14p2AB0Fkato8Av",
-                max: "https://buy.stripe.com/3cI8wR7UV9bQ7hc4kf"
+                starter: "https://buy.stripe.com/5kQdRbdff73IfNI7wr2B203",
+                pro: "https://buy.stripe.com/fZu14p2AB0Fkato8Av2B204",
+                max: "https://buy.stripe.com/3cI8wR7UV9bQ7hc4kf2B205"
             };
 
             // AQUÍ ESTÁ EL CAMBIO: Enviamos plan + UID separados por ___
