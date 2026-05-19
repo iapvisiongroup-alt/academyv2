@@ -272,7 +272,7 @@ function confirmDialog(title, message, confirmLabel = 'Confirmar', danger = fals
 // ============================================================
 export function KreateMusicStudio() {
     const root = document.createElement('div');
-    root.style.cssText = 'width:100%;height:100%;display:flex;flex-direction:column;background:#050505;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Inter",sans-serif';
+    root.style.cssText = 'width:100%;height:100%;display:flex;flex-direction:column;background:#050505;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Inter",sans-serif;position:relative';
 
     let currentUser   = null;
     let currentArtist = null;
@@ -282,12 +282,16 @@ export function KreateMusicStudio() {
 
     // Views map
     const views = {};
-    const FLEX_COL_VIEWS = ['artistList', 'createArtist', 'artistDashboard'];
     const showView = (name) => {
-        Object.values(views).forEach(v => { v.style.display = 'none'; });
+        Object.values(views).forEach(v => {
+            v.style.display = 'none';
+            v.style.flex = '';
+        });
         if (views[name]) {
-            views[name].style.display = FLEX_COL_VIEWS.includes(name) ? 'flex' : 'flex';
+            views[name].style.display = 'flex';
+            views[name].style.flex = '1';
             views[name].style.flexDirection = 'column';
+            views[name].style.minHeight = '0';
         }
     };
 
@@ -302,7 +306,7 @@ export function KreateMusicStudio() {
     // VIEW: LISTA DE ARTISTAS
     // ============================================================
     const artistListView = document.createElement('div');
-    artistListView.style.cssText = 'flex:1;flex-direction:column;overflow-y:auto;padding:24px;gap:24px;display:none';
+    artistListView.style.cssText = 'flex-direction:column;overflow-y:auto;padding:24px;gap:24px;display:none';
     views.artistList = artistListView;
     root.appendChild(artistListView);
 
@@ -442,7 +446,7 @@ export function KreateMusicStudio() {
     // VIEW: CREAR ARTISTA
     // ============================================================
     const createArtistView = document.createElement('div');
-    createArtistView.style.cssText = 'flex:1;flex-direction:column;overflow-y:auto;padding:24px;gap:16px;display:none;max-width:600px;margin:0 auto;width:100%';
+    createArtistView.style.cssText = 'flex-direction:column;overflow-y:auto;padding:24px;gap:16px;display:none;max-width:600px;margin:0 auto;width:100%';
     views.createArtist = createArtistView;
     root.appendChild(createArtistView);
 
@@ -691,7 +695,7 @@ export function KreateMusicStudio() {
     // VIEW: DASHBOARD DEL ARTISTA
     // ============================================================
     const artistDashboardView = document.createElement('div');
-    artistDashboardView.style.cssText = 'flex:1;flex-direction:column;overflow:hidden;display:none';
+    artistDashboardView.style.cssText = 'flex-direction:column;overflow:hidden;display:none';
     views.artistDashboard = artistDashboardView;
     root.appendChild(artistDashboardView);
 
