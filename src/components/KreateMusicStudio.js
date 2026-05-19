@@ -580,7 +580,7 @@ export function KreateMusicStudio() {
                 const studioPrompt = `Hyperrealistic professional music artist reference sheet, pure white seamless studio background, ${desc}, ${formData.style || 'contemporary'} aesthetic — photorealistic skin pores and texture, natural hair strands, true-to-life eye reflections, multiple poses: close-up portrait front, three-quarter body, full body standing, left profile, right profile — white studio, Sony A7R V 85mm f/1.4, 8K, Vogue editorial, no CGI, 100% photographic realism`;
 
                 prog.update(5, 'Enviando al generador...');
-                const initRes = await callMuapi('nano-banana-2', { prompt: studioPrompt, aspect_ratio: '1:1' }, token);
+                const initRes = await callMuapi('nano-banana-2', { prompt: studioPrompt, aspect_ratio: '1:1', resolution: '2k', output_format: 'jpg' }, token);
                 const rid = initRes.request_id || initRes.id;
                 let refPhotoUrl = initRes.url || initRes.output?.outputs?.[0];
 
@@ -1256,6 +1256,268 @@ export function KreateMusicStudio() {
                 container.appendChild(card);
             });
         } catch (e) { console.error('[KreateMusic] loadSongs:', e); }
+    }
+
+    // ============================================================
+    // PANEL: FOTOS
+    // ============================================================
+    function buildPhotosPanel() {
+        const panel = document.createElement('div');
+        panel.style.cssText = 'flex-direction:column;overflow-y:auto;padding:20px;gap:14px;height:100%';
+
+        const desc = document.createElement('p');
+        desc.style.cssText = 'color:#888;font-size:12px;margin:0;flex-shrink:0';
+        desc.textContent = 'Genera fotos del artista manteniendo el mismo rostro.';
+        panel.appendChild(desc);
+
+        // Aspect ratio
+        let selectedAr = '1:1';
+        const arLbl = document.createElement('p');
+        arLbl.style.cssText = 'color:#666;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin:0;flex-shrink:0';
+        arLbl.textContent = 'Formato';
+        panel.appendChild(arLbl);
+
+        const arRow = document.createElement('div');
+        arRow.style.cssText = 'display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;flex-shrink:0';
+        const AR_OPTIONS = [{ value:'1:1',label:'1:1',sub:'Cuadrado'},{ value:'9:16',label:'9:16',sub:'Vertical'},{ value:'16:9',label:'16:9',sub:'Landscape'}];
+        AR_OPTIONS.forEach(ar => {
+            const card = document.createElement('div');
+            const active = ar.value === selectedAr;
+            card.style.cssText = `background:${active?'#f59e0b22':'#1a1a1a'};border:${active?'2px solid #f59e0b66':'1px solid #2a2a2a'};border-radius:10px;padding:10px;cursor:pointer;text-align:center;transition:all .15s`;
+            card.innerHTML = `<div style="color:${active?'#f59e0b':'#fff'};font-size:13px;font-weight:700">${ar.label}</div><div style="color:#555;font-size:10px">${ar.sub}</div>`;
+            card.addEventListener('click', () => {
+                selectedAr = ar.value;
+                arRow.querySelectorAll('div').forEach((c,i) => {
+                    const a = AR_OPTIONS[i].value === ar.value;
+                    c.style.background = a?'#f59e0b22':'#1a1a1a';
+                    c.style.border     = a?'2px solid #f59e0b66':'1px solid #2a2a2a';
+                    c.querySelector('div:first-child').style.color = a?'#f59e0b':'#fff';
+                });
+            });
+            arRow.appendChild(card);
+        });
+        panel.appendChild(arRow);
+
+        // Scene
+        const SCENES = [
+            { id:'studio',   label:'🎙 Estudio',   prompt:'in a professional recording studio with microphone, cinematic lighting' },
+            { id:'show',     label:'🎤 Concierto',  prompt:'performing on stage at a concert, dramatic stage lighting, crowd' },
+            { id:'social',   label:'📱 Redes',      prompt:'casual lifestyle photo, natural light, social media style' },
+            { id:'fashion',  label:'👗 Moda',       prompt:'high fashion editorial photoshoot, luxury setting' },
+            { id:'street',   label:'🏙 Urbano',     prompt:'urban street photography, city background, golden hour' },
+            { id:'coffee',   label:'☕ Cafetería',  prompt:'sitting at a cozy cafe, warm coffee shop lighting' },
+            { id:'custom',   label:'✏️ Custom',     prompt:'' },
+        ];
+        let selectedScene = SCENES[0];
+
+        const sceneLbl = document.createElement('p');
+        sceneLbl.style.cssText = 'color:#666;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin:0;flex-shrink:0';
+        sceneLbl.textContent = 'Escenario';
+        panel.appendChild(sceneLbl);
+
+        const sceneGrid = document.createElement('div');
+        sceneGrid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:6px;flex-shrink:0';
+
+        const customInput = document.createElement('input');
+        customInput.placeholder = 'Describe el escenario...';
+        customInput.style.cssText = 'display:none;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:9px 13px;color:#fff;font-size:12px;outline:none;font-family:inherit;flex-shrink:0';
+
+        SCENES.forEach(scene => {
+            const card = document.createElement('div');
+            const active = scene.id === selectedScene.id;
+            card.style.cssText = `background:${active?'#f59e0b22':'#1a1a1a'};border:${active?'2px solid #f59e0b66':'1px solid #2a2a2a'};border-radius:10px;padding:8px;cursor:pointer;font-size:10px;font-weight:700;color:${active?'#f59e0b':'#888'};text-align:center;transition:all .15s`;
+            card.textContent = scene.label;
+            card.addEventListener('click', () => {
+                selectedScene = scene;
+                sceneGrid.querySelectorAll('div').forEach((c,i) => {
+                    const a = SCENES[i]?.id === scene.id;
+                    c.style.background = a?'#f59e0b22':'#1a1a1a';
+                    c.style.border     = a?'2px solid #f59e0b66':'1px solid #2a2a2a';
+                    c.style.color      = a?'#f59e0b':'#888';
+                });
+                customInput.style.display = scene.id === 'custom' ? 'block' : 'none';
+            });
+            sceneGrid.appendChild(card);
+        });
+        panel.appendChild(sceneGrid);
+        panel.appendChild(customInput);
+
+        // Photos grid
+        const photosLbl = document.createElement('p');
+        photosLbl.style.cssText = 'color:#666;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin:0;flex-shrink:0';
+        photosLbl.textContent = 'Fotos generadas';
+        panel.appendChild(photosLbl);
+
+        const photosGrid = document.createElement('div');
+        photosGrid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px';
+        panel.appendChild(photosGrid);
+        loadPhotos(photosGrid);
+
+        // Progress
+        const photoProgressWrap = document.createElement('div');
+        photoProgressWrap.style.cssText = 'display:none;flex-direction:column;gap:6px;flex-shrink:0';
+        photoProgressWrap.innerHTML = '<div style="width:100%;background:#1a1a1a;border-radius:100px;height:4px;overflow:hidden;border:1px solid #2a2a2a"><div id="photo-prog-bar" style="height:100%;background:linear-gradient(90deg,#f59e0b,#fbbf24);border-radius:100px;width:0%;transition:width .5s ease"></div></div><p id="photo-prog-label" style="color:#888;font-size:11px;margin:0;text-align:center;font-family:monospace"></p>';
+
+        // Generate button
+        const genPhotoBtn = document.createElement('button');
+        genPhotoBtn.type = 'button';
+        genPhotoBtn.style.cssText = 'width:100%;padding:12px;background:#f59e0b;border:none;border-radius:100px;color:#000;font-size:13px;font-weight:700;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;gap:8px;transition:background .15s';
+        genPhotoBtn.innerHTML = 'Generar foto 2K <span style="background:rgba(0,0,0,.2);padding:2px 7px;border-radius:100px;font-size:11px;font-family:monospace">'+COSTS.PHOTO_EXTRA+' 🪙</span>';
+        genPhotoBtn.addEventListener('mouseenter', () => genPhotoBtn.style.background = '#fbbf24');
+        genPhotoBtn.addEventListener('mouseleave', () => genPhotoBtn.style.background = '#f59e0b');
+
+        genPhotoBtn.addEventListener('click', async () => {
+            if (!currentArtist?.referencePhotoUrl) return alert('El artista no tiene foto de referencia.');
+            if (!currentUser) return alert('Debes iniciar sesión.');
+            genPhotoBtn.disabled = true;
+            genPhotoBtn.innerHTML = '<div style="width:14px;height:14px;border:2px solid #00000033;border-top-color:#000;border-radius:50%;animation:spin 1s linear infinite"></div> Generando...';
+            photoProgressWrap.style.display = 'flex';
+            try {
+                const token   = await currentUser.getIdToken();
+                const userRef = doc(db,'artifacts',APP_ID,'public','data','users',currentUser.uid);
+                const isAdmin = await checkAndDeduct(userRef, COSTS.PHOTO_EXTRA);
+
+                const scenePrompt = selectedScene.id === 'custom' ? customInput.value : selectedScene.prompt;
+                const prompt = `Same person as in the reference image, ${scenePrompt}, maintain exact facial features, hair, skin tone, body. Only change background and scene. Hyperrealistic photography, 8K, Sony A7R V.`;
+
+                const res = await callMuapi('nano-banana-2-edit', {
+                    prompt,
+                    images_list: [currentArtist.referencePhotoUrl],
+                    aspect_ratio: selectedAr,
+                    resolution: '2k',
+                    output_format: 'jpg'
+                }, token);
+
+                const rid = res.request_id || res.id;
+                let photoUrl = res.url || res.output?.outputs?.[0];
+
+                if (!photoUrl && rid) {
+                    const result = await pollResult(rid, token, (pct, secs) => {
+                        const bar   = photoProgressWrap.querySelector('#photo-prog-bar');
+                        const label = photoProgressWrap.querySelector('#photo-prog-label');
+                        if (bar)   bar.style.width = pct+'%';
+                        if (label) label.textContent = pct+'% · '+Math.round(secs)+'s';
+                    }, 60, 3000);
+                    photoUrl = result.url;
+                }
+
+                if (!photoUrl) throw new Error('No se generó la foto.');
+                await deduct(userRef, COSTS.PHOTO_EXTRA, isAdmin);
+                await addDoc(collection(db,'artifacts',APP_ID,'public','data','users',currentUser.uid,'artists',currentArtist.id,'photos'), {
+                    url: photoUrl, scene: selectedScene.id, aspect_ratio: selectedAr, createdAt: serverTimestamp()
+                });
+                addPhotoCard(photoUrl, photosGrid, selectedAr);
+            } catch (err) {
+                alert('Error: '+err.message);
+            } finally {
+                genPhotoBtn.disabled = false;
+                genPhotoBtn.innerHTML = 'Generar foto 2K <span style="background:rgba(0,0,0,.2);padding:2px 7px;border-radius:100px;font-size:11px;font-family:monospace">'+COSTS.PHOTO_EXTRA+' 🪙</span>';
+                photoProgressWrap.style.display = 'none';
+                const bar = photoProgressWrap.querySelector('#photo-prog-bar');
+                if (bar) bar.style.width = '0%';
+            }
+        });
+
+        panel.appendChild(photoProgressWrap);
+        panel.appendChild(genPhotoBtn);
+        return panel;
+    }
+
+    // ============================================================
+    // PANEL: VOZ
+    // ============================================================
+    function buildVoicePanel() {
+        const panel = document.createElement('div');
+        panel.style.cssText = 'flex-direction:column;overflow-y:auto;padding:20px;gap:14px;height:100%';
+
+        const currentVoiceBox = document.createElement('div');
+        currentVoiceBox.style.cssText = 'background:#111;border:1px solid #2a2a2a;border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px';
+        currentVoiceBox.innerHTML = '<p style="color:#666;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin:0">Configuración actual</p>'
+            + (currentArtist?.voiceId
+                ? '<div style="background:#f59e0b11;border:1px solid #f59e0b33;border-radius:10px;padding:10px 13px;color:#f59e0b;font-size:12px">🎤 Voz clonada activa</div>'
+                : currentArtist?.voiceStyle
+                    ? '<div style="background:#3b82f611;border:1px solid #3b82f633;border-radius:10px;padding:10px 13px;color:#60a5fa;font-size:12px">🎵 Estilo vocal: "'+currentArtist.voiceStyle+'"</div>'
+                    : '<div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:10px 13px;color:#555;font-size:12px">Sin voz configurada</div>');
+        panel.appendChild(currentVoiceBox);
+
+        const styleWrap = document.createElement('div');
+        styleWrap.style.cssText = 'background:#111;border:1px solid #2a2a2a;border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px';
+        styleWrap.innerHTML = '<p style="color:#fff;font-size:12px;font-weight:700;margin:0">Actualizar estilo vocal</p>';
+        const styleInput = document.createElement('input');
+        styleInput.value = currentArtist?.voiceStyle || '';
+        styleInput.placeholder = 'Ej: voz femenina, grave, sensual, acento caribeño...';
+        styleInput.style.cssText = 'background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:9px 13px;color:#fff;font-size:12px;outline:none;font-family:inherit';
+        const saveStyleBtn = document.createElement('button');
+        saveStyleBtn.type = 'button';
+        saveStyleBtn.style.cssText = 'padding:8px 18px;background:#3b82f6;border:none;border-radius:100px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;width:fit-content';
+        saveStyleBtn.textContent = 'Guardar';
+        saveStyleBtn.addEventListener('click', async () => {
+            if (!currentUser || !currentArtist) return;
+            try {
+                await updateDoc(doc(db,'artifacts',APP_ID,'public','data','users',currentUser.uid,'artists',currentArtist.id), { voiceStyle: styleInput.value });
+                currentArtist.voiceStyle = styleInput.value;
+                saveStyleBtn.textContent = '✓ Guardado';
+                setTimeout(() => { saveStyleBtn.textContent = 'Guardar'; }, 2000);
+            } catch(e) { alert(e.message); }
+        });
+        styleWrap.appendChild(styleInput);
+        styleWrap.appendChild(saveStyleBtn);
+        panel.appendChild(styleWrap);
+
+        const cloneWrap = document.createElement('div');
+        cloneWrap.style.cssText = 'background:#111;border:1px solid #2a2a2a;border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px';
+        cloneWrap.innerHTML = '<p style="color:#fff;font-size:12px;font-weight:700;margin:0">Clonar nueva voz <span style="background:#f59e0b22;color:#f59e0b;font-size:10px;padding:2px 7px;border-radius:100px;font-family:monospace">'+COSTS.CLONE_VOICE_LATER+' 🪙</span></p><p style="color:#555;font-size:11px;margin:0">Sube un audio de 10 segundos con la voz a clonar.</p>';
+
+        const vFileInput = document.createElement('input');
+        vFileInput.type = 'file'; vFileInput.accept = 'audio/*'; vFileInput.style.display = 'none';
+        let vFileUrl = null;
+
+        const vUploadBtn = document.createElement('button');
+        vUploadBtn.type = 'button';
+        vUploadBtn.style.cssText = 'background:#1a1a1a;border:1px dashed #2a2a2a;border-radius:10px;padding:12px;color:#888;font-size:12px;cursor:pointer;width:100%;text-align:center';
+        vUploadBtn.textContent = '🎙 Seleccionar audio (10s)';
+        vUploadBtn.addEventListener('click', () => vFileInput.click());
+        vFileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0]; if (!file) return;
+            vUploadBtn.textContent = '⏳ Subiendo...';
+            try {
+                const token = await currentUser.getIdToken();
+                const fd = new FormData(); fd.append('file', file);
+                const resp = await fetch('/api/v1/upload_file', { method:'POST', headers:{ Authorization:`Bearer ${token}` }, body:fd });
+                const data = await resp.json();
+                vFileUrl = data.url || data.file_url;
+                vUploadBtn.textContent = '✓ '+file.name;
+                vUploadBtn.style.borderColor = '#f59e0b66'; vUploadBtn.style.color = '#f59e0b';
+            } catch(err) { vUploadBtn.textContent = '🎙 Seleccionar audio (10s)'; alert(err.message); }
+        });
+
+        const cloneBtn = document.createElement('button');
+        cloneBtn.type = 'button';
+        cloneBtn.style.cssText = 'padding:10px 20px;background:#f59e0b;border:none;border-radius:100px;color:#000;font-size:12px;font-weight:700;cursor:pointer;width:fit-content';
+        cloneBtn.textContent = 'Clonar voz';
+        cloneBtn.addEventListener('click', async () => {
+            if (!vFileUrl) return alert('Sube un audio primero.');
+            cloneBtn.disabled = true; cloneBtn.textContent = '⏳ Clonando...';
+            try {
+                const token = await currentUser.getIdToken();
+                const userRef = doc(db,'artifacts',APP_ID,'public','data','users',currentUser.uid);
+                const isAdmin = await checkAndDeduct(userRef, COSTS.CLONE_VOICE_LATER);
+                const res = await callMuapi('suno-voice-clone', { audio_url: vFileUrl }, token);
+                const voiceId = res.voice_id || res.id;
+                if (!voiceId) throw new Error('No se obtuvo voice_id.');
+                await updateDoc(doc(db,'artifacts',APP_ID,'public','data','users',currentUser.uid,'artists',currentArtist.id), { voiceId });
+                await deduct(userRef, COSTS.CLONE_VOICE_LATER, isAdmin);
+                currentArtist.voiceId = voiceId;
+                cloneBtn.textContent = '✓ Voz clonada';
+                currentVoiceBox.innerHTML = '<p style="color:#666;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin:0">Configuración actual</p><div style="background:#f59e0b11;border:1px solid #f59e0b33;border-radius:10px;padding:10px 13px;color:#f59e0b;font-size:12px">🎤 Voz clonada activa</div>';
+            } catch(err) { cloneBtn.disabled = false; cloneBtn.textContent = 'Clonar voz'; alert('Error: '+err.message); }
+        });
+
+        cloneWrap.appendChild(vFileInput);
+        cloneWrap.appendChild(vUploadBtn);
+        cloneWrap.appendChild(cloneBtn);
+        panel.appendChild(cloneWrap);
+        return panel;
     }
 
     function addPhotoCard(url, grid, ar) {
