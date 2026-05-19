@@ -280,28 +280,26 @@ export async function onRequest(context) {
 
         try {
             uid = await verifyFirebaseToken(idToken, env.FIREBASE_API_KEY);
-            console.log('[API] UID verificado:', uid);
         } catch (e) {
-            console.error('[API] Error verificando token:', e.message);
-            return jsonError('Token inválido o expirado: ' + e.message, 401);
+            return jsonError('ERROR_TOKEN: ' + e.message + ' | API_KEY_OK: ' + (env.FIREBASE_API_KEY ? 'SI' : 'NO'), 401);
         }
 
         try {
-            console.log('[API] Obteniendo service account token...');
-            console.log('[API] FIREBASE_CLIENT_EMAIL:', env.FIREBASE_CLIENT_EMAIL ? 'OK' : 'FALTA');
-            console.log('[API] FIREBASE_PRIVATE_KEY:', env.FIREBASE_PRIVATE_KEY ? 'OK' : 'FALTA');
-            console.log('[API] FIREBASE_PROJECT_ID:', env.FIREBASE_PROJECT_ID);
-            console.log('[API] FIREBASE_APP_ID:', env.FIREBASE_APP_ID);
+            const missingVars = [];
+            if (!env.FIREBASE_CLIENT_EMAIL) missingVars.push('FIREBASE_CLIENT_EMAIL');
+            if (!env.FIREBASE_PRIVATE_KEY)  missingVars.push('FIREBASE_PRIVATE_KEY');
+            if (!env.FIREBASE_PROJECT_ID)   missingVars.push('FIREBASE_PROJECT_ID');
+            if (!env.FIREBASE_APP_ID)       missingVars.push('FIREBASE_APP_ID');
+            if (missingVars.length > 0) {
+                return jsonError('Variables de entorno faltantes: ' + missingVars.join(', '), 500);
+            }
+
             const accessToken = await getServiceAccountToken(env);
-            console.log('[API] Access token obtenido OK');
             const docPath     = `artifacts/${env.FIREBASE_APP_ID}/public/data/users/${uid}`;
-            console.log('[API] DocPath:', docPath, 'Coste:', cost);
             const result      = await firestoreDeductCredits(env.FIREBASE_PROJECT_ID, docPath, cost, accessToken);
-            console.log('[API] Resultado transacción:', JSON.stringify(result));
             if (!result.ok) return jsonError(result.message, 402);
         } catch (e) {
-            console.error('[API] Error créditos:', e.message);
-            return jsonError('Error procesando créditos: ' + e.message, 500);
+            return jsonError('ERROR_CREDITOS: ' + e.message, 500);
         }
     }
 
