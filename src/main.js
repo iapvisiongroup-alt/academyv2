@@ -37,19 +37,10 @@ function navigate(page) {
         });
 
     } else if (page === 'library') {
-        import('./components/LibraryStudio.js').then(({ LibraryStudio }) => {
-            contentArea.appendChild(LibraryStudio());
-        }).catch(() => {
-            // Fallback si no existe el componente todavía
-            const div = document.createElement('div');
-            div.className = 'flex-1 flex flex-col items-center justify-center bg-[#050505] w-full h-full p-8';
-            div.innerHTML = `
-                <div style="font-size:64px;opacity:.3">📚</div>
-                <h2 style="color:#fff;font-size:24px;font-weight:900;margin:16px 0 8px">Historial</h2>
-                <p style="color:#555;font-size:14px">Próximamente disponible</p>
-            `;
-            contentArea.appendChild(div);
-        });
+        const div = document.createElement('div');
+        div.className = 'flex-1 flex flex-col items-center justify-center bg-[#050505] w-full h-full p-8';
+        div.innerHTML = '<div style="font-size:64px;opacity:.3">📚</div><h2 style="color:#fff;font-size:24px;font-weight:900;margin:16px 0 8px">Historial</h2><p style="color:#555;font-size:14px">Próximamente disponible</p>';
+        contentArea.appendChild(div);
 
     } else if (page === 'academy') {
         const academyDiv = document.createElement('div');
