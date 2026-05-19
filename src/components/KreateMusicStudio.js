@@ -42,7 +42,7 @@ const COSTS = {
     SONG_ADD_VOCALS:        20,
     SONG_ADD_INSTRUMENTAL:  20,
     SONG_MASHUP:            20,
-    LYRICS_GENERATE:         1,   // gpt-5-mini
+    LYRICS_GENERATE:         1,   // gpt-5-4
     SOUNDS_GENERATE:         4,
 };
 
@@ -112,6 +112,22 @@ if (!document.querySelector('#km-styles')) {
         .km-card { animation: fadeUp .3s ease; }
     `;
     document.head.appendChild(st);
+}
+
+
+// Extrae texto de la respuesta de gpt-5-4 (cubre todas las estructuras posibles)
+function extractTextResult(res) {
+    return res?.text
+        || res?.result
+        || res?.output?.text
+        || res?.output?.result
+        || res?.output?.outputs?.[0]
+        || res?.outputs?.[0]
+        || res?.content
+        || res?.message
+        || res?.choices?.[0]?.message?.content
+        || res?.choices?.[0]?.text
+        || null;
 }
 
 // ============================================================
@@ -822,12 +838,13 @@ export function KreateMusicStudio() {
                 const theme = container.querySelector('#theme-input')?.value?.trim();
                 if (!theme) throw new Error('Escribe el tema de la letra.');
                 const prompt = `Write song lyrics in Spanish for a ${currentArtist?.genre || 'pop'} song. Theme: ${theme}. Include [Verso 1], [Coro], [Verso 2], [Coro], [Bridge], [Outro]. Make it authentic.`;
-                const res = await callMuapi('gpt-5-mini', { prompt }, token);
+                const res = await callMuapi('gpt-5-4', { prompt }, token);
+                console.log('[gpt-5-4] respuesta:', JSON.stringify(res).slice(0, 300));
                 const rid = res.request_id || res.id;
-                let text  = res.text || res.output?.text;
+                let text  = extractTextResult(res);
                 if (!text && rid) {
                     const p = await pollResult(rid, token, null, 30, 2000);
-                    text = p.data?.text || p.url;
+                    text = extractTextResult(p.data) || extractTextResult(p) || p.url;
                 }
                 if (!text) throw new Error('No se generó la letra.');
                 await deduct(userRef, cost, isAdmin);
@@ -1095,10 +1112,12 @@ export function KreateMusicStudio() {
                 const token = await currentUser.getIdToken();
                 const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', currentUser.uid);
                 const isAdmin = await checkAndDeduct(userRef, COSTS.LYRICS_GENERATE);
-                const res = await callMuapi('gpt-5-mini', { prompt: `Write song lyrics in Spanish for a ${currentArtist?.genre || 'pop'} song by ${currentArtist?.name || 'the artist'}. Theme: ${aiTheme.value}. Include [Verso 1], [Coro], [Verso 2], [Coro], [Bridge], [Outro].` }, token);
+                const lyricsPrompt = `Write song lyrics in Spanish for a ${currentArtist?.genre || 'pop'} song by ${currentArtist?.name || 'the artist'}. Theme: ${aiTheme.value}. Style: ${currentArtist?.style || ''}. Include [Verso 1], [Coro], [Verso 2], [Coro], [Bridge], [Outro]. Write ONLY the lyrics, no explanations.`;
+                const res = await callMuapi('gpt-5-4', { prompt: lyricsPrompt }, token);
+                console.log('[gpt-5-4 lyrics] respuesta:', JSON.stringify(res).slice(0, 300));
                 const rid = res.request_id || res.id;
-                let text = res.text || res.output?.text;
-                if (!text && rid) { const p = await pollResult(rid, token, null, 30, 2000); text = p.data?.text || p.url; }
+                let text = extractTextResult(res);
+                if (!text && rid) { const p = await pollResult(rid, token, null, 30, 2000); text = extractTextResult(p.data) || extractTextResult(p) || p.url; }
                 if (text) {
                     lyricsTextarea.value = text;
                     await deduct(userRef, COSTS.LYRICS_GENERATE, isAdmin);
