@@ -756,10 +756,6 @@ export function KreateMusicStudio() {
         let selectedTool = TOOLS[0].id;
 
         // Tool selector
-        const toolLabel = document.createElement('p');
-        toolLabel.style.cssText = 'color:#666;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin:0;flex-shrink:0';
-        toolLabel.textContent = 'Herramienta';
-        panel.appendChild(toolLabel);
 
         const toolGrid = document.createElement('div');
         toolGrid.style.cssText = 'display:grid;grid-template-columns:repeat(4,1fr);gap:6px;flex-shrink:0';
@@ -1102,26 +1098,13 @@ export function KreateMusicStudio() {
         const lyricsTitle = document.createElement('p');
         lyricsTitle.style.cssText = 'color:#fff;font-size:12px;font-weight:700;margin:0';
         lyricsTitle.textContent = '✍️ Letra de la canción';
-
-        const lyricsToggle = document.createElement('div');
-        lyricsToggle.style.cssText = 'display:flex;gap:4px';
-
-        let lyricsMode = 'manual';
-        const manualBtn = document.createElement('button');
-        manualBtn.type = 'button';
-        manualBtn.style.cssText = 'padding:3px 9px;background:#f59e0b22;border:1px solid #f59e0b66;border-radius:8px;color:#f59e0b;font-size:10px;font-weight:700;cursor:pointer';
-        manualBtn.textContent = 'Escribir';
-
-        const aiBtn = document.createElement('button');
-        aiBtn.type = 'button';
-        aiBtn.style.cssText = 'padding:3px 9px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;color:#888;font-size:10px;font-weight:700;cursor:pointer';
-        aiBtn.textContent = 'Generar Letra';
-
-        lyricsToggle.appendChild(manualBtn);
-        lyricsToggle.appendChild(aiBtn);
         lyricsHeader.appendChild(lyricsTitle);
-        lyricsHeader.appendChild(lyricsToggle);
         lyricsSection.appendChild(lyricsHeader);
+
+        // Variables necesarias para compatibilidad con el código de generación
+        let lyricsMode = 'manual';
+        const manualBtn = { style: { cssText: '' } }; // dummy
+        const aiBtn = { style: { cssText: '' } };     // dummy
 
         const lyricsTextarea = document.createElement('textarea');
         lyricsTextarea.id = 'song-lyrics-input';
@@ -1131,18 +1114,19 @@ export function KreateMusicStudio() {
         lyricsTextarea.addEventListener('focus', () => lyricsTextarea.style.borderColor = '#f59e0b66');
         lyricsTextarea.addEventListener('blur',  () => lyricsTextarea.style.borderColor = '#2a2a2a');
 
+        // Fila: tema + botón generar letra (siempre visible)
         const aiPanel = document.createElement('div');
-        aiPanel.style.cssText = 'display:none;flex-direction:column;gap:6px';
+        aiPanel.style.cssText = 'display:flex;gap:8px;align-items:center';
         const aiTheme = document.createElement('input');
-        aiTheme.placeholder = 'Tema: amor, fiesta, éxito, desamor...';
-        aiTheme.style.cssText = 'background:#0a0a0a;border:1px solid #2a2a2a;border-radius:10px;padding:9px 13px;color:#fff;font-size:12px;outline:none;font-family:inherit;transition:border-color .15s';
+        aiTheme.placeholder = 'Tema: amor, fiesta, éxito...';
+        aiTheme.style.cssText = 'flex:1;background:#0a0a0a;border:1px solid #2a2a2a;border-radius:10px;padding:8px 12px;color:#fff;font-size:12px;outline:none;font-family:inherit;transition:border-color .15s';
         aiTheme.addEventListener('focus', () => aiTheme.style.borderColor = '#f59e0b66');
         aiTheme.addEventListener('blur',  () => aiTheme.style.borderColor = '#2a2a2a');
 
         const genLyricsBtn = document.createElement('button');
         genLyricsBtn.type = 'button';
-        genLyricsBtn.style.cssText = 'padding:8px 16px;background:#3b82f6;border:none;border-radius:100px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;width:fit-content';
-        genLyricsBtn.textContent = '✨ Generar letra';
+        genLyricsBtn.style.cssText = 'padding:8px 14px;background:#f59e0b;border:none;border-radius:100px;color:#000;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0';
+        genLyricsBtn.innerHTML = 'Generar Letra <span style="opacity:.6;font-size:10px">20 🪙</span>';
         genLyricsBtn.addEventListener('click', async () => {
             if (!aiTheme.value.trim()) return alert('Escribe el tema de la letra.');
             genLyricsBtn.disabled = true;
@@ -1158,13 +1142,25 @@ export function KreateMusicStudio() {
                 let text = extractTextResult(res);
                 if (!text && rid) { const p = await pollResult(rid, token, null, 60, 3000); text = extractTextResult(p.data) || extractTextResult(p) || p.url; }
                 if (text) {
+                    // Rellenar textarea y mostrar panel manual
                     lyricsTextarea.value = text;
                     await deduct(userRef, COSTS.LYRICS_GENERATE, isAdmin);
                     lyricsMode = 'manual';
                     manualBtn.style.cssText = 'padding:3px 9px;background:#f59e0b22;border:1px solid #f59e0b66;border-radius:8px;color:#f59e0b;font-size:10px;font-weight:700;cursor:pointer';
                     aiBtn.style.cssText = 'padding:3px 9px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;color:#888;font-size:10px;font-weight:700;cursor:pointer';
-                    lyricsTextarea.parentElement.style.display = 'flex';
+                    // Mostrar textarea y ocultar panel IA
+                    lyricsTextarea.style.display = 'block';
                     aiPanel.style.display = 'none';
+                    // Resaltar recuadro para que el usuario vea que se llenó
+                    lyricsTextarea.style.borderColor = '#f59e0b';
+                    lyricsTextarea.style.boxShadow = '0 0 12px rgba(245,158,11,.2)';
+                    setTimeout(() => {
+                        lyricsTextarea.style.borderColor = '#2a2a2a';
+                        lyricsTextarea.style.boxShadow = 'none';
+                    }, 3000);
+                    lyricsTextarea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                } else {
+                    alert('No se pudo generar la letra. Inténtalo de nuevo.');
                 }
             } catch (e) { alert(e.message); }
             finally { genLyricsBtn.disabled = false; genLyricsBtn.textContent = '✨ Generar letra'; }
@@ -1173,21 +1169,10 @@ export function KreateMusicStudio() {
         aiPanel.appendChild(aiTheme);
         aiPanel.appendChild(genLyricsBtn);
 
-        manualBtn.addEventListener('click', () => {
-            lyricsMode = 'manual';
-            manualBtn.style.cssText = 'padding:3px 9px;background:#f59e0b22;border:1px solid #f59e0b66;border-radius:8px;color:#f59e0b;font-size:10px;font-weight:700;cursor:pointer';
-            aiBtn.style.cssText = 'padding:3px 9px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;color:#888;font-size:10px;font-weight:700;cursor:pointer';
-            lyricsTextarea.style.display = 'block'; aiPanel.style.display = 'none';
-        });
-        aiBtn.addEventListener('click', () => {
-            lyricsMode = 'ai';
-            aiBtn.style.cssText = 'padding:3px 9px;background:#f59e0b22;border:1px solid #f59e0b66;border-radius:8px;color:#f59e0b;font-size:10px;font-weight:700;cursor:pointer';
-            manualBtn.style.cssText = 'padding:3px 9px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;color:#888;font-size:10px;font-weight:700;cursor:pointer';
-            aiPanel.style.display = 'flex'; lyricsTextarea.style.display = 'none';
-        });
+        // toggle removed — aiPanel siempre visible
 
         lyricsSection.appendChild(lyricsTextarea);
-        lyricsSection.appendChild(aiPanel);
+        lyricsSection.appendChild(aiPanel);  // fila tema + botón
         container.appendChild(lyricsSection);
 
         // Voice info
