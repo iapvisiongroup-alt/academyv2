@@ -430,11 +430,26 @@ export function KreateMusicStudio() {
                 currentArtist = { id: docRef.id, ...artistData };
                 artists.unshift(currentArtist);
 
+                // Mostrar foto generada en preview y completar barra
+                clearInterval(progressInterval);
+                progressBar.style.width = '100%';
+                progressIcon.textContent = '✅';
+                progressLabel.textContent = '¡Artista creado con éxito!';
+                previewContainer.innerHTML = `<img src="${refPhotoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:14px">`;
+                previewContainer.style.border = '2px solid #f59e0b';
+
+                await new Promise(r => setTimeout(r, 1500));
+                progressView.remove();
+                createArtistView.style.display = 'flex';
+
                 renderArtistDashboard();
                 showView('artistDashboard');
 
             } catch (err) {
                 console.error(err);
+                clearInterval(progressInterval);
+                if (progressView.parentNode) progressView.remove();
+                createArtistView.style.display = 'flex';
                 alert(`Error: ${err.message}`);
                 createBtn.disabled = false;
                 createBtn.textContent = 'Crear artista y generar fotos ✨';
@@ -609,14 +624,290 @@ export function KreateMusicStudio() {
         container.innerHTML = '';
         container.style.cssText = 'display:flex;flex-direction:column;gap:14px';
 
-        const cost = MUSIC_COSTS[toolId] || 13;
+        const cost = MUSIC_COSTS[toolId] || 20;
 
-        // Prompt principal
+        // ── PANEL ESPECIAL PARA CREAR CANCIÓN ──
+        if (toolId === 'suno-create-music') {
+            // Título
+            const titleWrap = document.createElement('div');
+            titleWrap.style.cssText = 'display:flex;flex-direction:column;gap:6px';
+            const titleLbl = document.createElement('label');
+            titleLbl.style.cssText = 'color:#888;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em';
+            titleLbl.textContent = 'Título de la canción';
+            const titleInput = document.createElement('input');
+            titleInput.placeholder = `Ej: ${currentArtist?.name || 'Mi artista'} - Mi primera canción`;
+            titleInput.style.cssText = 'background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:10px 14px;color:#fff;font-size:13px;outline:none;font-family:inherit;transition:border-color .15s';
+            titleInput.addEventListener('focus', () => titleInput.style.borderColor = '#f59e0b66');
+            titleInput.addEventListener('blur',  () => titleInput.style.borderColor = '#2a2a2a');
+            titleWrap.appendChild(titleLbl);
+            titleWrap.appendChild(titleInput);
+            container.appendChild(titleWrap);
+            container._titleInput = titleInput;
+
+            // Estilo musical (auto del artista)
+            const styleWrap = document.createElement('div');
+            styleWrap.style.cssText = 'display:flex;flex-direction:column;gap:6px';
+            const styleLbl = document.createElement('label');
+            styleLbl.style.cssText = 'color:#888;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em';
+            styleLbl.textContent = 'Estilo musical';
+            const styleInput = document.createElement('input');
+            styleInput.value = [currentArtist?.genre, currentArtist?.style].filter(Boolean).join(', ');
+            styleInput.placeholder = 'Ej: Reggaeton, urbano, trap, melódico...';
+            styleInput.style.cssText = 'background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:10px 14px;color:#fff;font-size:13px;outline:none;font-family:inherit;transition:border-color .15s';
+            styleInput.addEventListener('focus', () => styleInput.style.borderColor = '#f59e0b66');
+            styleInput.addEventListener('blur',  () => styleInput.style.borderColor = '#2a2a2a');
+            styleWrap.appendChild(styleLbl);
+            styleWrap.appendChild(styleInput);
+            container.appendChild(styleWrap);
+            container._styleInput = styleInput;
+
+            // ── SECCIÓN DE LETRA ──
+            const lyricsSection = document.createElement('div');
+            lyricsSection.style.cssText = 'background:#111;border:1px solid #2a2a2a;border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px';
+
+            const lyricsHeader = document.createElement('div');
+            lyricsHeader.style.cssText = 'display:flex;align-items:center;justify-content:space-between';
+            lyricsHeader.innerHTML = '<p style="color:#fff;font-size:13px;font-weight:700;margin:0">✍️ Letra de la canción</p>';
+
+            // Toggle manual / generar
+            let lyricsMode = 'manual';
+            const lyricsToggle = document.createElement('div');
+            lyricsToggle.style.cssText = 'display:flex;gap:4px';
+
+            const manualBtn = document.createElement('button');
+            manualBtn.style.cssText = 'padding:4px 10px;background:#f59e0b22;border:1px solid #f59e0b66;border-radius:8px;color:#f59e0b;font-size:11px;font-weight:700;cursor:pointer';
+            manualBtn.textContent = 'Escribir';
+
+            const generateLyricsBtn = document.createElement('button');
+            generateLyricsBtn.style.cssText = 'padding:4px 10px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;color:#888;font-size:11px;font-weight:700;cursor:pointer';
+            generateLyricsBtn.textContent = '✨ Generar con IA';
+
+            lyricsToggle.appendChild(manualBtn);
+            lyricsToggle.appendChild(generateLyricsBtn);
+            lyricsHeader.appendChild(lyricsToggle);
+            lyricsSection.appendChild(lyricsHeader);
+
+            // Panel manual
+            const manualPanel = document.createElement('div');
+            manualPanel.style.cssText = 'display:flex;flex-direction:column;gap:6px';
+            const lyricsTextarea = document.createElement('textarea');
+            lyricsTextarea.rows = 6;
+            lyricsTextarea.placeholder = 'Escribe la letra aquí...\n\n[Verso 1]\n...\n\n[Coro]\n...';
+            lyricsTextarea.style.cssText = 'background:#0a0a0a;border:1px solid #2a2a2a;border-radius:10px;padding:10px 14px;color:#fff;font-size:12px;outline:none;font-family:monospace;resize:vertical;line-height:1.6;transition:border-color .15s';
+            lyricsTextarea.addEventListener('focus', () => lyricsTextarea.style.borderColor = '#f59e0b66');
+            lyricsTextarea.addEventListener('blur',  () => lyricsTextarea.style.borderColor = '#2a2a2a');
+            manualPanel.appendChild(lyricsTextarea);
+            lyricsSection.appendChild(manualPanel);
+            container._lyricsTextarea = lyricsTextarea;
+
+            // Panel generar letra con IA
+            const aiLyricsPanel = document.createElement('div');
+            aiLyricsPanel.style.cssText = 'display:none;flex-direction:column;gap:8px';
+
+            const aiLyricsTheme = document.createElement('input');
+            aiLyricsTheme.placeholder = 'Tema de la letra: amor, desamor, fiesta, éxito, calle...';
+            aiLyricsTheme.style.cssText = 'background:#0a0a0a;border:1px solid #2a2a2a;border-radius:10px;padding:10px 14px;color:#fff;font-size:13px;outline:none;font-family:inherit;transition:border-color .15s';
+            aiLyricsTheme.addEventListener('focus', () => aiLyricsTheme.style.borderColor = '#f59e0b66');
+            aiLyricsTheme.addEventListener('blur',  () => aiLyricsTheme.style.borderColor = '#2a2a2a');
+
+            const genLyricsActionBtn = document.createElement('button');
+            genLyricsActionBtn.style.cssText = 'padding:9px 18px;background:#3b82f6;border:none;border-radius:100px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;width:fit-content;display:flex;align-items:center;gap:6px';
+            genLyricsActionBtn.innerHTML = '✨ Generar letra <span style="background:rgba(255,255,255,.2);padding:1px 6px;border-radius:100px;font-size:10px;font-family:monospace">1 🪙</span>';
+
+            genLyricsActionBtn.addEventListener('click', async () => {
+                if (!aiLyricsTheme.value.trim()) return alert('Escribe el tema de la letra.');
+                genLyricsActionBtn.textContent = '⏳ Generando...';
+                genLyricsActionBtn.disabled = true;
+                try {
+                    const token = await currentUser.getIdToken();
+                    const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', currentUser.uid);
+                    const { isAdmin } = await checkCredits(userRef, MUSIC_COSTS['suno-generate-lyrics']);
+
+                    // Usar gpt-5-mini para generar letra estructurada
+                    const lyricsPrompt = `Write song lyrics for a ${currentArtist?.genre || 'pop'} song by artist ${currentArtist?.name || 'the artist'}. Theme: ${aiLyricsTheme.value}. Style: ${currentArtist?.style || ''}. Include [Verse 1], [Chorus], [Verse 2], [Chorus], [Bridge], [Outro]. Write in Spanish. Make it catchy and authentic.`;
+                    const res = await callMuapi('gpt-5-mini', { prompt: lyricsPrompt }, token);
+                    const rid = res.request_id || res.id;
+                    let lyricsText = res.text || res.output?.text || res.result;
+
+                    if (!lyricsText && rid) {
+                        const polled = await pollResult(rid, token, 30, 2000);
+                        lyricsText = polled.data?.text || polled.data?.result || polled.url;
+                    }
+
+                    if (lyricsText) {
+                        lyricsTextarea.value = lyricsText;
+                        await deductCredits(userRef, MUSIC_COSTS['suno-generate-lyrics'], isAdmin);
+                        // Cambiar a panel manual para que pueda editarla
+                        lyricsMode = 'manual';
+                        manualBtn.style.cssText = 'padding:4px 10px;background:#f59e0b22;border:1px solid #f59e0b66;border-radius:8px;color:#f59e0b;font-size:11px;font-weight:700;cursor:pointer';
+                        generateLyricsBtn.style.cssText = 'padding:4px 10px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;color:#888;font-size:11px;font-weight:700;cursor:pointer';
+                        manualPanel.style.display = 'flex';
+                        aiLyricsPanel.style.display = 'none';
+                    }
+                } catch (err) {
+                    alert('Error generando letra: ' + err.message);
+                } finally {
+                    genLyricsActionBtn.innerHTML = '✨ Generar letra <span style="background:rgba(255,255,255,.2);padding:1px 6px;border-radius:100px;font-size:10px;font-family:monospace">1 🪙</span>';
+                    genLyricsActionBtn.disabled = false;
+                }
+            });
+
+            aiLyricsPanel.appendChild(aiLyricsTheme);
+            aiLyricsPanel.appendChild(genLyricsActionBtn);
+            lyricsSection.appendChild(aiLyricsPanel);
+            container.appendChild(lyricsSection);
+
+            // Toggle entre manual y IA
+            manualBtn.addEventListener('click', () => {
+                lyricsMode = 'manual';
+                manualBtn.style.cssText = 'padding:4px 10px;background:#f59e0b22;border:1px solid #f59e0b66;border-radius:8px;color:#f59e0b;font-size:11px;font-weight:700;cursor:pointer';
+                generateLyricsBtn.style.cssText = 'padding:4px 10px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;color:#888;font-size:11px;font-weight:700;cursor:pointer';
+                manualPanel.style.display = 'flex';
+                aiLyricsPanel.style.display = 'none';
+            });
+            generateLyricsBtn.addEventListener('click', () => {
+                lyricsMode = 'ai';
+                generateLyricsBtn.style.cssText = 'padding:4px 10px;background:#f59e0b22;border:1px solid #f59e0b66;border-radius:8px;color:#f59e0b;font-size:11px;font-weight:700;cursor:pointer';
+                manualBtn.style.cssText = 'padding:4px 10px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;color:#888;font-size:11px;font-weight:700;cursor:pointer';
+                aiLyricsPanel.style.display = 'flex';
+                manualPanel.style.display = 'none';
+            });
+
+            // ── TIPO: INSTRUMENTAL O CON VOZ ──
+            const voiceTypeSection = document.createElement('div');
+            voiceTypeSection.style.cssText = 'display:flex;flex-direction:column;gap:8px';
+            const voiceTypeLbl = document.createElement('p');
+            voiceTypeLbl.style.cssText = 'color:#888;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin:0';
+            voiceTypeLbl.textContent = 'Tipo de canción';
+            voiceTypeSection.appendChild(voiceTypeLbl);
+
+            let songType = 'vocals'; // 'vocals' | 'instrumental'
+            const typeRow = document.createElement('div');
+            typeRow.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:8px';
+
+            const vocalsCard = document.createElement('div');
+            vocalsCard.style.cssText = 'background:#f59e0b22;border:2px solid #f59e0b66;border-radius:12px;padding:12px;cursor:pointer;text-align:center';
+            vocalsCard.innerHTML = '<div style="font-size:20px;margin-bottom:4px">🎤</div><div style="color:#f59e0b;font-size:12px;font-weight:700">Con voz</div><div style="color:#f59e0b88;font-size:10px">Canta el artista</div>';
+
+            const instrumentalCard = document.createElement('div');
+            instrumentalCard.style.cssText = 'background:#1a1a1a;border:1px solid #2a2a2a;border-radius:12px;padding:12px;cursor:pointer;text-align:center';
+            instrumentalCard.innerHTML = '<div style="font-size:20px;margin-bottom:4px">🎸</div><div style="color:#888;font-size:12px;font-weight:700">Instrumental</div><div style="color:#555;font-size:10px">Solo música</div>';
+
+            vocalsCard.addEventListener('click', () => {
+                songType = 'vocals';
+                vocalsCard.style.cssText = 'background:#f59e0b22;border:2px solid #f59e0b66;border-radius:12px;padding:12px;cursor:pointer;text-align:center';
+                instrumentalCard.style.cssText = 'background:#1a1a1a;border:1px solid #2a2a2a;border-radius:12px;padding:12px;cursor:pointer;text-align:center';
+                vocalsCard.querySelector('div:nth-child(2)').style.color = '#f59e0b';
+                instrumentalCard.querySelector('div:nth-child(2)').style.color = '#888';
+                lyricsSection.style.opacity = '1'; lyricsSection.style.pointerEvents = 'auto';
+            });
+            instrumentalCard.addEventListener('click', () => {
+                songType = 'instrumental';
+                instrumentalCard.style.cssText = 'background:#f59e0b22;border:2px solid #f59e0b66;border-radius:12px;padding:12px;cursor:pointer;text-align:center';
+                vocalsCard.style.cssText = 'background:#1a1a1a;border:1px solid #2a2a2a;border-radius:12px;padding:12px;cursor:pointer;text-align:center';
+                instrumentalCard.querySelector('div:nth-child(2)').style.color = '#f59e0b';
+                vocalsCard.querySelector('div:nth-child(2)').style.color = '#888';
+                lyricsSection.style.opacity = '.3'; lyricsSection.style.pointerEvents = 'none';
+            });
+
+            typeRow.appendChild(vocalsCard);
+            typeRow.appendChild(instrumentalCard);
+            voiceTypeSection.appendChild(typeRow);
+            container.appendChild(voiceTypeSection);
+            container._getSongType = () => songType;
+
+            // Voz del artista
+            if (currentArtist?.voiceId || currentArtist?.voiceStyle) {
+                const voiceInfo = document.createElement('div');
+                voiceInfo.style.cssText = 'background:#f59e0b11;border:1px solid #f59e0b33;border-radius:10px;padding:10px 14px;font-size:12px;color:#f59e0b';
+                voiceInfo.innerHTML = currentArtist.voiceId
+                    ? `🎤 Se usará la voz clonada de <strong>${currentArtist.name}</strong>`
+                    : `🎤 Estilo vocal: "${currentArtist.voiceStyle}"`;
+                container.appendChild(voiceInfo);
+            }
+
+            // Botón generar
+            const genBtn = document.createElement('button');
+            genBtn.style.cssText = 'width:100%;padding:13px;background:#f59e0b;border:none;border-radius:100px;color:#000;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px';
+            genBtn.innerHTML = `Crear canción <span style="background:rgba(0,0,0,.2);padding:2px 8px;border-radius:100px;font-size:11px;font-family:monospace">${cost} 🪙</span>`;
+
+            genBtn.addEventListener('click', async () => {
+                const style   = container._styleInput?.value?.trim();
+                const title   = container._titleInput?.value?.trim();
+                const lyrics  = container._lyricsTextarea?.value?.trim();
+                const isInstrumental = container._getSongType?.() === 'instrumental';
+
+                if (!style && !lyrics) return alert('Escribe el estilo musical o la letra.');
+                if (!currentUser) return alert('Debes iniciar sesión.');
+
+                genBtn.disabled = true;
+                genBtn.innerHTML = '<div style="width:16px;height:16px;border:2px solid #00000033;border-top-color:#000;border-radius:50%;animation:spin 1s linear infinite"></div> Creando canción...';
+
+                try {
+                    const token = await currentUser.getIdToken();
+                    const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', currentUser.uid);
+                    const { isAdmin } = await checkCredits(userRef, cost);
+
+                    const params = {
+                        style:          style || `${currentArtist?.genre || ''} ${currentArtist?.style || ''}`.trim(),
+                        title:          title || `${currentArtist?.name || 'Canción'} - Sin título`,
+                        instrumental:   isInstrumental,
+                    };
+                    if (!isInstrumental && lyrics)          params.lyrics   = lyrics;
+                    if (!isInstrumental && currentArtist?.voiceId) params.voice_id = currentArtist.voiceId;
+                    if (!isInstrumental && currentArtist?.voiceStyle && !currentArtist?.voiceId) {
+                        params.style = `${params.style}, ${currentArtist.voiceStyle}`;
+                    }
+
+                    const res = await callMuapi('suno-create-music', params, token);
+                    const rid = res.request_id || res.id;
+                    let resultUrl = res.url || res.audio_url || res.output?.outputs?.[0] || res.outputs?.[0];
+
+                    if (!resultUrl && rid) {
+                        genBtn.innerHTML = '<div style="width:16px;height:16px;border:2px solid #00000033;border-top-color:#000;border-radius:50%;animation:spin 1s linear infinite"></div> Procesando canción...';
+                        const polled = await pollResult(rid, token, 90, 3000);
+                        resultUrl = polled.url;
+                    }
+
+                    await deductCredits(userRef, cost, isAdmin);
+
+                    const songData = {
+                        title:     params.title,
+                        style:     params.style,
+                        lyrics:    lyrics || null,
+                        tool:      'suno-create-music',
+                        url:       resultUrl || null,
+                        instrumental: isInstrumental,
+                        artistId:  currentArtist.id,
+                        createdAt: serverTimestamp()
+                    };
+                    await addDoc(
+                        collection(db, 'artifacts', APP_ID, 'public', 'data', 'users', currentUser.uid, 'artists', currentArtist.id, 'songs'),
+                        songData
+                    );
+
+                    if (resultUrl) showSongResult(resultUrl, params.title, container);
+                    const sg = document.querySelector('#songs-grid');
+                    if (sg) loadSongs(sg);
+
+                } catch (err) {
+                    console.error(err);
+                    alert(`Error: ${err.message}`);
+                } finally {
+                    genBtn.disabled = false;
+                    genBtn.innerHTML = `Crear canción <span style="background:rgba(0,0,0,.2);padding:2px 8px;border-radius:100px;font-size:11px;font-family:monospace">${cost} 🪙</span>`;
+                }
+            });
+
+            container.appendChild(genBtn);
+            return; // Salimos aquí para no ejecutar el panel genérico
+        }
+
+        // ── PANEL GENÉRICO para el resto de herramientas ──
         const promptWrap = document.createElement('div');
         promptWrap.style.cssText = 'display:flex;flex-direction:column;gap:6px';
 
         const promptLabels = {
-            'suno-create-music':     'Describe la canción (estilo, mood, tema...)',
             'suno-generate-lyrics':  'Tema de la letra',
             'suno-extend-music':     'Instrucciones para extender (opcional)',
             'suno-remix-music':      'Nuevo estilo del remix',
@@ -636,7 +927,6 @@ export function KreateMusicStudio() {
         promptInput.style.cssText = 'background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:10px 14px;color:#fff;font-size:13px;outline:none;font-family:inherit;resize:none;transition:border-color .15s';
         promptInput.placeholder = promptLabels[toolId] || '';
 
-        // Auto-completar con el estilo del artista
         if (currentArtist?.style || currentArtist?.genre) {
             promptInput.value = `Estilo ${currentArtist.genre || ''} ${currentArtist.style || ''}`.trim();
         }
@@ -645,24 +935,6 @@ export function KreateMusicStudio() {
         promptInput.addEventListener('blur',  () => promptInput.style.borderColor = '#2a2a2a');
         promptWrap.appendChild(promptInput);
         container.appendChild(promptWrap);
-
-        // Título de la canción (para create)
-        if (toolId === 'suno-create-music') {
-            const titleWrap = document.createElement('div');
-            titleWrap.style.cssText = 'display:flex;flex-direction:column;gap:6px';
-            const titleLbl = document.createElement('label');
-            titleLbl.style.cssText = 'color:#888;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em';
-            titleLbl.textContent = 'Título de la canción';
-            const titleInput = document.createElement('input');
-            titleInput.placeholder = `Ej: ${currentArtist?.name} - Mi primera canción`;
-            titleInput.style.cssText = 'background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:10px 14px;color:#fff;font-size:13px;outline:none;font-family:inherit';
-            titleInput.addEventListener('focus', () => titleInput.style.borderColor = '#f59e0b66');
-            titleInput.addEventListener('blur',  () => titleInput.style.borderColor = '#2a2a2a');
-            titleWrap.appendChild(titleLbl);
-            titleWrap.appendChild(titleInput);
-            container.appendChild(titleWrap);
-            container._titleInput = titleInput;
-        }
 
         // Upload de audio (para herramientas que lo requieren)
         const needsAudio = ['suno-extend-music','suno-remix-music','suno-add-vocals','suno-add-instrumental','suno-generate-mashup'];
