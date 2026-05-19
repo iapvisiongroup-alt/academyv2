@@ -4,7 +4,7 @@ import {
     query, orderBy, limit, serverTimestamp, writeBatch
 , increment } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
-import { createControlBtn, createDropdownSystem } from './dropdowns.js';
+// dropdowns no usado en KreateMusic
 
 // ============================================================
 // ABRIR IMAGEN COMO BLOB (oculta URL de MuAPI)
@@ -278,13 +278,17 @@ export function KreateMusicStudio() {
     let currentArtist = null;
     let artists       = [];
 
-    const dd = createDropdownSystem();
+
 
     // Views map
     const views = {};
+    const FLEX_COL_VIEWS = ['artistList', 'createArtist', 'artistDashboard'];
     const showView = (name) => {
         Object.values(views).forEach(v => { v.style.display = 'none'; });
-        if (views[name]) views[name].style.display = 'flex';
+        if (views[name]) {
+            views[name].style.display = FLEX_COL_VIEWS.includes(name) ? 'flex' : 'flex';
+            views[name].style.flexDirection = 'column';
+        }
     };
 
     // ── AUTH GUARD ──
@@ -309,16 +313,16 @@ export function KreateMusicStudio() {
 
     const newBtn = document.createElement('button');
     newBtn.type = 'button';
-    newBtn.style.cssText = 'display:flex;align-items:center;gap:6px;padding:10px 18px;background:#f59e0b;border:none;border-radius:100px;color:#000;font-size:13px;font-weight:700;cursor:pointer';
+    newBtn.id = 'km-new-artist-btn';
+    newBtn.style.cssText = 'display:flex;align-items:center;gap:6px;padding:10px 18px;background:#f59e0b;border:none;border-radius:100px;color:#000;font-size:13px;font-weight:700;cursor:pointer;position:relative;z-index:10';
     newBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 5v14M5 12h14"/></svg> Nuevo artista';
-    newBtn.onclick = (e) => {
+    newBtn.addEventListener('click', function(e) {
+        e.stopImmediatePropagation();
         e.stopPropagation();
         e.preventDefault();
-        console.log('[KreateMusic] newBtn clicked, views:', Object.keys(views));
         renderCreateArtist();
         showView('createArtist');
-        console.log('[KreateMusic] showView called, createArtist display:', views.createArtist?.style.display);
-    };
+    }, true); // capture phase — se ejecuta antes que cualquier otro listener
     artistListHeader.appendChild(newBtn);
     artistListView.appendChild(artistListHeader);
 
