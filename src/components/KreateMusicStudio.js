@@ -2,7 +2,7 @@ import { auth, db, APP_ID } from '../lib/firebase.js';
 import {
     collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc,
     query, orderBy, limit, serverTimestamp, writeBatch
-} from 'firebase/firestore';
+, increment } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { createControlBtn, createDropdownSystem } from './dropdowns.js';
 
@@ -65,14 +65,30 @@ async function pollResult(requestId, token, onProgress, maxAttempts = 90, interv
             const resp = await fetch(`/api/v1/predictions/${requestId}/result`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            if (!resp.ok) { if (resp.status >= 500) continue; throw new Error(`Poll ${resp.status}`); }
+            if (!resp.ok) {
+                if (resp.status >= 500) continue;
+                const errBody = await resp.json().catch(() => ({}));
+                const errMsg = errBody?.detail?.error || errBody?.error || errBody?.message || '';
+                // Detectar errores de copyright/contenido
+                if (resp.status === 400 || resp.status === 422) {
+                    if (errMsg.toLowerCase().includes('copyright') || errMsg.toLowerCase().includes('content') || errMsg.toLowerCase().includes('policy') || errMsg.toLowerCase().includes('violation')) {
+                        throw new Error('⚠️ La letra contiene contenido protegido por copyright o infringe las políticas de Suno. Por favor edita la letra e inténtalo de nuevo.');
+                    }
+                    throw new Error(`Error de contenido: ${errMsg || resp.status}. Revisa la letra e inténtalo de nuevo.`);
+                }
+                throw new Error(`Poll ${resp.status}: ${errMsg}`);
+            }
             const data = await resp.json();
-            const status = (data.status || data.output?.status || '').toLowerCase();
+            const status = (data.status || data.output?.status || data?.detail?.status || '').toLowerCase();
+            const errDetail = data?.detail?.error || data.error || data.output?.error || '';
+            if (errDetail.toLowerCase().includes('copyright') || errDetail.toLowerCase().includes('violation')) {
+                throw new Error('⚠️ La letra contiene contenido protegido por copyright. Por favor edita la letra e inténtalo de nuevo.');
+            }
             const url = data.output?.outputs?.[0] || data.outputs?.[0] || data.url
                      || data.audio_url || data.output?.url || data.image_url;
             if (url) return { url, data };
             if (status === 'failed' || status === 'error')
-                throw new Error(data.error || data.output?.error || 'La generación falló.');
+                throw new Error(errDetail || 'La generación falló. Revisa el contenido e inténtalo de nuevo.');
         } catch (e) { if (i >= maxAttempts - 1) throw e; }
     }
     throw new Error('Tiempo de espera agotado.');
@@ -88,9 +104,7 @@ async function checkAndDeduct(userRef, cost, isAdmin = false) {
 
 async function deduct(userRef, cost, isAdmin) {
     if (!isAdmin && cost > 0) {
-        const snap = await getDoc(userRef);
-        const cur  = snap.data().credits || 0;
-        await updateDoc(userRef, { credits: Math.max(0, cur - cost) });
+        await updateDoc(userRef, { credits: increment(-cost) });
     }
 }
 
@@ -1174,12 +1188,21 @@ export function KreateMusicStudio() {
                 if (currentArtist?.voiceId) {
                     params.persona_id = currentArtist.voiceId;
                 } else if (currentArtist?.sunoSongId) {
-                    // song_id de la primera canción — mantiene consistencia vocal
                     params.song_id = currentArtist.sunoSongId;
                 }
                 if (currentArtist?.voiceStyle && !currentArtist?.voiceId) {
                     params.style += `, ${currentArtist.voiceStyle}`;
                 }
+            }
+            // Si viene de "Crear variación", usar audio de referencia
+            if (currentArtist?._refSongUrl) {
+                params.audio_url = currentArtist._refSongUrl;
+                // Pre-rellenar letra de referencia si no hay letra nueva
+                if (!lyrics && currentArtist._refSongLyrics) {
+                    params.prompt = currentArtist._refSongLyrics;
+                }
+                delete currentArtist._refSongUrl;
+                delete currentArtist._refSongLyrics;
             }
 
             const res = await callMuapi('suno-create-music', params, token);
@@ -1261,17 +1284,73 @@ export function KreateMusicStudio() {
                 const card = document.createElement('div');
                 card.className = 'km-card';
                 card.style.cssText = 'background:#1a1a1a;border:1px solid #2a2a2a;border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px';
-                card.innerHTML = `<p style="color:#fff;font-size:12px;font-weight:700;margin:0">${song.title || 'Canción'}</p>`;
+
+                // Cabecera con título
+                const titleRow = document.createElement('div');
+                titleRow.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:8px';
+                const titleEl = document.createElement('p');
+                titleEl.style.cssText = 'color:#fff;font-size:12px;font-weight:700;margin:0;flex:1';
+                titleEl.textContent = song.title || 'Canción';
+                titleRow.appendChild(titleEl);
+                card.appendChild(titleRow);
+
                 if (song.url) {
                     const audio = document.createElement('audio');
                     audio.controls = true; audio.src = song.url;
                     audio.style.cssText = 'width:100%;accent-color:#f59e0b;border-radius:8px';
                     card.appendChild(audio);
-                    // Fila de acciones
+
+                    // ── LETRA guardada ──
+                    if (song.lyrics) {
+                        const lyricsBox = document.createElement('div');
+                        lyricsBox.style.cssText = 'background:#0a0a0a;border:1px solid #2a2a2a;border-radius:10px;overflow:hidden';
+
+                        const lyricsToggleBtn = document.createElement('button');
+                        lyricsToggleBtn.type = 'button';
+                        lyricsToggleBtn.style.cssText = 'width:100%;padding:7px 12px;background:none;border:none;color:#888;font-size:10px;font-weight:700;cursor:pointer;text-align:left;display:flex;align-items:center;justify-content:space-between';
+                        lyricsToggleBtn.innerHTML = '<span>✍️ Ver / editar letra</span><span id="lyr-arrow">▼</span>';
+
+                        const lyricsContent = document.createElement('div');
+                        lyricsContent.style.cssText = 'display:none;padding:10px 12px;display:none;flex-direction:column;gap:8px';
+
+                        const lyricsTA = document.createElement('textarea');
+                        lyricsTA.value = song.lyrics;
+                        lyricsTA.rows = 8;
+                        lyricsTA.style.cssText = 'width:100%;background:transparent;border:none;color:#ccc;font-size:11px;font-family:monospace;line-height:1.6;resize:vertical;outline:none;box-sizing:border-box';
+
+                        const saveLyricsBtn = document.createElement('button');
+                        saveLyricsBtn.type = 'button';
+                        saveLyricsBtn.style.cssText = 'padding:5px 12px;background:#f59e0b22;border:1px solid #f59e0b66;border-radius:100px;color:#f59e0b;font-size:10px;font-weight:700;cursor:pointer;width:fit-content';
+                        saveLyricsBtn.textContent = '💾 Guardar letra';
+                        saveLyricsBtn.addEventListener('click', async () => {
+                            try {
+                                await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', currentUser.uid, 'artists', currentArtist.id, 'songs', song.id), { lyrics: lyricsTA.value });
+                                song.lyrics = lyricsTA.value;
+                                saveLyricsBtn.textContent = '✓ Guardada';
+                                setTimeout(() => { saveLyricsBtn.textContent = '💾 Guardar letra'; }, 2000);
+                            } catch(e) { alert('Error: ' + e.message); }
+                        });
+
+                        lyricsContent.appendChild(lyricsTA);
+                        lyricsContent.appendChild(saveLyricsBtn);
+                        lyricsBox.appendChild(lyricsToggleBtn);
+                        lyricsBox.appendChild(lyricsContent);
+                        card.appendChild(lyricsBox);
+
+                        let lyricsOpen = false;
+                        lyricsToggleBtn.addEventListener('click', () => {
+                            lyricsOpen = !lyricsOpen;
+                            lyricsContent.style.display = lyricsOpen ? 'flex' : 'none';
+                            const arrow = lyricsToggleBtn.querySelector('#lyr-arrow');
+                            if (arrow) arrow.textContent = lyricsOpen ? '▲' : '▼';
+                        });
+                    }
+
+                    // ── ACCIONES ──
                     const actionsRow = document.createElement('div');
                     actionsRow.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap';
 
-                    // Botón descargar
+                    // Descargar
                     const dlBtn2 = document.createElement('button');
                     dlBtn2.type = 'button';
                     dlBtn2.style.cssText = 'padding:5px 12px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:100px;color:#888;font-size:10px;font-weight:700;cursor:pointer';
@@ -1284,20 +1363,37 @@ export function KreateMusicStudio() {
                         } catch { window.open(song.url, '_blank'); }
                     });
 
-                    // Botón extender
+                    // Extender — con panel de instrucciones
                     const extBtn = document.createElement('button');
                     extBtn.type = 'button';
                     extBtn.style.cssText = 'padding:5px 12px;background:#f59e0b22;border:1px solid #f59e0b66;border-radius:100px;color:#f59e0b;font-size:10px;font-weight:700;cursor:pointer';
-                    extBtn.innerHTML = `➕ Extender <span style="opacity:.7">20 🪙</span>`;
-                    extBtn.addEventListener('click', async () => {
-                        extBtn.disabled = true; extBtn.textContent = '⏳ Extendiendo...';
+                    extBtn.innerHTML = '➕ Extender <span style="opacity:.7">20 🪙</span>';
+
+                    // Panel extender (oculto hasta click)
+                    const extPanel = document.createElement('div');
+                    extPanel.style.cssText = 'display:none;flex-direction:column;gap:8px;padding:10px;background:#111;border:1px solid #2a2a2a;border-radius:10px';
+                    extPanel.innerHTML = '<p style="color:#888;font-size:10px;margin:0">¿Qué quieres añadir en la extensión?</p>';
+
+                    const extPromptInput = document.createElement('input');
+                    extPromptInput.placeholder = 'Ej: añade un puente con más energía, termina con fade out...';
+                    extPromptInput.style.cssText = 'background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;padding:8px 12px;color:#fff;font-size:12px;outline:none;font-family:inherit;transition:border-color .15s';
+                    extPromptInput.addEventListener('focus', () => extPromptInput.style.borderColor = '#f59e0b66');
+                    extPromptInput.addEventListener('blur',  () => extPromptInput.style.borderColor = '#2a2a2a');
+
+                    const extConfirmBtn = document.createElement('button');
+                    extConfirmBtn.type = 'button';
+                    extConfirmBtn.style.cssText = 'padding:7px 16px;background:#f59e0b;border:none;border-radius:100px;color:#000;font-size:11px;font-weight:700;cursor:pointer;width:fit-content';
+                    extConfirmBtn.textContent = 'Extender canción';
+                    extConfirmBtn.addEventListener('click', async () => {
+                        extConfirmBtn.disabled = true; extConfirmBtn.textContent = '⏳ Generando...';
                         try {
                             const token = await currentUser.getIdToken();
                             const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', currentUser.uid);
                             const isAdmin = await checkAndDeduct(userRef, COSTS.SONG_EXTEND);
+                            const extPrompt = extPromptInput.value.trim() || 'Continue the song maintaining the same style and energy';
                             const res = await callMuapi('suno-extend-music', {
                                 audio_url: song.url,
-                                prompt: song.title || '',
+                                prompt: extPrompt,
                                 model: 'V5',
                             }, token);
                             const rid = res.request_id || res.id;
@@ -1308,56 +1404,53 @@ export function KreateMusicStudio() {
                             }
                             if (!url) throw new Error('No se recibió URL.');
                             await deduct(userRef, COSTS.SONG_EXTEND, isAdmin);
-                            await saveSong(url, `${song.title || 'Canción'} (extendida)`, 'suno-extend-music', null);
-                            // Añadir player inline
+                            await saveSong(url, `${song.title || 'Canción'} (ext.)`, 'suno-extend-music', null);
                             const extAudio = document.createElement('audio');
                             extAudio.controls = true; extAudio.src = url;
                             extAudio.style.cssText = 'width:100%;accent-color:#f59e0b;border-radius:8px';
-                            card.insertBefore(extAudio, actionsRow);
-                            extBtn.textContent = '✓ Extendida';
-                            extBtn.style.background = '#f59e0b33';
+                            extPanel.parentNode.insertBefore(extAudio, extPanel);
+                            extConfirmBtn.textContent = '✓ Extendida';
+                            extPanel.style.display = 'none';
+                            extBtn.style.opacity = '.4';
                             const sg = document.querySelector('#km-songs-grid');
-                            if (sg) loadSongs(sg);
+                            if (sg) setTimeout(() => loadSongs(sg), 1000);
                         } catch(err) {
-                            extBtn.disabled = false;
-                            extBtn.innerHTML = `➕ Extender <span style="opacity:.7">20 🪙</span>`;
+                            extConfirmBtn.disabled = false;
+                            extConfirmBtn.textContent = 'Extender canción';
                             alert('Error: ' + err.message);
                         }
                     });
 
-                    // Botón voz referencia
-                    const reuseBtn = document.createElement('button');
-                    reuseBtn.type = 'button';
-                    reuseBtn.style.cssText = 'padding:5px 12px;background:#3b82f622;border:1px solid #3b82f666;border-radius:100px;color:#60a5fa;font-size:10px;font-weight:700;cursor:pointer;width:fit-content';
-                    reuseBtn.textContent = `🎤 Usar como referencia de voz (${COSTS.CLONE_VOICE_LATER} 🪙)`;
-                    reuseBtn.addEventListener('click', async () => {
-                        const ok = await confirmDialog('Usar voz de esta pista', `Se clonará la voz de esta canción como referencia permanente para ${currentArtist.name}. Coste: ${COSTS.CLONE_VOICE_LATER} 🪙`, 'Confirmar');
-                        if (!ok) return;
-                        reuseBtn.disabled = true; reuseBtn.textContent = '⏳ Configurando...';
-                        try {
-                            const token = await currentUser.getIdToken();
-                            const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', currentUser.uid);
-                            const isAdmin = await checkAndDeduct(userRef, COSTS.CLONE_VOICE_LATER);
-                            const cloneRes = await callMuapi('suno-voice-clone', { audio_url: song.url }, token);
-                            const voiceId  = cloneRes.voice_id || cloneRes.id;
-                            if (!voiceId) throw new Error('No se obtuvo voice_id.');
-                            await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', currentUser.uid, 'artists', currentArtist.id), { voiceId });
-                            await deduct(userRef, COSTS.CLONE_VOICE_LATER, isAdmin);
-                            currentArtist.voiceId = voiceId;
-                            reuseBtn.textContent = '✓ Voz configurada';
-                            reuseBtn.style.background = '#f59e0b22';
-                            reuseBtn.style.borderColor = '#f59e0b66';
-                            reuseBtn.style.color = '#f59e0b';
-                        } catch (err) {
-                            reuseBtn.disabled = false;
-                            reuseBtn.textContent = `🎤 Usar como referencia de voz (${COSTS.CLONE_VOICE_LATER} 🪙)`;
-                            alert('Error: ' + err.message);
-                        }
+                    extPanel.appendChild(extPromptInput);
+                    extPanel.appendChild(extConfirmBtn);
+
+                    extBtn.addEventListener('click', () => {
+                        const open = extPanel.style.display === 'flex';
+                        extPanel.style.display = open ? 'none' : 'flex';
+                        extBtn.style.borderColor = open ? '#f59e0b66' : '#f59e0b';
                     });
+
+                    // Usar como referencia
+                    const refBtn = document.createElement('button');
+                    refBtn.type = 'button';
+                    refBtn.style.cssText = 'padding:5px 12px;background:#3b82f622;border:1px solid #3b82f666;border-radius:100px;color:#60a5fa;font-size:10px;font-weight:700;cursor:pointer';
+                    refBtn.textContent = '🔁 Crear variación';
+                    refBtn.addEventListener('click', () => {
+                        // Scroll al panel de crear canción y pre-rellenar song_id
+                        if (currentArtist) {
+                            currentArtist._refSongUrl = song.url;
+                            currentArtist._refSongLyrics = song.lyrics || '';
+                        }
+                        // Recargar panel de creación con referencia
+                        const tp = document.querySelector('[id="km-songs-grid"]')?.closest('[style*="overflow-y"]');
+                        alert('Baja al formulario de Crear canción — la canción seleccionada se usará como referencia de voz y estilo. Puedes modificar la letra antes de generar.');
+                    });
+
                     actionsRow.appendChild(dlBtn2);
                     actionsRow.appendChild(extBtn);
-                    actionsRow.appendChild(reuseBtn);
+                    actionsRow.appendChild(refBtn);
                     card.appendChild(actionsRow);
+                    card.appendChild(extPanel);
                 }
                 container.appendChild(card);
             });
