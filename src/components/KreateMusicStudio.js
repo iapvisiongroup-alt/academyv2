@@ -779,7 +779,7 @@ export function KreateMusicStudio() {
             appendGenBtn(container, `Generar letra`, cost, async (token, userRef, isAdmin) => {
                 const theme = container.querySelector('#theme-input')?.value?.trim();
                 if (!theme) throw new Error('Escribe el tema de la letra.');
-                const prompt = `Write song lyrics in Spanish for a ${currentArtist?.genre || 'pop'} song. Theme: ${theme}. Include [Verso 1], [Coro], [Verso 2], [Coro], [Bridge], [Outro]. Make it authentic.`;
+                const prompt = `You are a professional songwriter. Write song lyrics in Spanish for a ${currentArtist?.genre || 'pop'} song. Theme: ${theme}. Style: ${currentArtist?.style || ''}. Structure: [Verso 1], [Coro], [Verso 2], [Coro], [Bridge], [Outro]. IMPORTANT: Output ONLY the lyrics. No introductions, no explanations, no apologies, no comments. Start directly with [Verso 1].`;
                 const res = await callMuapi('gpt-5-mini', { prompt }, token);
                 console.log('[suno-generate-lyrics] respuesta:', JSON.stringify(res).slice(0, 300));
                 const rid = res.request_id || res.id;
@@ -1086,7 +1086,7 @@ export function KreateMusicStudio() {
                 const token = await currentUser.getIdToken();
                 const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', currentUser.uid);
                 const isAdmin = await checkAndDeduct(userRef, COSTS.LYRICS_GENERATE);
-                const lyricsPrompt = `Write song lyrics in Spanish for a ${currentArtist?.genre || 'pop'} song by ${currentArtist?.name || 'the artist'}. Theme: ${aiTheme.value}. Style: ${currentArtist?.style || ''}. Include [Verso 1], [Coro], [Verso 2], [Coro], [Bridge], [Outro]. Write ONLY the lyrics, no explanations.`;
+                const lyricsPrompt = `You are a professional songwriter. Write song lyrics in Spanish for a ${currentArtist?.genre || 'pop'} song. Theme: ${aiTheme.value}. Style: ${currentArtist?.style || ''}. Structure: [Verso 1], [Coro], [Verso 2], [Coro], [Bridge], [Outro]. IMPORTANT: Output ONLY the song lyrics. No introductions, no explanations, no apologies, no comments before or after. Start directly with [Verso 1].`;
                 const res = await callMuapi('gpt-5-mini', { prompt: lyricsPrompt }, token);
                 console.log('[suno-generate-lyrics lyrics] respuesta:', JSON.stringify(res).slice(0, 300));
                 const rid = res.request_id || res.id;
@@ -1169,9 +1169,17 @@ export function KreateMusicStudio() {
             };
             // duration solo si > 30s para no limitar
             if (duration && duration > 30) params.duration = duration;
-            if (!isInstrumental && currentArtist?.voiceId) params.persona_id = currentArtist.voiceId;
-            if (!isInstrumental && currentArtist?.voiceStyle && !currentArtist?.voiceId) {
-                params.style += `, ${currentArtist.voiceStyle}`;
+            // Usar voiceId clonado o sunoSongId como referencia de voz
+            if (!isInstrumental) {
+                if (currentArtist?.voiceId) {
+                    params.persona_id = currentArtist.voiceId;
+                } else if (currentArtist?.sunoSongId) {
+                    // song_id de la primera canción — mantiene consistencia vocal
+                    params.song_id = currentArtist.sunoSongId;
+                }
+                if (currentArtist?.voiceStyle && !currentArtist?.voiceId) {
+                    params.style += `, ${currentArtist.voiceStyle}`;
+                }
             }
 
             const res = await callMuapi('suno-create-music', params, token);
@@ -1184,6 +1192,20 @@ export function KreateMusicStudio() {
             }
             if (!url) throw new Error('No se recibió URL de la canción.');
             await deduct(userRef, cost, isAdmin);
+
+            // Guardar song_id de Suno en el perfil del artista para consistencia de voz
+            const sunoSongId = res?.id || res?.song_id || p?.data?.id || p?.data?.song_id || null;
+            if (sunoSongId && !currentArtist.sunoSongId) {
+                try {
+                    await updateDoc(
+                        doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', currentUser.uid, 'artists', currentArtist.id),
+                        { sunoSongId }
+                    );
+                    currentArtist.sunoSongId = sunoSongId;
+                    console.log('[KreateMusic] sunoSongId guardado:', sunoSongId);
+                } catch(e) { console.warn('No se pudo guardar sunoSongId:', e.message); }
+            }
+
             await saveSong(url, params.title, 'suno-create-music', lyrics);
             showSongResult(url, params.title, container);
             const sg = document.querySelector('#km-songs-grid');
