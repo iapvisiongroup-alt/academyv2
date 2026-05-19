@@ -1,6 +1,6 @@
 import { auth, db, APP_ID } from '../lib/firebase.js';
 import {
-    collection, addDoc, getDocs, doc, updateDoc, deleteDoc,
+    collection, addDoc, getDocs, getDoc, doc, updateDoc, deleteDoc,
     query, orderBy, limit, serverTimestamp, writeBatch
 } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -25,10 +25,11 @@ async function openAsBlob(url) {
 // PRECIOS — 1 CR = $0.01
 // ============================================================
 const COSTS = {
-    CREATE_ARTIST:          30,   // foto inicial nano-banana-2
-    CREATE_ARTIST_VOICE:    80,   // foto inicial + clonar voz
-    CLONE_VOICE_LATER:      50,   // clonar voz dentro del perfil
-    PHOTO_EXTRA:            12,   // foto adicional nano-banana-2-edit
+    // Costes alineados con el backend (/functions/api/v1/[[path]].js)
+    CREATE_ARTIST:          16,   // nano-banana-2 ($0.12 * 1.35)
+    CREATE_ARTIST_VOICE:    16,   // nano-banana-2 + suno-voice-clone (gratis en MuAPI)
+    CLONE_VOICE_LATER:       0,   // suno-voice-clone (gratis en MuAPI)
+    PHOTO_EXTRA:             8,   // nano-banana-2-edit ($0.06 * 1.35)
     SONG_CREATE:            20,   // suno-create-music
     SONG_EXTEND:            20,
     SONG_REMIX:             20,
@@ -94,25 +95,23 @@ async function pollResult(requestId, token, onProgress, maxAttempts = 90, interv
     throw new Error('Tiempo de espera agotado.');
 }
 
-// checkAndDeduct — solo verificación visual, el backend descuenta realmente
-async function checkAndDeduct(userRef, cost) {
-    // El backend verifica y descuenta — aquí solo hacemos check local para UX
+async function checkBalanceForUx(userRef, cost) {
     try {
-        const { getDoc } = await import('firebase/firestore');
         const snap    = await getDoc(userRef);
         const credits = snap.exists() ? (snap.data().credits || 0) : 0;
         const isAdmin = snap.exists() && snap.data().role === 'admin';
-        if (!isAdmin && credits < cost) throw new Error(`Saldo insuficiente. Necesitas ${cost} 🪙 y tienes ${credits} 🪙.`);
+        if (!isAdmin && credits < cost) {
+            throw new Error(`Saldo insuficiente. Necesitas ${cost} 🪙 y tienes ${credits} 🪙.`);
+        }
         return isAdmin;
     } catch(e) {
-        if (e.message.includes('Saldo')) throw e;
-        return false; // si falla la lectura, dejar que el backend decida
+        if (e.message.includes('Saldo insuficiente')) throw e;
+        return false;
     }
 }
 
-// deduct — ya no descuenta desde el frontend (lo hace el backend)
-async function deduct(userRef, cost, isAdmin) {
-    // No-op: el backend ya descontó al procesar la petición
+async function deduct() {
+    // No-op: los créditos los descuenta el backend.
 }
 
 // Inject keyframes once
@@ -465,7 +464,7 @@ export function KreateMusicStudio() {
         createArtistView.appendChild(back);
 
         const titleEl = document.createElement('div');
-        titleEl.innerHTML = '<h2 style="color:#fff;font-size:18px;font-weight:900;margin:0">Crear nuevo artista</h2><p style="color:#555;font-size:12px;margin:4px 0 0">Cuesta <strong style="color:#f59e0b">30 🪙</strong> (o <strong style="color:#f59e0b">80 🪙</strong> si clonas voz)</p>';
+        titleEl.innerHTML = '<h2 style="color:#fff;font-size:18px;font-weight:900;margin:0">Crear nuevo artista</h2><p style="color:#555;font-size:12px;margin:4px 0 0">Cuesta <strong style="color:#f59e0b">16 🪙</strong> (foto del artista generada con IA)</p>';
         createArtistView.appendChild(titleEl);
 
         const formData = {};
@@ -517,8 +516,8 @@ export function KreateMusicStudio() {
             return card;
         };
 
-        const styleCard = makeVoiceCard('✍️', 'Estilo textual', 'Describe la voz', '30 🪙', 'style');
-        const cloneCard = makeVoiceCard('🎙', 'Clonar voz real', 'Audio de 10s', '80 🪙', 'clone');
+        const styleCard = makeVoiceCard('✍️', 'Estilo textual', 'Describe la voz', '16 🪙', 'style');
+        const cloneCard = makeVoiceCard('🎙', 'Clonar voz real', 'Audio de 10s', '16 🪙', 'clone');
 
         const setVoiceMode = (mode) => {
             voiceMode = mode;
@@ -580,12 +579,12 @@ export function KreateMusicStudio() {
         // CREATE BUTTON
         const totalCostEl = document.createElement('p');
         totalCostEl.style.cssText = 'color:#555;font-size:12px;text-align:center;margin:0';
-        totalCostEl.textContent = `Coste total: ${COSTS.CREATE_ARTIST} 🪙`;
+        totalCostEl.textContent = '16 🪙';
 
         // Update cost display when voice mode changes
         const origSetVoiceMode = setVoiceMode;
-        styleCard.addEventListener('click', () => { totalCostEl.textContent = `Coste total: ${COSTS.CREATE_ARTIST} 🪙`; });
-        cloneCard.addEventListener('click', () => { totalCostEl.textContent = `Coste total: ${COSTS.CREATE_ARTIST_VOICE} 🪙`; });
+        styleCard.addEventListener('click', () => { totalCostEl.textContent = '16 🪙'; });
+        cloneCard.addEventListener('click', () => { totalCostEl.textContent = '16 🪙'; });
 
         const createBtn = document.createElement('button');
         createBtn.type = 'button';
@@ -602,7 +601,7 @@ export function KreateMusicStudio() {
             const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', currentUser.uid);
 
             let isAdmin;
-            try { isAdmin = await checkAndDeduct(userRef, cost); } catch (e) { return alert(e.message); }
+            try { isAdmin = await checkBalanceForUx(userRef, cost); } catch (e) { return alert(e.message); }
 
             createBtn.disabled = true;
 
@@ -960,7 +959,7 @@ export function KreateMusicStudio() {
             const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', currentUser.uid);
 
             try {
-                const isAdmin = await checkAndDeduct(userRef, cost);
+                const isAdmin = await checkBalanceForUx(userRef, cost);
                 // Inject progress callback into pollResult via onGenerate
                 container._progressCallback = (pct, secs) => {
                     const bar = progressWrap.querySelector('#inline-bar');
@@ -1123,7 +1122,7 @@ export function KreateMusicStudio() {
             try {
                 const token = await currentUser.getIdToken();
                 const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', currentUser.uid);
-                const isAdmin = await checkAndDeduct(userRef, COSTS.LYRICS_GENERATE);
+                const isAdmin = await checkBalanceForUx(userRef, COSTS.LYRICS_GENERATE);
                 const lyricsPrompt = `You are a professional songwriter. Write song lyrics in Spanish for a ${currentArtist?.genre || 'pop'} song. Theme: ${aiTheme.value}. Style: ${currentArtist?.style || ''}. Structure: [Verso 1], [Coro], [Verso 2], [Coro], [Bridge], [Outro]. IMPORTANT: Output ONLY the song lyrics. No introductions, no explanations, no apologies, no comments before or after. Start directly with [Verso 1].`;
                 const res = await callMuapi('gpt-5-mini', { prompt: lyricsPrompt }, token);
                 console.log('[suno-generate-lyrics lyrics] respuesta:', JSON.stringify(res).slice(0, 300));
@@ -1415,7 +1414,7 @@ export function KreateMusicStudio() {
                         try {
                             const token = await currentUser.getIdToken();
                             const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', currentUser.uid);
-                            const isAdmin = await checkAndDeduct(userRef, COSTS.SONG_EXTEND);
+                            const isAdmin = await checkBalanceForUx(userRef, COSTS.SONG_EXTEND);
                             const extPrompt = extPromptInput.value.trim() || 'Continue the song maintaining the same style and energy';
                             const res = await callMuapi('suno-extend-music', {
                                 audio_url: song.url,
@@ -1607,7 +1606,7 @@ export function KreateMusicStudio() {
             try {
                 const token   = await currentUser.getIdToken();
                 const userRef = doc(db,'artifacts',APP_ID,'public','data','users',currentUser.uid);
-                const isAdmin = await checkAndDeduct(userRef, COSTS.PHOTO_EXTRA);
+                const isAdmin = await checkBalanceForUx(userRef, COSTS.PHOTO_EXTRA);
 
                 const scenePrompt = selectedScene.id === 'custom' ? customInput.value : selectedScene.prompt;
                 const prompt = `Same person as in the reference image, ${scenePrompt}, maintain exact facial features, hair, skin tone, body. Only change background and scene. Hyperrealistic photography, 8K, Sony A7R V.`;
@@ -1733,7 +1732,7 @@ export function KreateMusicStudio() {
             try {
                 const token = await currentUser.getIdToken();
                 const userRef = doc(db,'artifacts',APP_ID,'public','data','users',currentUser.uid);
-                const isAdmin = await checkAndDeduct(userRef, COSTS.CLONE_VOICE_LATER);
+                const isAdmin = await checkBalanceForUx(userRef, COSTS.CLONE_VOICE_LATER);
                 const res = await callMuapi('suno-voice-clone', { audio_url: vFileUrl }, token);
                 const voiceId = res.voice_id || res.id;
                 if (!voiceId) throw new Error('No se obtuvo voice_id.');
