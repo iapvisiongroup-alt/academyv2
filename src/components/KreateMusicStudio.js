@@ -848,15 +848,19 @@ export function KreateMusicStudio() {
                     const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', currentUser.uid);
                     const { isAdmin } = await checkCredits(userRef, cost);
 
+                    const artistStyle = style || `${currentArtist?.genre || ''} ${currentArtist?.style || ''}`.trim();
                     const params = {
-                        style:          style || `${currentArtist?.genre || ''} ${currentArtist?.style || ''}`.trim(),
-                        title:          title || `${currentArtist?.name || 'Canción'} - Sin título`,
-                        instrumental:   isInstrumental,
+                        prompt:       isInstrumental
+                                        ? `${artistStyle} instrumental track, no vocals`
+                                        : `${artistStyle} song by ${currentArtist?.name || 'artist'}`,
+                        style:        artistStyle,
+                        title:        title || `${currentArtist?.name || 'Canción'} - Sin título`,
+                        instrumental: isInstrumental,
                     };
-                    if (!isInstrumental && lyrics)          params.lyrics   = lyrics;
-                    if (!isInstrumental && currentArtist?.voiceId) params.voice_id = currentArtist.voiceId;
+                    if (!isInstrumental && lyrics)                          params.lyrics   = lyrics;
+                    if (!isInstrumental && currentArtist?.voiceId)          params.voice_id = currentArtist.voiceId;
                     if (!isInstrumental && currentArtist?.voiceStyle && !currentArtist?.voiceId) {
-                        params.style = `${params.style}, ${currentArtist.voiceStyle}`;
+                        params.prompt = `${params.prompt}, ${currentArtist.voiceStyle}`;
                     }
 
                     const res = await callMuapi('suno-create-music', params, token);
