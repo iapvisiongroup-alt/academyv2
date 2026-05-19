@@ -94,67 +94,60 @@ async function firestoreGet(projectId, docPath, accessToken) {
 
 // ─── Firestore REST: actualizar campo con transacción ────────────────────────
 async function firestoreDeductCredits(projectId, docPath, cost, accessToken) {
-    const baseUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
+    const baseUrl  = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
+    const fullName = `projects/${projectId}/databases/(default)/documents/${docPath}`;
 
-    // Iniciar transacción
-    const txRes = await fetch(`${baseUrl}:beginTransaction`, {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ options: { readWrite: {} } }),
-    });
-    if (!txRes.ok) throw new Error('Error iniciando transacción');
-    const { transaction } = await txRes.json();
-
-    // Leer documento dentro de la transacción
-    const readRes = await fetch(`${baseUrl}/${docPath}?transaction=${transaction}`, {
+    // 1. Leer el documento
+    const readRes = await fetch(`${baseUrl}/${docPath}`, {
         headers: { 'Authorization': `Bearer ${accessToken}` }
     });
+
     if (!readRes.ok) {
         const errBody = await readRes.text();
-        await rollback(baseUrl, transaction, accessToken);
         throw new Error(`Error leyendo créditos (${readRes.status}): ${errBody.slice(0, 200)}`);
     }
-    const doc = await readRes.json();
 
+    const doc     = await readRes.json();
     const fields  = doc.fields || {};
-    const credits = parseInt(fields.credits?.integerValue || fields.credits?.doubleValue || 0);
+    const credits = parseInt(fields.credits?.integerValue ?? fields.credits?.doubleValue ?? 0);
     const isAdmin = fields.role?.stringValue === 'admin';
 
-    if (isAdmin) {
-        // Rollback — admin no paga
-        await rollback(baseUrl, transaction, accessToken);
-        return { ok: true, isAdmin: true };
-    }
+    if (isAdmin) return { ok: true, isAdmin: true };
 
     if (credits < cost) {
-        await rollback(baseUrl, transaction, accessToken);
         return { ok: false, credits, cost, message: `Saldo insuficiente. Necesitas ${cost} 🪙 y tienes ${credits} 🪙.` };
     }
 
-    // Commit con el nuevo valor
+    // 2. Actualizar con precondición (updateTime) para evitar race conditions
+    const updateTime = doc.updateTime;
     const newCredits = credits - cost;
+
+    const body = {
+        writes: [{
+            update: {
+                name:   fullName,
+                fields: { credits: { integerValue: String(newCredits) } },
+            },
+            updateMask: { fieldPaths: ['credits'] },
+            currentDocument: { updateTime },
+        }],
+    };
+
     const commitRes = await fetch(`${baseUrl}:commit`, {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            transaction,
-            writes: [{
-                update: {
-                    name: `projects/${projectId}/databases/(default)/documents/${docPath}`,
-                    fields: { credits: { integerValue: newCredits.toString() } },
-                },
-                updateMask: { fieldPaths: ['credits'] },
-            }],
-        }),
+        method:  'POST',
+        headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body:    JSON.stringify(body),
     });
 
-    if (!commitRes.ok) throw new Error('Error committing transacción');
+    if (!commitRes.ok) {
+        const errBody = await commitRes.text();
+        // Si falla por precondición (otro proceso actualizó el doc), reintentar una vez
+        if (commitRes.status === 409) {
+            return firestoreDeductCredits(projectId, docPath, cost, accessToken);
+        }
+        throw new Error(`Error actualizando créditos (${commitRes.status}): ${errBody.slice(0, 200)}`);
+    }
+
     return { ok: true, isAdmin: false };
 }
 
@@ -186,13 +179,7 @@ async function firestoreRefund(projectId, docPath, cost, accessToken) {
     });
 }
 
-async function rollback(baseUrl, transaction, accessToken) {
-    await fetch(`${baseUrl}:rollback`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transaction }),
-    }).catch(() => {});
-}
+
 
 // ─── Obtener access token con Service Account ─────────────────────────────────
 async function getServiceAccountToken(env) {
