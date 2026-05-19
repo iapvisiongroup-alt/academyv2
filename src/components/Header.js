@@ -10,14 +10,12 @@ export function Header(navigate) {
     const header = document.createElement('header');
     header.className = 'w-full flex flex-col z-50 sticky top-0';
 
-    // Main Navigation Bar (ESTRUCTURA ORIGINAL INTACTA)
     const navBar = document.createElement('div');
     navBar.className = 'w-full h-16 bg-[#030303] flex items-center justify-between px-4 md:px-6 border-b border-white/5 backdrop-blur-md bg-opacity-95';
 
     const leftPart = document.createElement('div');
     leftPart.className = 'flex items-center gap-8';
 
-    // Logo KreateIA
     const logoContainer = document.createElement('div');
     logoContainer.className = 'flex items-center gap-2 cursor-pointer hover:scale-105 transition-transform';
     logoContainer.innerHTML = `
@@ -40,25 +38,23 @@ export function Header(navigate) {
     `;
     logoContainer.onclick = () => navigate('image');
 
-    // LÓGICA DE MENÚ (PC y MÓVIL)
+    // ── Menú de navegación ──
+    // Nombres de marca blanca — sin referencias a tecnologías externas
     const items = [
-        { id: 'image', label: 'Estudio de Imagen' },
-        { id: 'video', label: 'Estudio de Vídeo' },
-        { id: 'lipsync', label: 'Lip Sync' },
-        { id: 'cinema', label: 'Modo Cine' },
+        { id: 'image',   label: 'KreateImage' },
+        { id: 'video',   label: 'KreateVideo' },
+        { id: 'music',   label: 'KreateMusic' },
         { id: 'academy', label: 'Academia de IA' }
     ];
 
-    let allLinks = []; // Guardamos todos los enlaces para sincronizar PC y Móvil
+    let allLinks = [];
 
     const createMenu = (isMobile) => {
         const nav = document.createElement('nav');
-        
+
         if (isMobile) {
-            // Barra secundaria inferior (SOLO MÓVIL)
             nav.className = 'flex md:hidden items-center gap-6 text-[13px] font-bold text-white/50 w-full h-12 px-4 overflow-x-auto custom-scrollbar bg-[#030303]/95 backdrop-blur-md border-b border-white/5 mask-edges shrink-0';
         } else {
-            // Menú clásico integrado en la barra de arriba (SOLO PC)
             nav.className = 'hidden md:flex items-center gap-6 text-[13px] font-bold text-white/50';
         }
 
@@ -74,8 +70,15 @@ export function Header(navigate) {
                 link.appendChild(dot);
             }
 
+            // Badge NEW para KreateMusic
+            if (item.id === 'music') {
+                const badge = document.createElement('span');
+                badge.style.cssText = 'margin-left:6px;background:#f59e0b;color:#000;font-size:8px;font-weight:900;padding:1px 5px;border-radius:100px;vertical-align:middle;letter-spacing:.05em';
+                badge.textContent = 'NEW';
+                link.appendChild(badge);
+            }
+
             link.onclick = () => {
-                // Al hacer clic, actualizamos la pestaña tanto en móvil como en PC
                 allLinks.forEach(l => {
                     if (l.dataset.id === item.id) {
                         l.classList.add('text-[#FFB000]');
@@ -84,7 +87,6 @@ export function Header(navigate) {
                             dot.className = 'absolute -bottom-1.5 left-0 right-0 h-[2px] bg-[#FFB000] rounded-full shadow-[0_0_8px_rgba(255,176,0,0.6)] active-dot';
                             l.appendChild(dot);
                         }
-                        // Centrar la pestaña si estamos en móvil
                         if (isMobile && l === link) {
                             link.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
                         }
@@ -105,14 +107,12 @@ export function Header(navigate) {
     };
 
     const desktopMenu = createMenu(false);
-    const mobileMenu = createMenu(true);
+    const mobileMenu  = createMenu(true);
 
     leftPart.appendChild(logoContainer);
     leftPart.appendChild(desktopMenu);
 
-    // ==========================================
-    // PARTE DERECHA: USUARIO, CRÉDITOS Y LOGIN
-    // ==========================================
+    // ── Parte derecha: usuario, créditos, login ──
     const rightPart = document.createElement('div');
     rightPart.className = 'flex items-center gap-3 md:gap-4';
 
@@ -128,9 +128,7 @@ export function Header(navigate) {
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg>
                 Iniciar Sesión
             `;
-            loginBtn.onclick = () => {
-                document.body.appendChild(AuthModal());
-            };
+            loginBtn.onclick = () => document.body.appendChild(AuthModal());
             rightPart.appendChild(loginBtn);
 
         } else {
@@ -139,18 +137,14 @@ export function Header(navigate) {
                 adminBtn.className = 'w-9 h-9 rounded-xl bg-gradient-to-br from-[#FFB000]/20 to-transparent border border-[#FFB000]/50 flex items-center justify-center text-xl shadow-[0_0_15px_rgba(255,176,0,0.2)] hover:scale-105 transition-transform mr-1 md:mr-2';
                 adminBtn.title = 'Panel de Control Maestro';
                 adminBtn.textContent = '👑';
-                adminBtn.onclick = () => {
-                    document.body.appendChild(AdminPanel());
-                };
+                adminBtn.onclick = () => document.body.appendChild(AdminPanel());
                 rightPart.appendChild(adminBtn);
             }
 
             const creditsBadge = document.createElement('div');
             creditsBadge.className = 'flex items-center gap-2 bg-white/5 border border-white/10 px-3 py-1.5 rounded-xl cursor-pointer hover:bg-white/10 hover:border-white/30 transition-all shadow-inner group';
             creditsBadge.title = 'Añadir más créditos';
-            creditsBadge.onclick = () => {
-                document.body.appendChild(PricingModal());
-            };
+            creditsBadge.onclick = () => document.body.appendChild(PricingModal());
             creditsBadge.innerHTML = `
                 <span class="text-sm">🪙</span>
                 <span class="text-white font-bold text-xs md:text-sm font-mono tracking-tight">${credits}</span>
@@ -159,11 +153,8 @@ export function Header(navigate) {
 
             const userBtn = document.createElement('button');
             userBtn.className = 'w-9 h-9 rounded-xl bg-gradient-to-tr from-[#3B82F6] to-[#FFB000] flex items-center justify-center text-black font-black text-sm uppercase shadow-[0_0_10px_rgba(255,176,0,0.4)] hover:scale-105 transition-transform border border-white/20';
-            const initial = user.email ? user.email.charAt(0) : 'U';
-            userBtn.textContent = initial;
-            userBtn.onclick = () => {
-                document.body.appendChild(SettingsModal());
-            };
+            userBtn.textContent = user.email ? user.email.charAt(0).toUpperCase() : 'U';
+            userBtn.onclick = () => document.body.appendChild(SettingsModal());
 
             rightPart.appendChild(creditsBadge);
             rightPart.appendChild(userBtn);
@@ -175,33 +166,24 @@ export function Header(navigate) {
     onAuthStateChanged(auth, (user) => {
         if (user) {
             updateRightUI(user, '...');
-            
             const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', user.uid);
             unsubscribeSnapshot = onSnapshot(userRef, (docSnap) => {
                 if (docSnap.exists()) {
                     const data = docSnap.data();
-                    const currentCredits = data.credits !== undefined ? data.credits : 0;
-                    const role = data.role || 'user'; 
-                    updateRightUI(user, currentCredits, role);
+                    updateRightUI(user, data.credits ?? 0, data.role || 'user');
                 }
             });
         } else {
-            if (unsubscribeSnapshot) {
-                unsubscribeSnapshot();
-                unsubscribeSnapshot = null;
-            }
+            if (unsubscribeSnapshot) { unsubscribeSnapshot(); unsubscribeSnapshot = null; }
             updateRightUI(null);
         }
     });
 
     navBar.appendChild(leftPart);
     navBar.appendChild(rightPart);
-
-    // Añadimos las dos barras al header (la móvil solo se verá en pantallas pequeñas)
     header.appendChild(navBar);
     header.appendChild(mobileMenu);
 
-    // Estilos para ocultar la barra de scroll nativa
     const style = document.createElement('style');
     style.innerHTML = `
         .custom-scrollbar::-webkit-scrollbar { display: none; }
