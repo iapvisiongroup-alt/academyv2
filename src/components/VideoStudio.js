@@ -4,7 +4,7 @@ import { createControlBtn, createDropdownSystem } from './dropdowns.js';
 import { auth, db, APP_ID } from '../lib/firebase.js';
 import {
     collection, addDoc, query, orderBy, limit, getDocs,
-    serverTimestamp, doc, getDoc, updateDoc, increment
+    serverTimestamp, doc
 } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 
@@ -448,12 +448,7 @@ export function VideoStudio() {
         if (finalApiId === 'sd-2-vip-extend' && !lastGenerationId)
             return alert('No hay vídeo anterior para extender.');
 
-        const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', auth.currentUser.uid);
-        let userSnap;
-        try { userSnap = await getDoc(userRef); } catch { return alert('Error consultando saldo.'); }
-        const credits = userSnap.exists() ? (userSnap.data().credits || 0) : 0;
-        const isAdmin = userSnap.exists() && userSnap.data().role === 'admin';
-        if (!isAdmin && credits < cost) return alert(`⚠️ Saldo insuficiente.\n\nNecesitas ${cost} 🪙 y tienes ${credits} 🪙.`);
+        // Saldo verificado por el backend
 
         galleryHeader.classList.remove('hidden');
         const params      = buildVideoParams({ finalApiId, promptText, selectedAr, selectedDuration, selectedQuality, uploadedImageUrl, uploadedVideoUrl, lastGenerationId });
@@ -508,16 +503,7 @@ export function VideoStudio() {
             const finalUrl = extractVideoUrl(res);
             if (!finalUrl) throw new Error('No se recibió URL del vídeo.');
 
-            if (!isAdmin) {
-                try {
-                    await updateDoc(userRef, { credits: increment(-cost) });
-                    console.log('[VideoStudio] Créditos descontados:', cost, 'userRef path:', userRef.path);
-                } catch(creditErr) {
-                    console.error('[VideoStudio] ERROR descontando créditos:', creditErr);
-                }
-            } else {
-                console.log('[VideoStudio] Admin — no se descuentan créditos');
-            }
+            // Créditos descontados por el backend
 
             const rid = res.request_id || res.output?.id || res.id || null;
             const entryData = { url: finalUrl, prompt: cleanPrompt || 'Vídeo generado', model: finalApiId, duration: selectedDuration, quality: selectedQuality, aspect_ratio: selectedAr, type: 'video', request_id: rid, muapi_request_id: rid, createdAt: serverTimestamp() };
