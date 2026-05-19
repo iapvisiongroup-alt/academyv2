@@ -483,7 +483,7 @@ export function KreateMusicStudio() {
             lbl.textContent = f.label;
             wrap.appendChild(lbl);
             const input = f.textarea ? document.createElement('textarea') : document.createElement('input');
-            input.type = 'text';
+            if (!f.textarea) input.type = 'text';
             input.placeholder = f.placeholder;
             input.style.cssText = 'background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:9px 13px;color:#fff;font-size:13px;outline:none;font-family:inherit;transition:border-color .15s';
             if (f.textarea) { input.rows = 2; input.style.resize = 'none'; }
