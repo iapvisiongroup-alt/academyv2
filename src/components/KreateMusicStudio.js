@@ -104,7 +104,15 @@ async function checkAndDeduct(userRef, cost, isAdmin = false) {
 
 async function deduct(userRef, cost, isAdmin) {
     if (!isAdmin && cost > 0) {
-        await updateDoc(userRef, { credits: increment(-cost) });
+        try {
+            await updateDoc(userRef, { credits: increment(-cost) });
+            console.log('[KreateMusic] Créditos descontados:', cost, 'path:', userRef.path);
+        } catch(e) {
+            console.error('[KreateMusic] ERROR descontando créditos:', e.message, 'path:', userRef.path);
+            throw e; // relanzar para que el usuario vea el error
+        }
+    } else {
+        console.log('[KreateMusic] Admin o coste 0 — no se descuentan créditos. isAdmin:', isAdmin, 'cost:', cost);
     }
 }
 
@@ -510,8 +518,8 @@ export function KreateMusicStudio() {
             return card;
         };
 
-        const styleCard = makeVoiceCard('✍️', 'Estilo textual', 'Describe la voz', `+0 🪙 (${COSTS.CREATE_ARTIST} total)`, 'style');
-        const cloneCard = makeVoiceCard('🎙', 'Clonar voz real', 'Audio de 10s', `+50 🪙 (${COSTS.CREATE_ARTIST_VOICE} total)`, 'clone');
+        const styleCard = makeVoiceCard('✍️', 'Estilo textual', 'Describe la voz', '30 🪙', 'style');
+        const cloneCard = makeVoiceCard('🎙', 'Clonar voz real', 'Audio de 10s', '80 🪙', 'clone');
 
         const setVoiceMode = (mode) => {
             voiceMode = mode;
