@@ -9,11 +9,11 @@ import {
 import { onAuthStateChanged } from 'firebase/auth';
 
 const V_MODELS = [
-    { uiId: 'kreate-2',        name: 'KreateVideo 2',          desc: 'Seedance v2 · T2V / I2V / V2V' },
-    { uiId: 'kreate-2-extend', name: 'KreateVideo 2 Extend',   desc: 'Alarga el último vídeo generado' },
-    { uiId: 'veo-fast',        name: 'KreateVideo Fast',        desc: 'Veo 3.1 · Generación rápida' },
-    { uiId: 'veo-i2v',         name: 'KreateVideo Fast I2V',    desc: 'Veo 3.1 · Imagen a vídeo' },
-    { uiId: 'kling-mc',        name: 'KreateMotion Control',    desc: 'Kling v3 · Control de cámara' }
+    { uiId: 'kreate-2',        name: 'KreateVideo 2',         desc: 'Texto, imagen y vídeo a vídeo' },
+    { uiId: 'kreate-2-extend', name: 'KreateVideo 2 Extend',  desc: 'Alarga el último vídeo generado' },
+    { uiId: 'veo-fast',        name: 'KreateVideo Fast',       desc: 'Generación ultrarrápida' },
+    { uiId: 'veo-i2v',         name: 'KreateVideo Fast I2V',   desc: 'Imagen a vídeo rápido' },
+    { uiId: 'kling-mc',        name: 'KreateMotion Control',   desc: 'Control avanzado de cámara' }
 ];
 
 const getApiId = (uiId, mode) => {
