@@ -742,60 +742,11 @@ export function KreateMusicStudio() {
         const panel = document.createElement('div');
         panel.style.cssText = 'flex-direction:column;overflow-y:auto;padding:20px;gap:16px;height:100%';
 
-        const TOOLS = [
-            { id: 'suno-create-music',      icon: '🎵', label: 'Crear canción',     cost: COSTS.SONG_CREATE },
-            { id: 'suno-generate-lyrics',   icon: '✍️',  label: 'Generar letra',    cost: COSTS.LYRICS_GENERATE },
-            { id: 'suno-extend-music',      icon: '➕', label: 'Extender',          cost: COSTS.SONG_EXTEND },
-            { id: 'suno-remix-music',       icon: '🔄', label: 'Remix',             cost: COSTS.SONG_REMIX },
-            { id: 'suno-add-vocals',        icon: '🗣️', label: 'Añadir voces',      cost: COSTS.SONG_ADD_VOCALS },
-            { id: 'suno-add-instrumental',  icon: '🎸', label: 'Añadir música',     cost: COSTS.SONG_ADD_INSTRUMENTAL },
-            { id: 'suno-generate-mashup',   icon: '🎛️', label: 'Mashup',            cost: COSTS.SONG_MASHUP },
-            { id: 'suno-generate-sounds',   icon: '🔊', label: 'Efectos',           cost: COSTS.SOUNDS_GENERATE },
-        ];
-
-        let selectedTool = TOOLS[0].id;
-
-        // Tool selector
-
-        const toolGrid = document.createElement('div');
-        toolGrid.style.cssText = 'display:grid;grid-template-columns:repeat(4,1fr);gap:6px;flex-shrink:0';
-
+        // Panel fijo — solo crear canción
         const toolPanelContainer = document.createElement('div');
         toolPanelContainer.style.cssText = 'display:flex;flex-direction:column;gap:12px';
-
-        TOOLS.forEach(tool => {
-            const card = document.createElement('div');
-            const isActive = tool.id === selectedTool;
-            card.className = 'km-tool-card';
-            card.dataset.toolId = tool.id;
-            card.style.cssText = `background:${isActive ? '#f59e0b22' : '#1a1a1a'};border:${isActive ? '2px solid #f59e0b' : '1px solid #2a2a2a'};border-radius:10px;padding:8px 6px;cursor:pointer;text-align:center;transition:all .15s;box-shadow:${isActive ? '0 0 12px rgba(245,158,11,.2)' : 'none'}`;
-            card.innerHTML = `<div class="tool-icon" style="font-size:16px">${tool.icon}</div><div class="tool-label" style="color:${isActive ? '#f59e0b' : '#888'};font-size:10px;font-weight:700;margin-top:2px;line-height:1.2">${tool.label}</div>`;
-
-            card.addEventListener('click', () => {
-                selectedTool = tool.id;
-                // Resetear todos los cards usando referencia directa al array
-                toolGrid.querySelectorAll('.km-tool-card').forEach(c => {
-                    const isActive = c.dataset.toolId === tool.id;
-                    c.style.background = isActive ? '#f59e0b22' : '#1a1a1a';
-                    c.style.border     = isActive ? '2px solid #f59e0b' : '1px solid #2a2a2a';
-                    const icon = c.querySelector('.tool-icon');
-                    const lbl  = c.querySelector('.tool-label');
-                    if (icon) icon.style.filter = isActive ? 'none' : 'grayscale(0)';
-                    if (lbl)  lbl.style.color   = isActive ? '#f59e0b' : '#888';
-                });
-                renderToolPanel(tool.id, toolPanelContainer);
-            });
-
-            toolGrid.appendChild(card);
-        });
-
-        panel.appendChild(toolGrid);
-
-        const sep = document.createElement('div');
-        sep.style.cssText = 'height:1px;background:#1f1f1f;flex-shrink:0';
-        panel.appendChild(sep);
         panel.appendChild(toolPanelContainer);
-        renderToolPanel(selectedTool, toolPanelContainer);
+        buildCreateSongPanel(toolPanelContainer);
 
         // Songs history
         const songsLabel = document.createElement('p');
@@ -1193,24 +1144,34 @@ export function KreateMusicStudio() {
             const durationSel = container.querySelector('#song-duration-select');
             const duration = durationSel ? parseInt(durationSel.value) : 120;
 
+            // En Suno V5 con custom_mode, la letra va en el campo prompt
+            // y el estilo en el campo style. duration en segundos.
+            let songPrompt = '';
+            if (!isInstrumental && lyrics) {
+                // Letra en prompt para que Suno la use
+                songPrompt = lyrics;
+            } else {
+                songPrompt = isInstrumental
+                    ? `${style} instrumental track`
+                    : `${style} song`;
+            }
+
             const params = {
                 model:                'V5',
                 custom_mode:          true,
-                prompt:               isInstrumental
-                                        ? `${style} instrumental track, no vocals`
-                                        : `${style} song by ${currentArtist?.name || 'artist'}`,
-                style,
+                prompt:               songPrompt,
+                style:                style || `${currentArtist?.genre || ''} ${currentArtist?.style || ''}`.trim(),
                 title:                title || `${currentArtist?.name || 'Canción'} - Sin título`,
                 instrumental:         isInstrumental,
-                duration:             duration,
                 style_weight:         0.65,
                 weirdness_constraint: 0.5,
                 audio_weight:         0.65,
             };
-            if (!isInstrumental && lyrics)             params.lyrics     = lyrics;
-            if (!isInstrumental && currentArtist?.voiceId)  params.persona_id = currentArtist.voiceId;
+            // duration solo si > 30s para no limitar
+            if (duration && duration > 30) params.duration = duration;
+            if (!isInstrumental && currentArtist?.voiceId) params.persona_id = currentArtist.voiceId;
             if (!isInstrumental && currentArtist?.voiceStyle && !currentArtist?.voiceId) {
-                params.prompt += `, ${currentArtist.voiceStyle}`;
+                params.style += `, ${currentArtist.voiceStyle}`;
             }
 
             const res = await callMuapi('suno-create-music', params, token);
@@ -1284,6 +1245,65 @@ export function KreateMusicStudio() {
                     audio.controls = true; audio.src = song.url;
                     audio.style.cssText = 'width:100%;accent-color:#f59e0b;border-radius:8px';
                     card.appendChild(audio);
+                    // Fila de acciones
+                    const actionsRow = document.createElement('div');
+                    actionsRow.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap';
+
+                    // Botón descargar
+                    const dlBtn2 = document.createElement('button');
+                    dlBtn2.type = 'button';
+                    dlBtn2.style.cssText = 'padding:5px 12px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:100px;color:#888;font-size:10px;font-weight:700;cursor:pointer';
+                    dlBtn2.textContent = '↓ Descargar';
+                    dlBtn2.addEventListener('click', async () => {
+                        try {
+                            const blob = await fetch(song.url).then(r => r.blob());
+                            const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `${song.title || 'kreatemusic'}.mp3` });
+                            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                        } catch { window.open(song.url, '_blank'); }
+                    });
+
+                    // Botón extender
+                    const extBtn = document.createElement('button');
+                    extBtn.type = 'button';
+                    extBtn.style.cssText = 'padding:5px 12px;background:#f59e0b22;border:1px solid #f59e0b66;border-radius:100px;color:#f59e0b;font-size:10px;font-weight:700;cursor:pointer';
+                    extBtn.innerHTML = `➕ Extender <span style="opacity:.7">20 🪙</span>`;
+                    extBtn.addEventListener('click', async () => {
+                        extBtn.disabled = true; extBtn.textContent = '⏳ Extendiendo...';
+                        try {
+                            const token = await currentUser.getIdToken();
+                            const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', currentUser.uid);
+                            const isAdmin = await checkAndDeduct(userRef, COSTS.SONG_EXTEND);
+                            const res = await callMuapi('suno-extend-music', {
+                                audio_url: song.url,
+                                prompt: song.title || '',
+                                model: 'V5',
+                            }, token);
+                            const rid = res.request_id || res.id;
+                            let url = res.url || res.audio_url;
+                            if (!url && rid) {
+                                const p = await pollResult(rid, token, null, 90, 3000);
+                                url = p.url;
+                            }
+                            if (!url) throw new Error('No se recibió URL.');
+                            await deduct(userRef, COSTS.SONG_EXTEND, isAdmin);
+                            await saveSong(url, `${song.title || 'Canción'} (extendida)`, 'suno-extend-music', null);
+                            // Añadir player inline
+                            const extAudio = document.createElement('audio');
+                            extAudio.controls = true; extAudio.src = url;
+                            extAudio.style.cssText = 'width:100%;accent-color:#f59e0b;border-radius:8px';
+                            card.insertBefore(extAudio, actionsRow);
+                            extBtn.textContent = '✓ Extendida';
+                            extBtn.style.background = '#f59e0b33';
+                            const sg = document.querySelector('#km-songs-grid');
+                            if (sg) loadSongs(sg);
+                        } catch(err) {
+                            extBtn.disabled = false;
+                            extBtn.innerHTML = `➕ Extender <span style="opacity:.7">20 🪙</span>`;
+                            alert('Error: ' + err.message);
+                        }
+                    });
+
+                    // Botón voz referencia
                     const reuseBtn = document.createElement('button');
                     reuseBtn.type = 'button';
                     reuseBtn.style.cssText = 'padding:5px 12px;background:#3b82f622;border:1px solid #3b82f666;border-radius:100px;color:#60a5fa;font-size:10px;font-weight:700;cursor:pointer;width:fit-content';
@@ -1312,7 +1332,10 @@ export function KreateMusicStudio() {
                             alert('Error: ' + err.message);
                         }
                     });
-                    card.appendChild(reuseBtn);
+                    actionsRow.appendChild(dlBtn2);
+                    actionsRow.appendChild(extBtn);
+                    actionsRow.appendChild(reuseBtn);
+                    card.appendChild(actionsRow);
                 }
                 container.appendChild(card);
             });
