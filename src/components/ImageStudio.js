@@ -1,4 +1,3 @@
-import { muapi } from '../lib/muapi.js';
 import { getAspectRatiosForModel, getResolutionsForModel, getAspectRatiosForI2IModel, getResolutionsForI2IModel, getMaxImagesForI2IModel } from '../lib/models.js';
 import { AuthModal } from './AuthModal.js';
 import { createUploadPicker } from './UploadPicker.js';
@@ -290,31 +289,71 @@ export function ImageStudio() {
             if (selectedStyle && selectedStyle !== 'Ninguno') finalPrompt += `, estilo ${selectedStyle.toLowerCase()}`;
 
             let res;
-            if (imageMode) {
-                const token = await auth.currentUser.getIdToken();
-                const req   = await fetch(`/api/v1/${selectedModel}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                    body: JSON.stringify({ model: selectedModel, images_list: uploadedImageUrls, aspect_ratio: selectedAr, prompt: finalPrompt, ...(negativePrompt && { negative_prompt: negativePrompt }) })
-                });
-                res = await req.json();
-                if (res.request_id && !res.url) {
-                    let attempts = 0;
-                    while (attempts < 60) {
-                        await new Promise(r => setTimeout(r, 2000));
-                        const poll = await fetch(`/api/v1/predictions/${res.request_id}/result`, { headers: { 'Authorization': `Bearer ${token}` } });
-                        if (poll.ok) {
-                            const p = await poll.json();
-                            const u = p.url || p.image_url || p.output?.outputs?.[0] || p.outputs?.[0] || p.images?.[0]?.url;
-                            if (u) { res.url = u; break; }
-                            if (p.status === 'failed' || p.status === 'error') throw new Error('Error en la generación.');
-                        }
-                        attempts++;
+            const token = await auth.currentUser.getIdToken();
+
+            const req = await fetch(`/api/v1/${selectedModel}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    model: selectedModel,
+                    prompt: finalPrompt,
+                    aspect_ratio: selectedAr,
+                    ...(imageMode && { images_list: uploadedImageUrls }),
+                    ...(negativePrompt && { negative_prompt: negativePrompt }),
+                }),
+            });
+
+            res = await req.json().catch(() => ({}));
+
+            if (!req.ok) {
+                throw new Error(res.error || `Error en el servidor: ${req.status}`);
+            }
+
+            let imageUrl =
+                res.url ||
+                res.image_url ||
+                res.output?.url ||
+                res.output?.outputs?.[0] ||
+                res.outputs?.[0] ||
+                res.images?.[0]?.url;
+
+            if (res.request_id && !imageUrl) {
+                let attempts = 0;
+                while (attempts < 60) {
+                    await new Promise(r => setTimeout(r, 2000));
+                    attempts++;
+
+                    const poll = await fetch(`/api/v1/predictions/${res.request_id}/result`, {
+                        headers: { 'Authorization': `Bearer ${token}` },
+                    });
+
+                    const p = await poll.json().catch(() => ({}));
+
+                    if (!poll.ok) {
+                        throw new Error(p.error || `Error consultando resultado: ${poll.status}`);
+                    }
+
+                    imageUrl =
+                        p.url ||
+                        p.image_url ||
+                        p.output?.url ||
+                        p.output?.outputs?.[0] ||
+                        p.outputs?.[0] ||
+                        p.images?.[0]?.url;
+
+                    if (imageUrl) { res = { ...p, url: imageUrl }; break; }
+
+                    const status = String(p.status || p.output?.status || '').toLowerCase();
+                    if (status === 'failed' || status === 'error') {
+                        throw new Error(p.error || 'Error en la generación.');
                     }
                 }
-            } else {
-                res = await muapi.generateImage({ model: selectedModel, prompt: finalPrompt, aspect_ratio: selectedAr, ...(negativePrompt && { negative_prompt: negativePrompt }) });
             }
+
+            if (imageUrl && !res.url) res.url = imageUrl;
 
             if (!res?.url) throw new Error('No se recibió URL de la imagen.');
 
