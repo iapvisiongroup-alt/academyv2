@@ -320,13 +320,10 @@ export function KreateMusicStudio() {
     newBtn.id = 'km-new-artist-btn';
     newBtn.style.cssText = 'display:flex;align-items:center;gap:6px;padding:10px 18px;background:#f59e0b;border:none;border-radius:100px;color:#000;font-size:13px;font-weight:700;cursor:pointer;position:relative;z-index:10';
     newBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 5v14M5 12h14"/></svg> Nuevo artista';
-    newBtn.addEventListener('click', function(e) {
-        e.stopImmediatePropagation();
-        e.stopPropagation();
-        e.preventDefault();
+    newBtn.onclick = function() {
         renderCreateArtist();
         showView('createArtist');
-    }, true); // capture phase — se ejecuta antes que cualquier otro listener
+    };
     artistListHeader.appendChild(newBtn);
     artistListView.appendChild(artistListHeader);
 
