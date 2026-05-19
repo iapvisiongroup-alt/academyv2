@@ -1,8 +1,8 @@
 import { auth, db, APP_ID } from '../lib/firebase.js';
 import {
-    collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc,
+    collection, addDoc, getDocs, doc, updateDoc, deleteDoc,
     query, orderBy, limit, serverTimestamp, writeBatch
-, increment } from 'firebase/firestore';
+} from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 // dropdowns no usado en KreateMusic
 
@@ -94,26 +94,25 @@ async function pollResult(requestId, token, onProgress, maxAttempts = 90, interv
     throw new Error('Tiempo de espera agotado.');
 }
 
-async function checkAndDeduct(userRef, cost, isAdmin = false) {
-    const snap = await getDoc(userRef);
-    const credits = snap.exists() ? (snap.data().credits || 0) : 0;
-    const admin   = snap.exists() && snap.data().role === 'admin';
-    if (!admin && credits < cost) throw new Error(`Saldo insuficiente. Necesitas ${cost} 🪙 y tienes ${credits} 🪙.`);
-    return admin;
+// checkAndDeduct — solo verificación visual, el backend descuenta realmente
+async function checkAndDeduct(userRef, cost) {
+    // El backend verifica y descuenta — aquí solo hacemos check local para UX
+    try {
+        const { getDoc } = await import('firebase/firestore');
+        const snap    = await getDoc(userRef);
+        const credits = snap.exists() ? (snap.data().credits || 0) : 0;
+        const isAdmin = snap.exists() && snap.data().role === 'admin';
+        if (!isAdmin && credits < cost) throw new Error(`Saldo insuficiente. Necesitas ${cost} 🪙 y tienes ${credits} 🪙.`);
+        return isAdmin;
+    } catch(e) {
+        if (e.message.includes('Saldo')) throw e;
+        return false; // si falla la lectura, dejar que el backend decida
+    }
 }
 
+// deduct — ya no descuenta desde el frontend (lo hace el backend)
 async function deduct(userRef, cost, isAdmin) {
-    if (!isAdmin && cost > 0) {
-        try {
-            await updateDoc(userRef, { credits: increment(-cost) });
-            console.log('[KreateMusic] Créditos descontados:', cost, 'path:', userRef.path);
-        } catch(e) {
-            console.error('[KreateMusic] ERROR descontando créditos:', e.message, 'path:', userRef.path);
-            throw e; // relanzar para que el usuario vea el error
-        }
-    } else {
-        console.log('[KreateMusic] Admin o coste 0 — no se descuentan créditos. isAdmin:', isAdmin, 'cost:', cost);
-    }
+    // No-op: el backend ya descontó al procesar la petición
 }
 
 // Inject keyframes once
