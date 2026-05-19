@@ -314,8 +314,10 @@ export function KreateMusicStudio() {
     newBtn.onclick = (e) => {
         e.stopPropagation();
         e.preventDefault();
+        console.log('[KreateMusic] newBtn clicked, views:', Object.keys(views));
         renderCreateArtist();
         showView('createArtist');
+        console.log('[KreateMusic] showView called, createArtist display:', views.createArtist?.style.display);
     };
     artistListHeader.appendChild(newBtn);
     artistListView.appendChild(artistListHeader);
