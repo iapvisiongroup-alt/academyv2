@@ -314,7 +314,11 @@ export function KreateMusicStudio() {
         newBtn.type = 'button';
         newBtn.style.cssText = 'display:flex;align-items:center;gap:6px;padding:10px 18px;background:#f59e0b;border:none;border-radius:100px;color:#000;font-size:13px;font-weight:700;cursor:pointer';
         newBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 5v14M5 12h14"/></svg> Nuevo artista`;
-        newBtn.addEventListener('click', () => { renderCreateArtist(); showView('createArtist'); });
+        newBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            renderCreateArtist();
+            showView('createArtist');
+        });
         header.appendChild(titleEl);
         header.appendChild(newBtn);
         artistListView.appendChild(header);
@@ -437,7 +441,7 @@ export function KreateMusicStudio() {
         back.type = 'button';
         back.style.cssText = 'display:flex;align-items:center;gap:6px;background:none;border:none;color:#666;font-size:12px;cursor:pointer;padding:0;width:fit-content';
         back.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg> Mis artistas`;
-        back.addEventListener('click', () => showView('artistList'));
+        back.addEventListener('click', (e) => { e.stopPropagation(); showView('artistList'); });
         createArtistView.appendChild(back);
 
         const titleEl = document.createElement('div');
@@ -568,7 +572,8 @@ export function KreateMusicStudio() {
         createBtn.style.cssText = 'width:100%;padding:13px;background:#f59e0b;border:none;border-radius:100px;color:#000;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:40px';
         createBtn.textContent = 'Crear artista y generar fotos ✨';
 
-        createBtn.addEventListener('click', async () => {
+        createBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
             if (!formData.name?.trim()) return alert('El nombre del artista es obligatorio.');
             if (!currentUser) return alert('Debes iniciar sesión.');
 
@@ -690,7 +695,7 @@ export function KreateMusicStudio() {
         backBtn.type = 'button';
         backBtn.style.cssText = 'background:none;border:none;color:#666;cursor:pointer;padding:4px;display:flex;align-items:center';
         backBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>`;
-        backBtn.addEventListener('click', () => { renderArtistList(); showView('artistList'); });
+        backBtn.addEventListener('click', (e) => { e.stopPropagation(); renderArtistList(); showView('artistList'); });
 
         const thumb = document.createElement('div');
         thumb.style.cssText = 'width:44px;height:44px;border-radius:10px;overflow:hidden;background:#1a1a1a;flex-shrink:0;border:2px solid #f59e0b44';
