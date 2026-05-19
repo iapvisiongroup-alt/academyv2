@@ -1,33 +1,54 @@
 import { auth, db, APP_ID } from '../lib/firebase.js';
 import {
-    collection, addDoc, getDocs, doc, getDoc, updateDoc,
-    query, orderBy, limit, serverTimestamp, setDoc
+    collection, addDoc, getDocs, doc, getDoc, updateDoc, deleteDoc,
+    query, orderBy, limit, serverTimestamp, writeBatch
 } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
+import { createControlBtn, createDropdownSystem } from './dropdowns.js';
 
 // ============================================================
-// PRECIOS MuAPI + 35% margen. 1 CR = $0.01
+// ABRIR IMAGEN COMO BLOB (oculta URL de MuAPI)
 // ============================================================
-const MUSIC_COSTS = {
-    'suno-create-music':       20,  // $0.10 x2
-    'suno-extend-music':       20,
-    'suno-remix-music':        20,
-    'suno-add-vocals':         20,
-    'suno-add-instrumental':   20,
-    'suno-generate-mashup':    20,
-    'suno-generate-lyrics':    1,   // $0.0033 x2 = mínimo 1 CR
-    'suno-boost-music-style':  1,
-    'suno-generate-sounds':    4,   // $0.022 x2
-    'suno-voice-clone':        2,   // gratis en MuAPI, cobramos mínimo 2 CR
-    'nano-banana-2':           24,  // $0.12 x2
-    'nano-banana-2-edit':      12,  // $0.06 x2
+async function openAsBlob(url, prefix = 'kreateia') {
+    try {
+        const blob    = await fetch(url).then(r => r.blob());
+        const blobUrl = URL.createObjectURL(blob);
+        const a       = document.createElement('a');
+        a.href   = blobUrl;
+        a.target = '_blank';
+        a.rel    = 'noopener';
+        // Nombre aleatorio tipo kreateia-a3f9b2c1
+        a.download = `${prefix}-${Math.random().toString(16).slice(2, 10)}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+    } catch {
+        window.open(url, '_blank');
+    }
+}
+
+// ============================================================
+// PRECIOS — 1 CR = $0.01
+// ============================================================
+const COSTS = {
+    CREATE_ARTIST:          30,   // foto inicial nano-banana-2
+    CREATE_ARTIST_VOICE:    80,   // foto inicial + clonar voz
+    CLONE_VOICE_LATER:      50,   // clonar voz dentro del perfil
+    PHOTO_EXTRA:            12,   // foto adicional nano-banana-2-edit
+    SONG_CREATE:            20,   // suno-create-music
+    SONG_EXTEND:            20,
+    SONG_REMIX:             20,
+    SONG_ADD_VOCALS:        20,
+    SONG_ADD_INSTRUMENTAL:  20,
+    SONG_MASHUP:            20,
+    LYRICS_GENERATE:         1,   // gpt-5-mini
+    SOUNDS_GENERATE:         4,
 };
 
 // ============================================================
 // HELPERS
 // ============================================================
-
-const BASE_URL = window.location.origin;
 
 async function callMuapi(endpoint, params, token) {
     const resp = await fetch(`/api/v1/${endpoint}`, {
@@ -37,89 +58,214 @@ async function callMuapi(endpoint, params, token) {
     });
     if (!resp.ok) {
         const t = await resp.text();
-        throw new Error(`Error (${resp.status}): ${t.slice(0, 200)}`);
+        throw new Error(`Error (${resp.status}): ${t.slice(0, 300)}`);
     }
     return resp.json();
 }
 
-async function pollResult(requestId, token, maxAttempts = 90, interval = 3000) {
+async function pollResult(requestId, token, onProgress, maxAttempts = 90, interval = 3000) {
     for (let i = 0; i < maxAttempts; i++) {
         await new Promise(r => setTimeout(r, interval));
-        const resp = await fetch(`/api/v1/predictions/${requestId}/result`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (!resp.ok) { if (resp.status >= 500) continue; throw new Error(`Poll ${resp.status}`); }
-        const data = await resp.json();
-        const status = (data.status || data.output?.status || '').toLowerCase();
-        const url = data.output?.outputs?.[0] || data.outputs?.[0] || data.url || data.audio_url
-                 || data.output?.url || data.image_url;
-        if (url) return { url, data };
-        if (status === 'failed' || status === 'error')
-            throw new Error(data.error || data.output?.error || 'La generación falló.');
+        const pct = Math.min(95, Math.round(((i + 1) / maxAttempts) * 100));
+        if (onProgress) onProgress(pct, i * interval / 1000);
+        try {
+            const resp = await fetch(`/api/v1/predictions/${requestId}/result`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (!resp.ok) { if (resp.status >= 500) continue; throw new Error(`Poll ${resp.status}`); }
+            const data = await resp.json();
+            const status = (data.status || data.output?.status || '').toLowerCase();
+            const url = data.output?.outputs?.[0] || data.outputs?.[0] || data.url
+                     || data.audio_url || data.output?.url || data.image_url;
+            if (url) return { url, data };
+            if (status === 'failed' || status === 'error')
+                throw new Error(data.error || data.output?.error || 'La generación falló.');
+        } catch (e) { if (i >= maxAttempts - 1) throw e; }
     }
     throw new Error('Tiempo de espera agotado.');
 }
 
-async function checkCredits(userRef, cost) {
+async function checkAndDeduct(userRef, cost, isAdmin = false) {
     const snap = await getDoc(userRef);
     const credits = snap.exists() ? (snap.data().credits || 0) : 0;
-    const isAdmin = snap.exists() && snap.data().role === 'admin';
-    if (!isAdmin && credits < cost)
-        throw new Error(`Saldo insuficiente. Necesitas ${cost} 🪙 y tienes ${credits} 🪙.`);
-    return { credits, isAdmin };
+    const admin   = snap.exists() && snap.data().role === 'admin';
+    if (!admin && credits < cost) throw new Error(`Saldo insuficiente. Necesitas ${cost} 🪙 y tienes ${credits} 🪙.`);
+    return admin;
 }
 
-async function deductCredits(userRef, cost, isAdmin) {
+async function deduct(userRef, cost, isAdmin) {
     if (!isAdmin && cost > 0) {
         const snap = await getDoc(userRef);
-        const cur = snap.data().credits || 0;
+        const cur  = snap.data().credits || 0;
         await updateDoc(userRef, { credits: Math.max(0, cur - cost) });
     }
 }
 
-// Spinner inline
-function spinner(size = 20) {
-    const s = document.createElement('div');
-    s.style.cssText = `width:${size}px;height:${size}px;border:2px solid #f59e0b33;border-top-color:#f59e0b;border-radius:50%;animation:spin 1s linear infinite;flex-shrink:0`;
-    return s;
+// Inject keyframes once
+if (!document.querySelector('#km-styles')) {
+    const st = document.createElement('style');
+    st.id = 'km-styles';
+    st.textContent = `
+        @keyframes spin { to { transform: rotate(360deg) } }
+        @keyframes fadeUp { from { opacity:0;transform:translateY(10px) } to { opacity:1;transform:translateY(0) } }
+        @keyframes pulse-ring { 0%,100%{opacity:.4;transform:scale(1)} 50%{opacity:1;transform:scale(1.05)} }
+        .km-card { animation: fadeUp .3s ease; }
+    `;
+    document.head.appendChild(st);
 }
 
-// Inject spin keyframes once
-if (!document.querySelector('#km-spin')) {
-    const st = document.createElement('style');
-    st.id = 'km-spin';
-    st.textContent = '@keyframes spin{to{transform:rotate(360deg)}}@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}';
-    document.head.appendChild(st);
+// ============================================================
+// PROGRESS OVERLAY — visual estilo Higgsfield
+// ============================================================
+function createProgressOverlay({ title, steps }) {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+        position:fixed;inset:0;background:rgba(0,0,0,.92);backdrop-filter:blur(20px);
+        z-index:99999;display:flex;flex-direction:column;align-items:center;
+        justify-content:center;gap:28px;padding:32px;
+    `;
+
+    // Animated rings
+    const rings = document.createElement('div');
+    rings.style.cssText = 'position:relative;width:100px;height:100px;flex-shrink:0';
+    rings.innerHTML = `
+        <div style="position:absolute;inset:0;border-radius:50%;border:2px solid #f59e0b22;animation:spin 4s linear infinite"></div>
+        <div style="position:absolute;inset:8px;border-radius:50%;border:2px solid #f59e0b44;animation:spin 3s linear infinite reverse"></div>
+        <div style="position:absolute;inset:16px;border-radius:50%;border:2px solid #f59e0b88;animation:spin 2s linear infinite"></div>
+        <div id="km-prog-icon" style="position:absolute;inset:22px;border-radius:50%;background:#f59e0b11;border:1px solid #f59e0b;display:flex;align-items:center;justify-content:center;font-size:22px">✨</div>
+    `;
+
+    const info = document.createElement('div');
+    info.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;max-width:320px';
+    info.innerHTML = `
+        <p style="color:#fff;font-size:18px;font-weight:900;margin:0">${title}</p>
+        <p id="km-prog-label" style="color:#f59e0b;font-size:13px;margin:0;min-height:18px">${steps[0]?.label || ''}</p>
+    `;
+
+    // Progress bar
+    const barWrap = document.createElement('div');
+    barWrap.style.cssText = 'width:300px;background:#1a1a1a;border-radius:100px;height:6px;overflow:hidden;border:1px solid #2a2a2a;position:relative';
+    barWrap.innerHTML = `<div id="km-prog-bar" style="height:100%;background:linear-gradient(90deg,#f59e0b,#fbbf24);border-radius:100px;width:0%;transition:width .6s ease"></div>`;
+
+    const pctLabel = document.createElement('p');
+    pctLabel.id = 'km-prog-pct';
+    pctLabel.style.cssText = 'color:#555;font-size:12px;margin:0;font-family:monospace';
+    pctLabel.textContent = '0%';
+
+    // Preview image slot
+    const preview = document.createElement('div');
+    preview.id = 'km-prog-preview';
+    preview.style.cssText = 'width:120px;height:120px;border-radius:14px;background:#1a1a1a;border:2px dashed #2a2a2a;overflow:hidden;display:flex;align-items:center;justify-content:center;transition:all .5s';
+    preview.innerHTML = '<p style="color:#333;font-size:10px;text-align:center;padding:8px">Vista previa</p>';
+
+    overlay.appendChild(rings);
+    overlay.appendChild(info);
+    overlay.appendChild(barWrap);
+    overlay.appendChild(pctLabel);
+    overlay.appendChild(preview);
+
+    let stepIdx = 0;
+    const stepInterval = setInterval(() => {
+        if (stepIdx < steps.length) {
+            const icon  = overlay.querySelector('#km-prog-icon');
+            const label = overlay.querySelector('#km-prog-label');
+            if (icon)  icon.textContent  = steps[stepIdx].icon;
+            if (label) label.textContent = steps[stepIdx].label;
+            stepIdx++;
+        }
+    }, 12000);
+
+    const update = (pct, label) => {
+        const bar     = overlay.querySelector('#km-prog-bar');
+        const pctEl   = overlay.querySelector('#km-prog-pct');
+        const labelEl = overlay.querySelector('#km-prog-label');
+        if (bar)    bar.style.width = `${pct}%`;
+        if (pctEl)  pctEl.textContent = `${pct}%`;
+        if (label && labelEl) labelEl.textContent = label;
+    };
+
+    const complete = (previewUrl) => {
+        clearInterval(stepInterval);
+        update(100, '¡Completado!');
+        const icon = overlay.querySelector('#km-prog-icon');
+        if (icon) icon.textContent = '✅';
+        if (previewUrl) {
+            const prev = overlay.querySelector('#km-prog-preview');
+            if (prev) {
+                prev.innerHTML = `<img src="${previewUrl}" style="width:100%;height:100%;object-fit:cover">`;
+                prev.style.border = '2px solid #f59e0b';
+            }
+        }
+    };
+
+    const remove = () => {
+        clearInterval(stepInterval);
+        overlay.remove();
+    };
+
+    return { el: overlay, update, complete, remove };
+}
+
+// ============================================================
+// CONFIRM DIALOG
+// ============================================================
+function confirmDialog(title, message, confirmLabel = 'Confirmar', danger = false) {
+    return new Promise((resolve) => {
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.8);backdrop-filter:blur(10px);z-index:999999;display:flex;align-items:center;justify-content:center;padding:24px';
+
+        const box = document.createElement('div');
+        box.style.cssText = 'background:#111;border:1px solid #2a2a2a;border-radius:20px;padding:28px;max-width:380px;width:100%;display:flex;flex-direction:column;gap:16px;animation:fadeUp .2s ease';
+        box.innerHTML = `
+            <p style="color:#fff;font-size:16px;font-weight:900;margin:0">${title}</p>
+            <p style="color:#888;font-size:13px;margin:0;line-height:1.5">${message}</p>
+        `;
+
+        const btns = document.createElement('div');
+        btns.style.cssText = 'display:flex;gap:8px;justify-content:flex-end';
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.style.cssText = 'padding:9px 20px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:100px;color:#888;font-size:13px;font-weight:600;cursor:pointer';
+        cancelBtn.textContent = 'Cancelar';
+        cancelBtn.addEventListener('click', () => { overlay.remove(); resolve(false); });
+
+        const confirmBtn = document.createElement('button');
+        confirmBtn.style.cssText = `padding:9px 20px;background:${danger ? '#ef4444' : '#f59e0b'};border:none;border-radius:100px;color:${danger ? '#fff' : '#000'};font-size:13px;font-weight:700;cursor:pointer`;
+        confirmBtn.textContent = confirmLabel;
+        confirmBtn.addEventListener('click', () => { overlay.remove(); resolve(true); });
+
+        btns.appendChild(cancelBtn);
+        btns.appendChild(confirmBtn);
+        box.appendChild(btns);
+        overlay.appendChild(box);
+        document.body.appendChild(overlay);
+    });
 }
 
 // ============================================================
 // COMPONENTE PRINCIPAL
 // ============================================================
-
 export function KreateMusicStudio() {
     const root = document.createElement('div');
     root.style.cssText = 'width:100%;height:100%;display:flex;flex-direction:column;background:#050505;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Inter",sans-serif';
 
-    let currentUser = null;
-    let currentArtist = null; // { id, name, referencePhotoUrl, voiceId, voiceStyle, ... }
-    let artists = [];
+    let currentUser   = null;
+    let currentArtist = null;
+    let artists       = [];
 
-    // ── Views ──
+    const dd = createDropdownSystem();
+
+    // Views map
     const views = {};
     const showView = (name) => {
         Object.values(views).forEach(v => { v.style.display = 'none'; });
         if (views[name]) views[name].style.display = 'flex';
     };
 
-    // ============================================================
-    // AUTH GUARD
-    // ============================================================
+    // ── AUTH GUARD ──
     const authGuard = document.createElement('div');
     authGuard.style.cssText = 'flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;color:#fff';
-    authGuard.innerHTML = `
-        <div style="font-size:40px">🎵</div>
-        <p style="color:#888;font-size:14px">Inicia sesión para usar KreateMusic</p>
-    `;
+    authGuard.innerHTML = `<div style="font-size:40px">🎵</div><p style="color:#888;font-size:14px">Inicia sesión para usar KreateMusic</p>`;
     views.auth = authGuard;
     root.appendChild(authGuard);
 
@@ -134,116 +280,171 @@ export function KreateMusicStudio() {
     function renderArtistList() {
         artistListView.innerHTML = '';
 
-        // Header
         const header = document.createElement('div');
         header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;flex-shrink:0';
-        header.innerHTML = `
-            <div>
-                <h1 style="color:#fff;font-size:24px;font-weight:900;margin:0">KreateMusic</h1>
-                <p style="color:#555;font-size:13px;margin:4px 0 0">Tus artistas de IA</p>
-            </div>
-        `;
-        const newArtistBtn = document.createElement('button');
-        newArtistBtn.style.cssText = 'display:flex;align-items:center;gap:8px;padding:10px 20px;background:#f59e0b;border:none;border-radius:100px;color:#000;font-size:13px;font-weight:700;cursor:pointer';
-        newArtistBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 5v14M5 12h14"/></svg> Nuevo artista`;
-        newArtistBtn.addEventListener('click', () => showView('createArtist'));
-        header.appendChild(newArtistBtn);
+        const titleEl = document.createElement('div');
+        titleEl.innerHTML = '<h1 style="color:#fff;font-size:22px;font-weight:900;margin:0">KreateMusic</h1><p style="color:#555;font-size:12px;margin:4px 0 0">Tus artistas de IA</p>';
+
+        const newBtn = document.createElement('button');
+        newBtn.type = 'button';
+        newBtn.style.cssText = 'display:flex;align-items:center;gap:6px;padding:10px 18px;background:#f59e0b;border:none;border-radius:100px;color:#000;font-size:13px;font-weight:700;cursor:pointer';
+        newBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 5v14M5 12h14"/></svg> Nuevo artista`;
+        newBtn.addEventListener('click', () => { renderCreateArtist(); showView('createArtist'); });
+        header.appendChild(titleEl);
+        header.appendChild(newBtn);
         artistListView.appendChild(header);
 
         if (artists.length === 0) {
             const empty = document.createElement('div');
-            empty.style.cssText = 'flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center';
-            empty.innerHTML = `
-                <div style="font-size:64px;filter:grayscale(1);opacity:.3">🎤</div>
-                <p style="color:#fff;font-size:18px;font-weight:700;margin:0">Sin artistas aún</p>
-                <p style="color:#555;font-size:13px;margin:0">Crea tu primer artista de IA</p>
-            `;
+            empty.style.cssText = 'flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center';
+            empty.innerHTML = '<div style="font-size:56px;opacity:.2">🎤</div><p style="color:#fff;font-size:16px;font-weight:700;margin:0">Sin artistas aún</p><p style="color:#555;font-size:13px;margin:0">Crea tu primer artista de IA</p>';
             artistListView.appendChild(empty);
             return;
         }
 
         const grid = document.createElement('div');
-        grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px';
+        grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px';
 
         artists.forEach(artist => {
             const card = document.createElement('div');
-            card.style.cssText = 'background:#111;border:1px solid #2a2a2a;border-radius:16px;overflow:hidden;cursor:pointer;transition:border-color .15s;animation:fadeUp .3s ease';
+            card.className = 'km-card';
+            card.style.cssText = 'background:#111;border:1px solid #2a2a2a;border-radius:14px;overflow:hidden;cursor:pointer;transition:border-color .15s;position:relative';
             card.addEventListener('mouseenter', () => card.style.borderColor = '#f59e0b66');
             card.addEventListener('mouseleave', () => card.style.borderColor = '#2a2a2a');
+
             card.innerHTML = `
                 <div style="aspect-ratio:1;overflow:hidden;background:#1a1a1a">
                     ${artist.referencePhotoUrl
                         ? `<img src="${artist.referencePhotoUrl}" style="width:100%;height:100%;object-fit:cover">`
-                        : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:48px">🎤</div>`
-                    }
+                        : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:40px">🎤</div>`}
                 </div>
-                <div style="padding:12px">
-                    <p style="color:#fff;font-size:14px;font-weight:700;margin:0 0 4px">${artist.name}</p>
-                    <p style="color:#555;font-size:11px;margin:0">${artist.genre || ''} · ${artist.style || ''}</p>
-                    <div style="display:flex;align-items:center;gap:6px;margin-top:8px">
-                        ${artist.voiceId ? `<span style="background:#f59e0b22;color:#f59e0b;font-size:9px;font-weight:700;padding:2px 6px;border-radius:100px;border:1px solid #f59e0b33">VOZ CLONADA</span>` : ''}
-                        ${artist.voiceStyle ? `<span style="background:#3b82f622;color:#60a5fa;font-size:9px;font-weight:700;padding:2px 6px;border-radius:100px;border:1px solid #3b82f633">ESTILO VOZ</span>` : ''}
+                <div style="padding:10px 12px">
+                    <p style="color:#fff;font-size:13px;font-weight:700;margin:0 0 2px">${artist.name}</p>
+                    <p style="color:#555;font-size:11px;margin:0">${[artist.genre, artist.style].filter(Boolean).join(' · ')}</p>
+                    <div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap">
+                        ${artist.voiceId ? '<span style="background:#f59e0b22;color:#f59e0b;font-size:9px;font-weight:700;padding:1px 5px;border-radius:100px">VOZ ✓</span>' : ''}
                     </div>
                 </div>
             `;
+
+            // Delete button
+            const delBtn = document.createElement('button');
+            delBtn.type = 'button';
+            delBtn.style.cssText = 'position:absolute;top:8px;right:8px;width:26px;height:26px;background:rgba(0,0,0,.7);border:1px solid #333;border-radius:8px;color:#888;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;backdrop-filter:blur(4px);transition:all .15s;opacity:0';
+            delBtn.innerHTML = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>`;
+            delBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const ok = await confirmDialog(
+                    `Eliminar a ${artist.name}`,
+                    '⚠️ Esta acción eliminará permanentemente el perfil del artista, todas sus fotos y todas sus canciones. Esta acción no se puede deshacer.',
+                    'Eliminar todo', true
+                );
+                if (!ok) return;
+                await deleteArtist(artist);
+            });
+
+            card.addEventListener('mouseenter', () => delBtn.style.opacity = '1');
+            card.addEventListener('mouseleave', () => delBtn.style.opacity = '0');
+            card.appendChild(delBtn);
+
             card.addEventListener('click', () => {
                 currentArtist = artist;
                 renderArtistDashboard();
                 showView('artistDashboard');
             });
+
             grid.appendChild(card);
         });
+
         artistListView.appendChild(grid);
+    }
+
+    async function deleteArtist(artist) {
+        if (!currentUser) return;
+        const prog = createProgressOverlay({ title: `Eliminando a ${artist.name}...`, steps: [{ icon: '🗑️', label: 'Eliminando canciones...' }, { icon: '📸', label: 'Eliminando fotos...' }, { icon: '💀', label: 'Eliminando perfil...' }] });
+        document.body.appendChild(prog.el);
+        try {
+            const uid     = currentUser.uid;
+            const artistRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', uid, 'artists', artist.id);
+
+            // Delete songs
+            prog.update(20, 'Eliminando canciones...');
+            const songsSnap = await getDocs(collection(db, 'artifacts', APP_ID, 'public', 'data', 'users', uid, 'artists', artist.id, 'songs'));
+            const batch1 = writeBatch(db);
+            songsSnap.forEach(d => batch1.delete(d.ref));
+            await batch1.commit();
+
+            // Delete photos
+            prog.update(60, 'Eliminando fotos...');
+            const photosSnap = await getDocs(collection(db, 'artifacts', APP_ID, 'public', 'data', 'users', uid, 'artists', artist.id, 'photos'));
+            const batch2 = writeBatch(db);
+            photosSnap.forEach(d => batch2.delete(d.ref));
+            await batch2.commit();
+
+            // Delete artist doc
+            prog.update(90, 'Eliminando perfil...');
+            await deleteDoc(artistRef);
+
+            prog.complete(null);
+            await new Promise(r => setTimeout(r, 800));
+            prog.remove();
+
+            artists = artists.filter(a => a.id !== artist.id);
+            renderArtistList();
+        } catch (err) {
+            prog.remove();
+            alert('Error al eliminar: ' + err.message);
+        }
     }
 
     // ============================================================
     // VIEW: CREAR ARTISTA
     // ============================================================
     const createArtistView = document.createElement('div');
-    createArtistView.style.cssText = 'flex:1;flex-direction:column;overflow-y:auto;padding:24px;gap:20px;display:none;max-width:640px;margin:0 auto;width:100%';
+    createArtistView.style.cssText = 'flex:1;flex-direction:column;overflow-y:auto;padding:24px;gap:16px;display:none;max-width:600px;margin:0 auto;width:100%';
     views.createArtist = createArtistView;
     root.appendChild(createArtistView);
 
     function renderCreateArtist() {
         createArtistView.innerHTML = '';
 
-        // Back
         const back = document.createElement('button');
-        back.style.cssText = 'display:flex;align-items:center;gap:6px;background:none;border:none;color:#888;font-size:13px;cursor:pointer;padding:0;width:fit-content';
-        back.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg> Mis artistas`;
+        back.type = 'button';
+        back.style.cssText = 'display:flex;align-items:center;gap:6px;background:none;border:none;color:#666;font-size:12px;cursor:pointer;padding:0;width:fit-content';
+        back.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg> Mis artistas`;
         back.addEventListener('click', () => showView('artistList'));
         createArtistView.appendChild(back);
 
-        const title = document.createElement('div');
-        title.innerHTML = `<h2 style="color:#fff;font-size:20px;font-weight:900;margin:0">Crear nuevo artista</h2><p style="color:#555;font-size:13px;margin:6px 0 0">Describe tu artista y generaremos una foto de referencia</p>`;
-        createArtistView.appendChild(title);
-
-        // Form fields
-        const fields = [
-            { id: 'name',       label: 'Nombre del artista',         placeholder: 'Ej: Luna Reyes',                        type: 'text' },
-            { id: 'genre',      label: 'Género musical',             placeholder: 'Ej: Reggaeton, Pop, R&B, Trap...',       type: 'text' },
-            { id: 'style',      label: 'Estilo / Vibe',              placeholder: 'Ej: Oscuro y elegante, Urbano, Fresco...', type: 'text' },
-            { id: 'ethnicity',  label: 'Etnia / Origen',             placeholder: 'Ej: Latina, Africana, Asiática, Europea...', type: 'text' },
-            { id: 'age',        label: 'Edad aproximada',            placeholder: 'Ej: 25 años',                            type: 'text' },
-            { id: 'gender',     label: 'Género',                     placeholder: 'Ej: Mujer, Hombre, No binario...',       type: 'text' },
-            { id: 'build',      label: 'Complexión / físico',        placeholder: 'Ej: Atlética, Delgada, Curvilínea...',   type: 'text' },
-            { id: 'outfit',     label: 'Vestimenta / estética',      placeholder: 'Ej: Streetwear, Elegante, Deportivo...', type: 'text' },
-            { id: 'extra',      label: 'Detalles extra (opcional)',   placeholder: 'Tatuajes, color de cabello, accesorios...', type: 'textarea' },
-        ];
+        const titleEl = document.createElement('div');
+        titleEl.innerHTML = '<h2 style="color:#fff;font-size:18px;font-weight:900;margin:0">Crear nuevo artista</h2><p style="color:#555;font-size:12px;margin:4px 0 0">Cuesta <strong style="color:#f59e0b">30 🪙</strong> (o <strong style="color:#f59e0b">80 🪙</strong> si clonas voz)</p>';
+        createArtistView.appendChild(titleEl);
 
         const formData = {};
+
+        const fields = [
+            { id: 'name',      label: 'Nombre del artista *',    placeholder: 'Ej: Luna Reyes',                         required: true },
+            { id: 'genre',     label: 'Género musical',          placeholder: 'Ej: Reggaeton, Pop, R&B...' },
+            { id: 'style',     label: 'Estilo / Vibe',           placeholder: 'Ej: Oscuro y elegante, Urbano, Fresco...' },
+            { id: 'ethnicity', label: 'Etnia / Origen',          placeholder: 'Ej: Latina, Africana, Asiática...' },
+            { id: 'age',       label: 'Edad aproximada',         placeholder: 'Ej: 25' },
+            { id: 'gender',    label: 'Género',                  placeholder: 'Ej: Mujer, Hombre...' },
+            { id: 'build',     label: 'Complexión',              placeholder: 'Ej: Atlética, Delgada, Curvilínea...' },
+            { id: 'outfit',    label: 'Vestimenta / Estética',   placeholder: 'Ej: Streetwear, Elegante...' },
+            { id: 'extra',     label: 'Detalles extra',          placeholder: 'Tatuajes, color de pelo, accesorios...',  textarea: true },
+        ];
+
         fields.forEach(f => {
             const wrap = document.createElement('div');
-            wrap.style.cssText = 'display:flex;flex-direction:column;gap:6px';
+            wrap.style.cssText = 'display:flex;flex-direction:column;gap:5px';
             const lbl = document.createElement('label');
-            lbl.style.cssText = 'color:#888;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em';
+            lbl.style.cssText = 'color:#666;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em';
             lbl.textContent = f.label;
             wrap.appendChild(lbl);
-
-            const input = f.type === 'textarea' ? document.createElement('textarea') : document.createElement('input');
+            const input = f.textarea ? document.createElement('textarea') : document.createElement('input');
+            input.type = 'text';
             input.placeholder = f.placeholder;
-            input.style.cssText = 'background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:10px 14px;color:#fff;font-size:13px;outline:none;font-family:inherit;transition:border-color .15s';
-            if (f.type === 'textarea') { input.rows = 3; input.style.resize = 'none'; }
+            input.style.cssText = 'background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:9px 13px;color:#fff;font-size:13px;outline:none;font-family:inherit;transition:border-color .15s';
+            if (f.textarea) { input.rows = 2; input.style.resize = 'none'; }
             input.addEventListener('focus', () => input.style.borderColor = '#f59e0b66');
             input.addEventListener('blur',  () => input.style.borderColor = '#2a2a2a');
             input.addEventListener('input', () => { formData[f.id] = input.value; });
@@ -251,211 +452,196 @@ export function KreateMusicStudio() {
             createArtistView.appendChild(wrap);
         });
 
-        // Voz
-        const voiceSection = document.createElement('div');
-        voiceSection.style.cssText = 'background:#111;border:1px solid #2a2a2a;border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px';
-        voiceSection.innerHTML = `<p style="color:#fff;font-size:13px;font-weight:700;margin:0">🎤 Configuración de voz</p>`;
+        // VOZ
+        const voiceBox = document.createElement('div');
+        voiceBox.style.cssText = 'background:#111;border:1px solid #2a2a2a;border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px';
+        voiceBox.innerHTML = '<p style="color:#fff;font-size:13px;font-weight:700;margin:0">🎤 Configuración de voz</p>';
 
-        let voiceMode = 'style'; // 'style' | 'clone'
-        const voiceToggle = document.createElement('div');
-        voiceToggle.style.cssText = 'display:flex;gap:8px';
+        let voiceMode = 'style';
+        const vtRow = document.createElement('div');
+        vtRow.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:8px';
 
-        const styleBtn = document.createElement('button');
-        styleBtn.style.cssText = 'flex:1;padding:8px;background:#f59e0b22;border:1px solid #f59e0b66;border-radius:10px;color:#f59e0b;font-size:12px;font-weight:700;cursor:pointer';
-        styleBtn.textContent = 'Estilo textual';
+        const makeVoiceCard = (icon, title, desc, cost, mode) => {
+            const card = document.createElement('div');
+            card.style.cssText = `background:${mode === 'style' ? '#f59e0b22' : '#1a1a1a'};border:${mode === 'style' ? '2px solid #f59e0b66' : '1px solid #2a2a2a'};border-radius:12px;padding:10px;cursor:pointer;text-align:center;transition:all .15s`;
+            card.innerHTML = `<div style="font-size:18px">${icon}</div><div style="color:${mode === 'style' ? '#f59e0b' : '#888'};font-size:11px;font-weight:700;margin-top:3px">${title}</div><div style="color:#555;font-size:10px">${desc}</div><div style="color:#f59e0b;font-size:10px;font-weight:700;margin-top:4px">${cost}</div>`;
+            return card;
+        };
 
-        const cloneBtn = document.createElement('button');
-        cloneBtn.style.cssText = 'flex:1;padding:8px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;color:#888;font-size:12px;font-weight:700;cursor:pointer';
-        cloneBtn.textContent = 'Clonar voz real';
+        const styleCard = makeVoiceCard('✍️', 'Estilo textual', 'Describe la voz', '+0 🪙', 'style');
+        const cloneCard = makeVoiceCard('🎙', 'Clonar voz real', 'Audio de 10s', '+50 🪙', 'clone');
 
-        voiceToggle.appendChild(styleBtn);
-        voiceToggle.appendChild(cloneBtn);
-        voiceSection.appendChild(voiceToggle);
+        const setVoiceMode = (mode) => {
+            voiceMode = mode;
+            [styleCard, cloneCard].forEach((c, i) => {
+                const m = i === 0 ? 'style' : 'clone';
+                const active = m === mode;
+                c.style.background = active ? '#f59e0b22' : '#1a1a1a';
+                c.style.border = active ? '2px solid #f59e0b66' : '1px solid #2a2a2a';
+                c.querySelector('div:nth-child(2)').style.color = active ? '#f59e0b' : '#888';
+            });
+            stylePanel.style.display = mode === 'style' ? 'flex' : 'none';
+            clonePanel.style.display = mode === 'clone' ? 'flex' : 'none';
+        };
 
-        // Panel estilo
+        styleCard.addEventListener('click', () => setVoiceMode('style'));
+        cloneCard.addEventListener('click', () => setVoiceMode('clone'));
+        vtRow.appendChild(styleCard);
+        vtRow.appendChild(cloneCard);
+        voiceBox.appendChild(vtRow);
+
         const stylePanel = document.createElement('div');
-        stylePanel.style.cssText = 'display:flex;flex-direction:column;gap:8px';
+        stylePanel.style.cssText = 'display:flex;flex-direction:column;gap:6px';
         const styleInput = document.createElement('input');
-        styleInput.placeholder = 'Ej: voz femenina, grave, sensual, con acento latino...';
-        styleInput.style.cssText = 'background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:10px 14px;color:#fff;font-size:13px;outline:none;font-family:inherit';
+        styleInput.placeholder = 'Ej: voz femenina, grave, sensual, acento latino...';
+        styleInput.style.cssText = 'background:#0a0a0a;border:1px solid #2a2a2a;border-radius:10px;padding:9px 13px;color:#fff;font-size:13px;outline:none;font-family:inherit';
         styleInput.addEventListener('input', () => { formData.voiceStyle = styleInput.value; });
-        stylePanel.appendChild(Object.assign(document.createElement('p'), { style: 'color:#888;font-size:11px;margin:0', textContent: 'Describe la voz del artista en texto' }));
         stylePanel.appendChild(styleInput);
+        voiceBox.appendChild(stylePanel);
 
-        // Panel clonar
         const clonePanel = document.createElement('div');
-        clonePanel.style.cssText = 'display:none;flex-direction:column;gap:8px';
-        clonePanel.innerHTML = `
-            <p style="color:#888;font-size:11px;margin:0">Sube un audio de 10 segundos con la voz a clonar (MP3/WAV)</p>
-            <input type="file" accept="audio/*" id="voice-file-input" style="display:none">
-            <button id="voice-upload-btn" style="background:#1a1a1a;border:1px dashed #2a2a2a;border-radius:10px;padding:16px;color:#888;font-size:12px;cursor:pointer;width:100%;text-align:center">
-                🎙 Seleccionar archivo de audio
-            </button>
-            <p id="voice-file-status" style="color:#555;font-size:11px;margin:0"></p>
-        `;
-
-        styleBtn.addEventListener('click', () => {
-            voiceMode = 'style';
-            styleBtn.style.cssText = 'flex:1;padding:8px;background:#f59e0b22;border:1px solid #f59e0b66;border-radius:10px;color:#f59e0b;font-size:12px;font-weight:700;cursor:pointer';
-            cloneBtn.style.cssText = 'flex:1;padding:8px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;color:#888;font-size:12px;font-weight:700;cursor:pointer';
-            stylePanel.style.display = 'flex';
-            clonePanel.style.display = 'none';
-        });
-
-        cloneBtn.addEventListener('click', () => {
-            voiceMode = 'clone';
-            cloneBtn.style.cssText = 'flex:1;padding:8px;background:#f59e0b22;border:1px solid #f59e0b66;border-radius:10px;color:#f59e0b;font-size:12px;font-weight:700;cursor:pointer';
-            styleBtn.style.cssText = 'flex:1;padding:8px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;color:#888;font-size:12px;font-weight:700;cursor:pointer';
-            stylePanel.style.display = 'none';
-            clonePanel.style.display = 'flex';
-        });
-
-        voiceSection.appendChild(stylePanel);
-        voiceSection.appendChild(clonePanel);
-        createArtistView.appendChild(voiceSection);
-
-        // Manejar subida de voz
+        clonePanel.style.cssText = 'display:none;flex-direction:column;gap:6px';
+        const voiceFileInput = document.createElement('input');
+        voiceFileInput.type = 'file'; voiceFileInput.accept = 'audio/*'; voiceFileInput.style.display = 'none';
         let voiceFileUrl = null;
-        setTimeout(() => {
-            const vBtn = clonePanel.querySelector('#voice-upload-btn');
-            const vInput = clonePanel.querySelector('#voice-file-input');
-            const vStatus = clonePanel.querySelector('#voice-file-status');
-            if (vBtn && vInput) {
-                vBtn.addEventListener('click', () => vInput.click());
-                vInput.addEventListener('change', async (e) => {
-                    const file = e.target.files[0];
-                    if (!file) return;
-                    vBtn.textContent = '⏳ Subiendo...';
-                    try {
-                        const token = await currentUser.getIdToken();
-                        const fd = new FormData(); fd.append('file', file);
-                        const resp = await fetch('/api/v1/upload_file', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd });
-                        const data = await resp.json();
-                        voiceFileUrl = data.url || data.file_url;
-                        vBtn.textContent = `✓ ${file.name}`;
-                        vBtn.style.borderColor = '#f59e0b66';
-                        vBtn.style.color = '#f59e0b';
-                        if (vStatus) vStatus.textContent = 'Audio listo para clonar';
-                    } catch (err) {
-                        vBtn.textContent = '🎙 Seleccionar archivo de audio';
-                        if (vStatus) vStatus.textContent = `Error: ${err.message}`;
-                    }
-                });
-            }
-        }, 100);
-
-        // Botón crear
-        const createBtn = document.createElement('button');
-        createBtn.style.cssText = 'width:100%;padding:14px;background:#f59e0b;border:none;border-radius:100px;color:#000;font-size:14px;font-weight:700;cursor:pointer;transition:background .15s;margin-bottom:40px';
-        createBtn.textContent = 'Crear artista y generar fotos ✨';
-        createBtn.addEventListener('mouseenter', () => createBtn.style.background = '#fbbf24');
-        createBtn.addEventListener('mouseleave', () => createBtn.style.background = '#f59e0b');
-
-        createBtn.addEventListener('click', async () => {
-            if (!formData.name) return alert('El nombre del artista es obligatorio.');
-            if (!currentUser) return alert('Debes iniciar sesión.');
-
-            createBtn.disabled = true;
-            createBtn.textContent = '⏳ Generando fotos...';
-
+        const voiceUploadBtn = document.createElement('button');
+        voiceUploadBtn.type = 'button';
+        voiceUploadBtn.style.cssText = 'background:#0a0a0a;border:1px dashed #2a2a2a;border-radius:10px;padding:12px;color:#888;font-size:12px;cursor:pointer;width:100%;text-align:center';
+        voiceUploadBtn.textContent = '🎙 Seleccionar audio (10s)';
+        voiceUploadBtn.addEventListener('click', () => voiceFileInput.click());
+        voiceFileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0]; if (!file) return;
+            voiceUploadBtn.textContent = '⏳ Subiendo...';
             try {
                 const token = await currentUser.getIdToken();
-                const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', currentUser.uid);
-                const { isAdmin } = await checkCredits(userRef, MUSIC_COSTS['nano-banana-2']);
+                const fd = new FormData(); fd.append('file', file);
+                const resp = await fetch('/api/v1/upload_file', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd });
+                const data = await resp.json();
+                voiceFileUrl = data.url || data.file_url;
+                voiceUploadBtn.textContent = `✓ ${file.name}`;
+                voiceUploadBtn.style.borderColor = '#f59e0b66';
+                voiceUploadBtn.style.color = '#f59e0b';
+            } catch (err) { voiceUploadBtn.textContent = '🎙 Seleccionar audio (10s)'; alert(err.message); }
+        });
+        clonePanel.appendChild(voiceFileInput);
+        clonePanel.appendChild(voiceUploadBtn);
+        voiceBox.appendChild(clonePanel);
+        createArtistView.appendChild(voiceBox);
 
-                // Construir prompt para foto de referencia de estudio
-                const artistDesc = [
-                    formData.gender && `${formData.gender}`,
-                    formData.age && `de ${formData.age}`,
-                    formData.ethnicity && `de origen ${formData.ethnicity}`,
-                    formData.build && `complexión ${formData.build}`,
-                    formData.outfit && `vestimenta ${formData.outfit}`,
-                    formData.extra && formData.extra,
+        // CREATE BUTTON
+        const totalCostEl = document.createElement('p');
+        totalCostEl.style.cssText = 'color:#555;font-size:12px;text-align:center;margin:0';
+        totalCostEl.textContent = 'Coste total: 30 🪙';
+
+        // Update cost display when voice mode changes
+        const origSetVoiceMode = setVoiceMode;
+        styleCard.addEventListener('click', () => { totalCostEl.textContent = 'Coste total: 30 🪙'; });
+        cloneCard.addEventListener('click', () => { totalCostEl.textContent = 'Coste total: 80 🪙'; });
+
+        const createBtn = document.createElement('button');
+        createBtn.type = 'button';
+        createBtn.style.cssText = 'width:100%;padding:13px;background:#f59e0b;border:none;border-radius:100px;color:#000;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:40px';
+        createBtn.textContent = 'Crear artista y generar fotos ✨';
+
+        createBtn.addEventListener('click', async () => {
+            if (!formData.name?.trim()) return alert('El nombre del artista es obligatorio.');
+            if (!currentUser) return alert('Debes iniciar sesión.');
+
+            const cost = voiceMode === 'clone' ? COSTS.CREATE_ARTIST_VOICE : COSTS.CREATE_ARTIST;
+            const token = await currentUser.getIdToken();
+            const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', currentUser.uid);
+
+            let isAdmin;
+            try { isAdmin = await checkAndDeduct(userRef, cost); } catch (e) { return alert(e.message); }
+
+            createBtn.disabled = true;
+
+            const STEPS = [
+                { icon: '🎨', label: 'Analizando descripción...' },
+                { icon: '📸', label: 'Generando foto de estudio...' },
+                { icon: '✨', label: 'Procesando detalles visuales...' },
+                { icon: '🎤', label: 'Configurando perfil...' },
+                { icon: '🚀', label: 'Últimos retoques...' },
+            ];
+            const prog = createProgressOverlay({ title: `Creando a ${formData.name}`, steps: STEPS });
+            document.body.appendChild(prog.el);
+
+            try {
+                // Build hyperrealistic prompt
+                const desc = [
+                    formData.gender,
+                    formData.age && `aged ${formData.age}`,
+                    formData.ethnicity && `${formData.ethnicity} ethnicity`,
+                    formData.build && `${formData.build} build`,
+                    formData.outfit && `wearing ${formData.outfit}`,
+                    formData.extra,
                 ].filter(Boolean).join(', ');
 
-                const studioPrompt = `Professional music artist reference sheet, white studio background, ${artistDesc}, ${formData.style || ''} aesthetic, multiple poses: front facing close-up portrait, three-quarter body, full body standing, side profile left, side profile right, sitting casual — all in the same white studio setting, high quality photography, 8K, editorial fashion magazine style`;
+                const studioPrompt = `Hyperrealistic professional music artist reference sheet, pure white seamless studio background, ${desc}, ${formData.style || 'contemporary'} aesthetic — photorealistic skin pores and texture, natural hair strands, true-to-life eye reflections, multiple poses: close-up portrait front, three-quarter body, full body standing, left profile, right profile — white studio, Sony A7R V 85mm f/1.4, 8K, Vogue editorial, no CGI, 100% photographic realism`;
 
+                prog.update(5, 'Enviando al generador...');
                 const initRes = await callMuapi('nano-banana-2', { prompt: studioPrompt, aspect_ratio: '1:1' }, token);
                 const rid = initRes.request_id || initRes.id;
-                let refPhotoUrl = initRes.url || initRes.output?.outputs?.[0] || initRes.outputs?.[0];
+                let refPhotoUrl = initRes.url || initRes.output?.outputs?.[0];
 
                 if (!refPhotoUrl && rid) {
-                    createBtn.textContent = '⏳ Procesando fotos (1-2 min)...';
-                    const result = await pollResult(rid, token, 60, 3000);
+                    const result = await pollResult(rid, token, (pct, secs) => {
+                        prog.update(5 + Math.round(pct * 0.7), `Generando foto... ${Math.round(secs)}s`);
+                    }, 60, 3000);
                     refPhotoUrl = result.url;
                 }
-
                 if (!refPhotoUrl) throw new Error('No se generó la foto de referencia.');
 
-                // Clonar voz si eligió ese modo
+                prog.update(80, 'Foto generada ✓');
+
+                // Clone voice if needed
                 let voiceId = null;
                 if (voiceMode === 'clone' && voiceFileUrl) {
-                    createBtn.textContent = '⏳ Clonando voz...';
+                    prog.update(85, 'Clonando voz...');
                     try {
                         const cloneRes = await callMuapi('suno-voice-clone', { audio_url: voiceFileUrl }, token);
-                        voiceId = cloneRes.voice_id || cloneRes.id || null;
-                    } catch (e) {
-                        console.warn('Voice clone failed:', e.message);
-                    }
+                        voiceId = cloneRes.voice_id || cloneRes.id;
+                    } catch (e) { console.warn('Voice clone failed:', e.message); }
                 }
 
-                // Guardar artista en Firebase
+                prog.update(92, 'Guardando en Firebase...');
+
                 const artistData = {
-                    name:              formData.name,
-                    genre:             formData.genre || '',
-                    style:             formData.style || '',
-                    ethnicity:         formData.ethnicity || '',
-                    age:               formData.age || '',
-                    gender:            formData.gender || '',
-                    build:             formData.build || '',
-                    outfit:            formData.outfit || '',
-                    extra:             formData.extra || '',
-                    voiceStyle:        voiceMode === 'style' ? (formData.voiceStyle || '') : '',
-                    voiceId:           voiceId,
-                    referencePhotoUrl: refPhotoUrl,
-                    studioPrompt:      studioPrompt,
-                    createdAt:         serverTimestamp()
+                    name: formData.name.trim(), genre: formData.genre || '',
+                    style: formData.style || '', ethnicity: formData.ethnicity || '',
+                    age: formData.age || '', gender: formData.gender || '',
+                    build: formData.build || '', outfit: formData.outfit || '',
+                    extra: formData.extra || '', voiceStyle: voiceMode === 'style' ? (formData.voiceStyle || '') : '',
+                    voiceId, referencePhotoUrl: refPhotoUrl, studioPrompt,
+                    createdAt: serverTimestamp()
                 };
 
                 const artistsRef = collection(db, 'artifacts', APP_ID, 'public', 'data', 'users', currentUser.uid, 'artists');
                 const docRef = await addDoc(artistsRef, artistData);
 
-                await deductCredits(userRef, MUSIC_COSTS['nano-banana-2'], isAdmin);
-
-                // Guardar foto en subcolección
                 await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'users', currentUser.uid, 'artists', docRef.id, 'photos'), {
-                    url: refPhotoUrl, scene: 'studio_reference', createdAt: serverTimestamp()
+                    url: refPhotoUrl, scene: 'studio_reference', aspect_ratio: '1:1', createdAt: serverTimestamp()
                 });
+
+                await deduct(userRef, cost, isAdmin);
+
+                prog.complete(refPhotoUrl);
+                await new Promise(r => setTimeout(r, 1500));
+                prog.remove();
 
                 currentArtist = { id: docRef.id, ...artistData };
                 artists.unshift(currentArtist);
-
-                // Mostrar foto generada en preview y completar barra
-                clearInterval(progressInterval);
-                progressBar.style.width = '100%';
-                progressIcon.textContent = '✅';
-                progressLabel.textContent = '¡Artista creado con éxito!';
-                previewContainer.innerHTML = `<img src="${refPhotoUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:14px">`;
-                previewContainer.style.border = '2px solid #f59e0b';
-
-                await new Promise(r => setTimeout(r, 1500));
-                progressView.remove();
-                createArtistView.style.display = 'flex';
-
                 renderArtistDashboard();
                 showView('artistDashboard');
 
             } catch (err) {
-                console.error(err);
-                clearInterval(progressInterval);
-                if (progressView.parentNode) progressView.remove();
-                createArtistView.style.display = 'flex';
-                alert(`Error: ${err.message}`);
+                prog.remove();
                 createBtn.disabled = false;
-                createBtn.textContent = 'Crear artista y generar fotos ✨';
+                alert('Error: ' + err.message);
             }
         });
 
+        createArtistView.appendChild(totalCostEl);
         createArtistView.appendChild(createBtn);
     }
 
@@ -471,150 +657,145 @@ export function KreateMusicStudio() {
         if (!currentArtist) return;
         artistDashboardView.innerHTML = '';
 
-        // ── Header del artista ──
+        // Header
         const header = document.createElement('div');
-        header.style.cssText = 'display:flex;align-items:center;gap:16px;padding:16px 24px;background:#111;border-bottom:1px solid #1f1f1f;flex-shrink:0';
+        header.style.cssText = 'display:flex;align-items:center;gap:12px;padding:14px 20px;background:#111;border-bottom:1px solid #1f1f1f;flex-shrink:0';
 
         const backBtn = document.createElement('button');
-        backBtn.style.cssText = 'background:none;border:none;color:#888;cursor:pointer;padding:4px;display:flex;align-items:center;gap:4px;font-size:12px';
+        backBtn.type = 'button';
+        backBtn.style.cssText = 'background:none;border:none;color:#666;cursor:pointer;padding:4px;display:flex;align-items:center';
         backBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>`;
         backBtn.addEventListener('click', () => { renderArtistList(); showView('artistList'); });
 
-        const artistThumb = document.createElement('div');
-        artistThumb.style.cssText = 'width:48px;height:48px;border-radius:12px;overflow:hidden;background:#1a1a1a;flex-shrink:0;border:2px solid #f59e0b44';
-        if (currentArtist.referencePhotoUrl) {
-            artistThumb.innerHTML = `<img src="${currentArtist.referencePhotoUrl}" style="width:100%;height:100%;object-fit:cover">`;
-        } else {
-            artistThumb.innerHTML = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:24px">🎤</div>`;
-        }
+        const thumb = document.createElement('div');
+        thumb.style.cssText = 'width:44px;height:44px;border-radius:10px;overflow:hidden;background:#1a1a1a;flex-shrink:0;border:2px solid #f59e0b44';
+        thumb.innerHTML = currentArtist.referencePhotoUrl
+            ? `<img src="${currentArtist.referencePhotoUrl}" style="width:100%;height:100%;object-fit:cover">`
+            : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:20px">🎤</div>';
 
-        const artistInfo = document.createElement('div');
-        artistInfo.innerHTML = `
-            <p style="color:#fff;font-size:16px;font-weight:900;margin:0">${currentArtist.name}</p>
-            <p style="color:#555;font-size:12px;margin:2px 0 0">${currentArtist.genre || ''} ${currentArtist.style ? '· ' + currentArtist.style : ''}</p>
-        `;
+        const info = document.createElement('div');
+        info.innerHTML = `<p style="color:#fff;font-size:15px;font-weight:900;margin:0">${currentArtist.name}</p><p style="color:#555;font-size:11px;margin:2px 0 0">${[currentArtist.genre, currentArtist.style].filter(Boolean).join(' · ')}</p>`;
 
         // Tabs
-        const tabs = ['🎵 Crear música', '📸 Fotos', '🎤 Voz'];
-        let activeTab = 0;
+        const TABS = [
+            { id: 'music',  icon: '🎵', label: 'Música' },
+            { id: 'photos', icon: '📸', label: 'Fotos' },
+            { id: 'voice',  icon: '🎤', label: 'Voz' },
+        ];
+        let activeTab = 'music';
         const tabBar = document.createElement('div');
         tabBar.style.cssText = 'display:flex;gap:4px;margin-left:auto';
 
-        const tabPanels = [];
-        tabs.forEach((tab, i) => {
-            const tabBtn = document.createElement('button');
-            tabBtn.style.cssText = `padding:6px 14px;border-radius:100px;font-size:12px;font-weight:700;cursor:pointer;border:none;transition:all .15s;${i === 0 ? 'background:#f59e0b;color:#000' : 'background:#1a1a1a;color:#888'}`;
-            tabBtn.textContent = tab;
-            tabBtn.addEventListener('click', () => {
-                activeTab = i;
-                tabBar.querySelectorAll('button').forEach((b, j) => {
-                    b.style.background = j === i ? '#f59e0b' : '#1a1a1a';
-                    b.style.color      = j === i ? '#000'    : '#888';
+        const panels = {};
+        TABS.forEach(tab => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.style.cssText = `padding:6px 12px;border-radius:100px;font-size:12px;font-weight:700;cursor:pointer;border:none;transition:all .15s;${tab.id === 'music' ? 'background:#f59e0b;color:#000' : 'background:#1a1a1a;color:#888'}`;
+            btn.textContent = `${tab.icon} ${tab.label}`;
+            btn.addEventListener('click', () => {
+                activeTab = tab.id;
+                tabBar.querySelectorAll('button').forEach((b, i) => {
+                    b.style.background = TABS[i].id === tab.id ? '#f59e0b' : '#1a1a1a';
+                    b.style.color      = TABS[i].id === tab.id ? '#000'    : '#888';
                 });
-                tabPanels.forEach((p, j) => { p.style.display = j === i ? 'flex' : 'none'; });
+                Object.entries(panels).forEach(([id, p]) => { p.style.display = id === tab.id ? 'flex' : 'none'; });
             });
-            tabBar.appendChild(tabBtn);
+            tabBar.appendChild(btn);
         });
 
         header.appendChild(backBtn);
-        header.appendChild(artistThumb);
-        header.appendChild(artistInfo);
+        header.appendChild(thumb);
+        header.appendChild(info);
         header.appendChild(tabBar);
         artistDashboardView.appendChild(header);
 
-        // ── Tab panels container ──
         const panelsContainer = document.createElement('div');
         panelsContainer.style.cssText = 'flex:1;overflow:hidden;position:relative';
+
+        panels.music  = buildMusicPanel();
+        panels.photos = buildPhotosPanel();
+        panels.voice  = buildVoicePanel();
+
+        panels.music.style.display  = 'flex';
+        panels.photos.style.display = 'none';
+        panels.voice.style.display  = 'none';
+
+        Object.values(panels).forEach(p => panelsContainer.appendChild(p));
         artistDashboardView.appendChild(panelsContainer);
-
-        // ── TAB 0: Crear música ──
-        const musicPanel = buildMusicPanel();
-        musicPanel.style.display = 'flex';
-        tabPanels.push(musicPanel);
-        panelsContainer.appendChild(musicPanel);
-
-        // ── TAB 1: Fotos ──
-        const photosPanel = buildPhotosPanel();
-        photosPanel.style.display = 'none';
-        tabPanels.push(photosPanel);
-        panelsContainer.appendChild(photosPanel);
-
-        // ── TAB 2: Voz ──
-        const voicePanel = buildVoicePanel();
-        voicePanel.style.display = 'none';
-        tabPanels.push(voicePanel);
-        panelsContainer.appendChild(voicePanel);
     }
 
     // ============================================================
-    // PANEL: CREAR MÚSICA
+    // PANEL: MÚSICA
     // ============================================================
     function buildMusicPanel() {
         const panel = document.createElement('div');
-        panel.style.cssText = 'flex-direction:column;overflow-y:auto;padding:24px;gap:20px;height:100%';
+        panel.style.cssText = 'flex-direction:column;overflow-y:auto;padding:20px;gap:16px;height:100%';
 
-        // Selector de herramienta
+        const TOOLS = [
+            { id: 'suno-create-music',      icon: '🎵', label: 'Crear canción',     cost: COSTS.SONG_CREATE },
+            { id: 'suno-generate-lyrics',   icon: '✍️',  label: 'Generar letra',    cost: COSTS.LYRICS_GENERATE },
+            { id: 'suno-extend-music',      icon: '➕', label: 'Extender',          cost: COSTS.SONG_EXTEND },
+            { id: 'suno-remix-music',       icon: '🔄', label: 'Remix',             cost: COSTS.SONG_REMIX },
+            { id: 'suno-add-vocals',        icon: '🗣️', label: 'Añadir voces',      cost: COSTS.SONG_ADD_VOCALS },
+            { id: 'suno-add-instrumental',  icon: '🎸', label: 'Añadir música',     cost: COSTS.SONG_ADD_INSTRUMENTAL },
+            { id: 'suno-generate-mashup',   icon: '🎛️', label: 'Mashup',            cost: COSTS.SONG_MASHUP },
+            { id: 'suno-generate-sounds',   icon: '🔊', label: 'Efectos',           cost: COSTS.SOUNDS_GENERATE },
+        ];
+
+        let selectedTool = TOOLS[0].id;
+
+        // Tool selector
         const toolLabel = document.createElement('p');
-        toolLabel.style.cssText = 'color:#888;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin:0';
+        toolLabel.style.cssText = 'color:#666;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin:0;flex-shrink:0';
         toolLabel.textContent = 'Herramienta';
         panel.appendChild(toolLabel);
 
-        const tools = [
-            { id: 'suno-create-music',      icon: '🎵', label: 'Crear canción',    desc: 'Genera una canción completa desde cero' },
-            { id: 'suno-generate-lyrics',   icon: '✍️',  label: 'Generar letra',   desc: 'Genera letra para una canción' },
-            { id: 'suno-extend-music',      icon: '➕', label: 'Extender canción', desc: 'Alarga una canción existente' },
-            { id: 'suno-remix-music',       icon: '🔄', label: 'Remix',            desc: 'Transforma una canción a otro estilo' },
-            { id: 'suno-add-vocals',        icon: '🎤', label: 'Añadir voces',     desc: 'Añade voces a una pista instrumental' },
-            { id: 'suno-add-instrumental',  icon: '🎸', label: 'Añadir música',    desc: 'Añade instrumentales a una voz' },
-            { id: 'suno-generate-mashup',   icon: '🎛️', label: 'Mashup',           desc: 'Mezcla varias canciones' },
-            { id: 'suno-generate-sounds',   icon: '🔊', label: 'Efectos de sonido', desc: 'Genera efectos de sonido' },
-        ];
-
-        let selectedTool = 'suno-create-music';
         const toolGrid = document.createElement('div');
-        toolGrid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px';
+        toolGrid.style.cssText = 'display:grid;grid-template-columns:repeat(4,1fr);gap:6px;flex-shrink:0';
 
         const toolPanelContainer = document.createElement('div');
+        toolPanelContainer.style.cssText = 'display:flex;flex-direction:column;gap:12px';
 
-        tools.forEach(tool => {
+        TOOLS.forEach(tool => {
             const card = document.createElement('div');
             const isActive = tool.id === selectedTool;
-            card.style.cssText = `background:${isActive ? '#f59e0b22' : '#1a1a1a'};border:1px solid ${isActive ? '#f59e0b66' : '#2a2a2a'};border-radius:12px;padding:10px 12px;cursor:pointer;transition:all .15s`;
-            card.innerHTML = `<div style="font-size:18px;margin-bottom:4px">${tool.icon}</div><div style="color:${isActive ? '#f59e0b' : '#fff'};font-size:12px;font-weight:700">${tool.label}</div><div style="color:#555;font-size:10px;margin-top:2px">${tool.desc}</div>`;
+            card.style.cssText = `background:${isActive ? '#f59e0b22' : '#1a1a1a'};border:${isActive ? '2px solid #f59e0b66' : '1px solid #2a2a2a'};border-radius:10px;padding:8px 6px;cursor:pointer;text-align:center;transition:all .15s`;
+            card.innerHTML = `<div style="font-size:16px">${tool.icon}</div><div style="color:${isActive ? '#f59e0b' : '#888'};font-size:10px;font-weight:700;margin-top:2px;line-height:1.2">${tool.label}</div>`;
+
             card.addEventListener('click', () => {
                 selectedTool = tool.id;
-                toolGrid.querySelectorAll('div').forEach(c => {
-                    c.style.background = '#1a1a1a'; c.style.borderColor = '#2a2a2a';
-                    c.querySelector('div:nth-child(2)').style.color = '#fff';
+                toolGrid.querySelectorAll('div').forEach((c, i) => {
+                    const t = TOOLS[i];
+                    const active = t?.id === tool.id;
+                    c.style.background   = active ? '#f59e0b22' : '#1a1a1a';
+                    c.style.border       = active ? '2px solid #f59e0b66' : '1px solid #2a2a2a';
+                    const lbl = c.querySelector('div:last-child');
+                    if (lbl) lbl.style.color = active ? '#f59e0b' : '#888';
                 });
-                card.style.background = '#f59e0b22'; card.style.borderColor = '#f59e0b66';
-                card.querySelector('div:nth-child(2)').style.color = '#f59e0b';
-                renderToolPanel(selectedTool, toolPanelContainer);
+                renderToolPanel(tool.id, toolPanelContainer);
             });
+
             toolGrid.appendChild(card);
         });
 
         panel.appendChild(toolGrid);
 
-        // Separador
         const sep = document.createElement('div');
         sep.style.cssText = 'height:1px;background:#1f1f1f;flex-shrink:0';
         panel.appendChild(sep);
-
         panel.appendChild(toolPanelContainer);
         renderToolPanel(selectedTool, toolPanelContainer);
 
-        // Historial de canciones
+        // Songs history
         const songsLabel = document.createElement('p');
-        songsLabel.style.cssText = 'color:#888;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin:0';
-        songsLabel.textContent = 'Canciones del artista';
+        songsLabel.style.cssText = 'color:#666;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin:0;flex-shrink:0';
+        songsLabel.textContent = 'Canciones guardadas';
         panel.appendChild(songsLabel);
 
         const songsGrid = document.createElement('div');
-        songsGrid.id = 'songs-grid';
+        songsGrid.id = 'km-songs-grid';
         songsGrid.style.cssText = 'display:flex;flex-direction:column;gap:8px';
         panel.appendChild(songsGrid);
-
         loadSongs(songsGrid);
 
         return panel;
@@ -622,493 +803,390 @@ export function KreateMusicStudio() {
 
     function renderToolPanel(toolId, container) {
         container.innerHTML = '';
-        container.style.cssText = 'display:flex;flex-direction:column;gap:14px';
 
-        const cost = MUSIC_COSTS[toolId] || 20;
-
-        // ── PANEL ESPECIAL PARA CREAR CANCIÓN ──
+        // ── CREAR CANCIÓN ──
         if (toolId === 'suno-create-music') {
-            // Título
-            const titleWrap = document.createElement('div');
-            titleWrap.style.cssText = 'display:flex;flex-direction:column;gap:6px';
-            const titleLbl = document.createElement('label');
-            titleLbl.style.cssText = 'color:#888;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em';
-            titleLbl.textContent = 'Título de la canción';
-            const titleInput = document.createElement('input');
-            titleInput.placeholder = `Ej: ${currentArtist?.name || 'Mi artista'} - Mi primera canción`;
-            titleInput.style.cssText = 'background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:10px 14px;color:#fff;font-size:13px;outline:none;font-family:inherit;transition:border-color .15s';
-            titleInput.addEventListener('focus', () => titleInput.style.borderColor = '#f59e0b66');
-            titleInput.addEventListener('blur',  () => titleInput.style.borderColor = '#2a2a2a');
-            titleWrap.appendChild(titleLbl);
-            titleWrap.appendChild(titleInput);
-            container.appendChild(titleWrap);
-            container._titleInput = titleInput;
-
-            // Estilo musical (auto del artista)
-            const styleWrap = document.createElement('div');
-            styleWrap.style.cssText = 'display:flex;flex-direction:column;gap:6px';
-            const styleLbl = document.createElement('label');
-            styleLbl.style.cssText = 'color:#888;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em';
-            styleLbl.textContent = 'Estilo musical';
-            const styleInput = document.createElement('input');
-            styleInput.value = [currentArtist?.genre, currentArtist?.style].filter(Boolean).join(', ');
-            styleInput.placeholder = 'Ej: Reggaeton, urbano, trap, melódico...';
-            styleInput.style.cssText = 'background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:10px 14px;color:#fff;font-size:13px;outline:none;font-family:inherit;transition:border-color .15s';
-            styleInput.addEventListener('focus', () => styleInput.style.borderColor = '#f59e0b66');
-            styleInput.addEventListener('blur',  () => styleInput.style.borderColor = '#2a2a2a');
-            styleWrap.appendChild(styleLbl);
-            styleWrap.appendChild(styleInput);
-            container.appendChild(styleWrap);
-            container._styleInput = styleInput;
-
-            // ── SECCIÓN DE LETRA ──
-            const lyricsSection = document.createElement('div');
-            lyricsSection.style.cssText = 'background:#111;border:1px solid #2a2a2a;border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px';
-
-            const lyricsHeader = document.createElement('div');
-            lyricsHeader.style.cssText = 'display:flex;align-items:center;justify-content:space-between';
-            lyricsHeader.innerHTML = '<p style="color:#fff;font-size:13px;font-weight:700;margin:0">✍️ Letra de la canción</p>';
-
-            // Toggle manual / generar
-            let lyricsMode = 'manual';
-            const lyricsToggle = document.createElement('div');
-            lyricsToggle.style.cssText = 'display:flex;gap:4px';
-
-            const manualBtn = document.createElement('button');
-            manualBtn.style.cssText = 'padding:4px 10px;background:#f59e0b22;border:1px solid #f59e0b66;border-radius:8px;color:#f59e0b;font-size:11px;font-weight:700;cursor:pointer';
-            manualBtn.textContent = 'Escribir';
-
-            const generateLyricsBtn = document.createElement('button');
-            generateLyricsBtn.style.cssText = 'padding:4px 10px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;color:#888;font-size:11px;font-weight:700;cursor:pointer';
-            generateLyricsBtn.textContent = '✨ Generar con IA';
-
-            lyricsToggle.appendChild(manualBtn);
-            lyricsToggle.appendChild(generateLyricsBtn);
-            lyricsHeader.appendChild(lyricsToggle);
-            lyricsSection.appendChild(lyricsHeader);
-
-            // Panel manual
-            const manualPanel = document.createElement('div');
-            manualPanel.style.cssText = 'display:flex;flex-direction:column;gap:6px';
-            const lyricsTextarea = document.createElement('textarea');
-            lyricsTextarea.rows = 6;
-            lyricsTextarea.placeholder = 'Escribe la letra aquí...\n\n[Verso 1]\n...\n\n[Coro]\n...';
-            lyricsTextarea.style.cssText = 'background:#0a0a0a;border:1px solid #2a2a2a;border-radius:10px;padding:10px 14px;color:#fff;font-size:12px;outline:none;font-family:monospace;resize:vertical;line-height:1.6;transition:border-color .15s';
-            lyricsTextarea.addEventListener('focus', () => lyricsTextarea.style.borderColor = '#f59e0b66');
-            lyricsTextarea.addEventListener('blur',  () => lyricsTextarea.style.borderColor = '#2a2a2a');
-            manualPanel.appendChild(lyricsTextarea);
-            lyricsSection.appendChild(manualPanel);
-            container._lyricsTextarea = lyricsTextarea;
-
-            // Panel generar letra con IA
-            const aiLyricsPanel = document.createElement('div');
-            aiLyricsPanel.style.cssText = 'display:none;flex-direction:column;gap:8px';
-
-            const aiLyricsTheme = document.createElement('input');
-            aiLyricsTheme.placeholder = 'Tema de la letra: amor, desamor, fiesta, éxito, calle...';
-            aiLyricsTheme.style.cssText = 'background:#0a0a0a;border:1px solid #2a2a2a;border-radius:10px;padding:10px 14px;color:#fff;font-size:13px;outline:none;font-family:inherit;transition:border-color .15s';
-            aiLyricsTheme.addEventListener('focus', () => aiLyricsTheme.style.borderColor = '#f59e0b66');
-            aiLyricsTheme.addEventListener('blur',  () => aiLyricsTheme.style.borderColor = '#2a2a2a');
-
-            const genLyricsActionBtn = document.createElement('button');
-            genLyricsActionBtn.style.cssText = 'padding:9px 18px;background:#3b82f6;border:none;border-radius:100px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;width:fit-content;display:flex;align-items:center;gap:6px';
-            genLyricsActionBtn.innerHTML = '✨ Generar letra <span style="background:rgba(255,255,255,.2);padding:1px 6px;border-radius:100px;font-size:10px;font-family:monospace">1 🪙</span>';
-
-            genLyricsActionBtn.addEventListener('click', async () => {
-                if (!aiLyricsTheme.value.trim()) return alert('Escribe el tema de la letra.');
-                genLyricsActionBtn.textContent = '⏳ Generando...';
-                genLyricsActionBtn.disabled = true;
-                try {
-                    const token = await currentUser.getIdToken();
-                    const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', currentUser.uid);
-                    const { isAdmin } = await checkCredits(userRef, MUSIC_COSTS['suno-generate-lyrics']);
-
-                    // Usar gpt-5-mini para generar letra estructurada
-                    const lyricsPrompt = `Write song lyrics for a ${currentArtist?.genre || 'pop'} song by artist ${currentArtist?.name || 'the artist'}. Theme: ${aiLyricsTheme.value}. Style: ${currentArtist?.style || ''}. Include [Verse 1], [Chorus], [Verse 2], [Chorus], [Bridge], [Outro]. Write in Spanish. Make it catchy and authentic.`;
-                    const res = await callMuapi('gpt-5-mini', { prompt: lyricsPrompt }, token);
-                    const rid = res.request_id || res.id;
-                    let lyricsText = res.text || res.output?.text || res.result;
-
-                    if (!lyricsText && rid) {
-                        const polled = await pollResult(rid, token, 30, 2000);
-                        lyricsText = polled.data?.text || polled.data?.result || polled.url;
-                    }
-
-                    if (lyricsText) {
-                        lyricsTextarea.value = lyricsText;
-                        await deductCredits(userRef, MUSIC_COSTS['suno-generate-lyrics'], isAdmin);
-                        // Cambiar a panel manual para que pueda editarla
-                        lyricsMode = 'manual';
-                        manualBtn.style.cssText = 'padding:4px 10px;background:#f59e0b22;border:1px solid #f59e0b66;border-radius:8px;color:#f59e0b;font-size:11px;font-weight:700;cursor:pointer';
-                        generateLyricsBtn.style.cssText = 'padding:4px 10px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;color:#888;font-size:11px;font-weight:700;cursor:pointer';
-                        manualPanel.style.display = 'flex';
-                        aiLyricsPanel.style.display = 'none';
-                    }
-                } catch (err) {
-                    alert('Error generando letra: ' + err.message);
-                } finally {
-                    genLyricsActionBtn.innerHTML = '✨ Generar letra <span style="background:rgba(255,255,255,.2);padding:1px 6px;border-radius:100px;font-size:10px;font-family:monospace">1 🪙</span>';
-                    genLyricsActionBtn.disabled = false;
-                }
-            });
-
-            aiLyricsPanel.appendChild(aiLyricsTheme);
-            aiLyricsPanel.appendChild(genLyricsActionBtn);
-            lyricsSection.appendChild(aiLyricsPanel);
-            container.appendChild(lyricsSection);
-
-            // Toggle entre manual y IA
-            manualBtn.addEventListener('click', () => {
-                lyricsMode = 'manual';
-                manualBtn.style.cssText = 'padding:4px 10px;background:#f59e0b22;border:1px solid #f59e0b66;border-radius:8px;color:#f59e0b;font-size:11px;font-weight:700;cursor:pointer';
-                generateLyricsBtn.style.cssText = 'padding:4px 10px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;color:#888;font-size:11px;font-weight:700;cursor:pointer';
-                manualPanel.style.display = 'flex';
-                aiLyricsPanel.style.display = 'none';
-            });
-            generateLyricsBtn.addEventListener('click', () => {
-                lyricsMode = 'ai';
-                generateLyricsBtn.style.cssText = 'padding:4px 10px;background:#f59e0b22;border:1px solid #f59e0b66;border-radius:8px;color:#f59e0b;font-size:11px;font-weight:700;cursor:pointer';
-                manualBtn.style.cssText = 'padding:4px 10px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;color:#888;font-size:11px;font-weight:700;cursor:pointer';
-                aiLyricsPanel.style.display = 'flex';
-                manualPanel.style.display = 'none';
-            });
-
-            // ── TIPO: INSTRUMENTAL O CON VOZ ──
-            const voiceTypeSection = document.createElement('div');
-            voiceTypeSection.style.cssText = 'display:flex;flex-direction:column;gap:8px';
-            const voiceTypeLbl = document.createElement('p');
-            voiceTypeLbl.style.cssText = 'color:#888;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin:0';
-            voiceTypeLbl.textContent = 'Tipo de canción';
-            voiceTypeSection.appendChild(voiceTypeLbl);
-
-            let songType = 'vocals'; // 'vocals' | 'instrumental'
-            const typeRow = document.createElement('div');
-            typeRow.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:8px';
-
-            const vocalsCard = document.createElement('div');
-            vocalsCard.style.cssText = 'background:#f59e0b22;border:2px solid #f59e0b66;border-radius:12px;padding:12px;cursor:pointer;text-align:center';
-            vocalsCard.innerHTML = '<div style="font-size:20px;margin-bottom:4px">🎤</div><div style="color:#f59e0b;font-size:12px;font-weight:700">Con voz</div><div style="color:#f59e0b88;font-size:10px">Canta el artista</div>';
-
-            const instrumentalCard = document.createElement('div');
-            instrumentalCard.style.cssText = 'background:#1a1a1a;border:1px solid #2a2a2a;border-radius:12px;padding:12px;cursor:pointer;text-align:center';
-            instrumentalCard.innerHTML = '<div style="font-size:20px;margin-bottom:4px">🎸</div><div style="color:#888;font-size:12px;font-weight:700">Instrumental</div><div style="color:#555;font-size:10px">Solo música</div>';
-
-            vocalsCard.addEventListener('click', () => {
-                songType = 'vocals';
-                vocalsCard.style.cssText = 'background:#f59e0b22;border:2px solid #f59e0b66;border-radius:12px;padding:12px;cursor:pointer;text-align:center';
-                instrumentalCard.style.cssText = 'background:#1a1a1a;border:1px solid #2a2a2a;border-radius:12px;padding:12px;cursor:pointer;text-align:center';
-                vocalsCard.querySelector('div:nth-child(2)').style.color = '#f59e0b';
-                instrumentalCard.querySelector('div:nth-child(2)').style.color = '#888';
-                lyricsSection.style.opacity = '1'; lyricsSection.style.pointerEvents = 'auto';
-            });
-            instrumentalCard.addEventListener('click', () => {
-                songType = 'instrumental';
-                instrumentalCard.style.cssText = 'background:#f59e0b22;border:2px solid #f59e0b66;border-radius:12px;padding:12px;cursor:pointer;text-align:center';
-                vocalsCard.style.cssText = 'background:#1a1a1a;border:1px solid #2a2a2a;border-radius:12px;padding:12px;cursor:pointer;text-align:center';
-                instrumentalCard.querySelector('div:nth-child(2)').style.color = '#f59e0b';
-                vocalsCard.querySelector('div:nth-child(2)').style.color = '#888';
-                lyricsSection.style.opacity = '.3'; lyricsSection.style.pointerEvents = 'none';
-            });
-
-            typeRow.appendChild(vocalsCard);
-            typeRow.appendChild(instrumentalCard);
-            voiceTypeSection.appendChild(typeRow);
-            container.appendChild(voiceTypeSection);
-            container._getSongType = () => songType;
-
-            // Voz del artista
-            if (currentArtist?.voiceId || currentArtist?.voiceStyle) {
-                const voiceInfo = document.createElement('div');
-                voiceInfo.style.cssText = 'background:#f59e0b11;border:1px solid #f59e0b33;border-radius:10px;padding:10px 14px;font-size:12px;color:#f59e0b';
-                voiceInfo.innerHTML = currentArtist.voiceId
-                    ? `🎤 Se usará la voz clonada de <strong>${currentArtist.name}</strong>`
-                    : `🎤 Estilo vocal: "${currentArtist.voiceStyle}"`;
-                container.appendChild(voiceInfo);
-            }
-
-            // Botón generar
-            const genBtn = document.createElement('button');
-            genBtn.style.cssText = 'width:100%;padding:13px;background:#f59e0b;border:none;border-radius:100px;color:#000;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px';
-            genBtn.innerHTML = `Crear canción <span style="background:rgba(0,0,0,.2);padding:2px 8px;border-radius:100px;font-size:11px;font-family:monospace">${cost} 🪙</span>`;
-
-            genBtn.addEventListener('click', async () => {
-                const style   = container._styleInput?.value?.trim();
-                const title   = container._titleInput?.value?.trim();
-                const lyrics  = container._lyricsTextarea?.value?.trim();
-                const isInstrumental = container._getSongType?.() === 'instrumental';
-
-                if (!style && !lyrics) return alert('Escribe el estilo musical o la letra.');
-                if (!currentUser) return alert('Debes iniciar sesión.');
-
-                genBtn.disabled = true;
-                genBtn.innerHTML = '<div style="width:16px;height:16px;border:2px solid #00000033;border-top-color:#000;border-radius:50%;animation:spin 1s linear infinite"></div> Creando canción...';
-
-                try {
-                    const token = await currentUser.getIdToken();
-                    const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', currentUser.uid);
-                    const { isAdmin } = await checkCredits(userRef, cost);
-
-                    const artistStyle = style || `${currentArtist?.genre || ''} ${currentArtist?.style || ''}`.trim();
-                    const params = {
-                        prompt:       isInstrumental
-                                        ? `${artistStyle} instrumental track, no vocals`
-                                        : `${artistStyle} song by ${currentArtist?.name || 'artist'}`,
-                        style:        artistStyle,
-                        title:        title || `${currentArtist?.name || 'Canción'} - Sin título`,
-                        instrumental: isInstrumental,
-                    };
-                    if (!isInstrumental && lyrics)                          params.lyrics   = lyrics;
-                    if (!isInstrumental && currentArtist?.voiceId)          params.voice_id = currentArtist.voiceId;
-                    if (!isInstrumental && currentArtist?.voiceStyle && !currentArtist?.voiceId) {
-                        params.prompt = `${params.prompt}, ${currentArtist.voiceStyle}`;
-                    }
-
-                    const res = await callMuapi('suno-create-music', params, token);
-                    const rid = res.request_id || res.id;
-                    let resultUrl = res.url || res.audio_url || res.output?.outputs?.[0] || res.outputs?.[0];
-
-                    if (!resultUrl && rid) {
-                        genBtn.innerHTML = '<div style="width:16px;height:16px;border:2px solid #00000033;border-top-color:#000;border-radius:50%;animation:spin 1s linear infinite"></div> Procesando canción...';
-                        const polled = await pollResult(rid, token, 90, 3000);
-                        resultUrl = polled.url;
-                    }
-
-                    await deductCredits(userRef, cost, isAdmin);
-
-                    const songData = {
-                        title:     params.title,
-                        style:     params.style,
-                        lyrics:    lyrics || null,
-                        tool:      'suno-create-music',
-                        url:       resultUrl || null,
-                        instrumental: isInstrumental,
-                        artistId:  currentArtist.id,
-                        createdAt: serverTimestamp()
-                    };
-                    await addDoc(
-                        collection(db, 'artifacts', APP_ID, 'public', 'data', 'users', currentUser.uid, 'artists', currentArtist.id, 'songs'),
-                        songData
-                    );
-
-                    if (resultUrl) showSongResult(resultUrl, params.title, container);
-                    const sg = document.querySelector('#songs-grid');
-                    if (sg) loadSongs(sg);
-
-                } catch (err) {
-                    console.error(err);
-                    alert(`Error: ${err.message}`);
-                } finally {
-                    genBtn.disabled = false;
-                    genBtn.innerHTML = `Crear canción <span style="background:rgba(0,0,0,.2);padding:2px 8px;border-radius:100px;font-size:11px;font-family:monospace">${cost} 🪙</span>`;
-                }
-            });
-
-            container.appendChild(genBtn);
-            return; // Salimos aquí para no ejecutar el panel genérico
+            buildCreateSongPanel(container);
+            return;
         }
 
-        // ── PANEL GENÉRICO para el resto de herramientas ──
-        const promptWrap = document.createElement('div');
-        promptWrap.style.cssText = 'display:flex;flex-direction:column;gap:6px';
+        // ── GENERAR LETRA ──
+        if (toolId === 'suno-generate-lyrics') {
+            const cost = COSTS.LYRICS_GENERATE;
+            appendField(container, 'Tema de la letra', 'Ej: amor, desamor, éxito, calle...', 'theme-input');
+            appendGenBtn(container, `Generar letra`, cost, async (token, userRef, isAdmin) => {
+                const theme = container.querySelector('#theme-input')?.value?.trim();
+                if (!theme) throw new Error('Escribe el tema de la letra.');
+                const prompt = `Write song lyrics in Spanish for a ${currentArtist?.genre || 'pop'} song. Theme: ${theme}. Include [Verso 1], [Coro], [Verso 2], [Coro], [Bridge], [Outro]. Make it authentic.`;
+                const res = await callMuapi('gpt-5-mini', { prompt }, token);
+                const rid = res.request_id || res.id;
+                let text  = res.text || res.output?.text;
+                if (!text && rid) {
+                    const p = await pollResult(rid, token, null, 30, 2000);
+                    text = p.data?.text || p.url;
+                }
+                if (!text) throw new Error('No se generó la letra.');
+                await deduct(userRef, cost, isAdmin);
+                const box = document.createElement('pre');
+                box.style.cssText = 'background:#0a0a0a;border:1px solid #2a2a2a;border-radius:10px;padding:12px;color:#fff;font-size:12px;white-space:pre-wrap;font-family:monospace;line-height:1.6;animation:fadeUp .3s ease';
+                box.textContent = text;
+                container.insertBefore(box, container.lastChild);
+            });
+            return;
+        }
 
-        const promptLabels = {
-            'suno-generate-lyrics':  'Tema de la letra',
-            'suno-extend-music':     'Instrucciones para extender (opcional)',
+        // ── HERRAMIENTAS CON AUDIO ──
+        const costMap = {
+            'suno-extend-music':     COSTS.SONG_EXTEND,
+            'suno-remix-music':      COSTS.SONG_REMIX,
+            'suno-add-vocals':       COSTS.SONG_ADD_VOCALS,
+            'suno-add-instrumental': COSTS.SONG_ADD_INSTRUMENTAL,
+            'suno-generate-mashup':  COSTS.SONG_MASHUP,
+            'suno-generate-sounds':  COSTS.SOUNDS_GENERATE,
+        };
+        const promptMap = {
+            'suno-extend-music':     'Instrucciones para extender',
             'suno-remix-music':      'Nuevo estilo del remix',
             'suno-add-vocals':       'Estilo vocal deseado',
             'suno-add-instrumental': 'Descripción del instrumental',
             'suno-generate-mashup':  'Descripción del mashup',
             'suno-generate-sounds':  'Describe el efecto de sonido',
         };
+        const cost = costMap[toolId] || 20;
+        appendField(container, promptMap[toolId] || 'Prompt', '', 'generic-prompt', false, currentArtist ? `${currentArtist.genre || ''} ${currentArtist.style || ''}`.trim() : '');
 
-        const promptLabel = document.createElement('label');
-        promptLabel.style.cssText = 'color:#888;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em';
-        promptLabel.textContent = promptLabels[toolId] || 'Prompt';
-        promptWrap.appendChild(promptLabel);
-
-        const promptInput = document.createElement('textarea');
-        promptInput.rows = 3;
-        promptInput.style.cssText = 'background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:10px 14px;color:#fff;font-size:13px;outline:none;font-family:inherit;resize:none;transition:border-color .15s';
-        promptInput.placeholder = promptLabels[toolId] || '';
-
-        if (currentArtist?.style || currentArtist?.genre) {
-            promptInput.value = `Estilo ${currentArtist.genre || ''} ${currentArtist.style || ''}`.trim();
-        }
-
-        promptInput.addEventListener('focus', () => promptInput.style.borderColor = '#f59e0b66');
-        promptInput.addEventListener('blur',  () => promptInput.style.borderColor = '#2a2a2a');
-        promptWrap.appendChild(promptInput);
-        container.appendChild(promptWrap);
-
-        // Upload de audio (para herramientas que lo requieren)
         const needsAudio = ['suno-extend-music','suno-remix-music','suno-add-vocals','suno-add-instrumental','suno-generate-mashup'];
+        let audioUrls = [];
         if (needsAudio.includes(toolId)) {
             const audioWrap = document.createElement('div');
-            audioWrap.style.cssText = 'display:flex;flex-direction:column;gap:6px';
+            audioWrap.style.cssText = 'display:flex;flex-direction:column;gap:5px';
             const audioLbl = document.createElement('label');
-            audioLbl.style.cssText = 'color:#888;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em';
+            audioLbl.style.cssText = 'color:#666;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em';
             audioLbl.textContent = toolId === 'suno-generate-mashup' ? 'Archivos de audio (hasta 5)' : 'Archivo de audio';
-            audioWrap.appendChild(audioLbl);
-
             const audioInput = document.createElement('input');
-            audioInput.type = 'file';
-            audioInput.accept = 'audio/*';
+            audioInput.type = 'file'; audioInput.accept = 'audio/*';
             if (toolId === 'suno-generate-mashup') audioInput.multiple = true;
             audioInput.style.display = 'none';
-
             const audioBtn = document.createElement('button');
-            audioBtn.style.cssText = 'background:#1a1a1a;border:1px dashed #2a2a2a;border-radius:10px;padding:14px;color:#888;font-size:12px;cursor:pointer;width:100%;text-align:center;transition:border-color .15s';
+            audioBtn.type = 'button';
+            audioBtn.style.cssText = 'background:#1a1a1a;border:1px dashed #2a2a2a;border-radius:10px;padding:12px;color:#888;font-size:12px;cursor:pointer;width:100%;text-align:center;transition:border-color .15s';
             audioBtn.textContent = '🎵 Seleccionar audio';
             audioBtn.addEventListener('click', () => audioInput.click());
-
-            let audioUrls = [];
             audioInput.addEventListener('change', async (e) => {
                 const files = Array.from(e.target.files).slice(0, 5);
                 audioBtn.textContent = '⏳ Subiendo...';
                 try {
                     const token = await currentUser.getIdToken();
-                    audioUrls = await Promise.all(files.map(async file => {
-                        const fd = new FormData(); fd.append('file', file);
-                        const resp = await fetch('/api/v1/upload_file', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd });
-                        const data = await resp.json();
-                        return data.url || data.file_url;
+                    audioUrls = await Promise.all(files.map(async f => {
+                        const fd = new FormData(); fd.append('file', f);
+                        const r = await fetch('/api/v1/upload_file', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd });
+                        const d = await r.json(); return d.url || d.file_url;
                     }));
-                    audioBtn.textContent = `✓ ${files.map(f => f.name).join(', ').slice(0, 50)}`;
-                    audioBtn.style.borderColor = '#f59e0b66';
-                    audioBtn.style.color = '#f59e0b';
-                } catch (err) {
-                    audioBtn.textContent = '🎵 Seleccionar audio';
-                    alert(`Error subiendo audio: ${err.message}`);
-                }
+                    audioBtn.textContent = `✓ ${files.length} archivo(s)`;
+                    audioBtn.style.borderColor = '#f59e0b66'; audioBtn.style.color = '#f59e0b';
+                } catch (err) { audioBtn.textContent = '🎵 Seleccionar audio'; alert(err.message); }
             });
-
-            audioWrap.appendChild(audioBtn);
-            audioWrap.appendChild(audioInput);
+            audioWrap.appendChild(audioLbl); audioWrap.appendChild(audioBtn); audioWrap.appendChild(audioInput);
             container.appendChild(audioWrap);
-            container._audioUrls = () => audioUrls;
         }
 
-        // Voz del artista info
-        if ((toolId === 'suno-create-music' || toolId === 'suno-add-vocals') && (currentArtist?.voiceId || currentArtist?.voiceStyle)) {
-            const voiceInfo = document.createElement('div');
-            voiceInfo.style.cssText = 'background:#f59e0b11;border:1px solid #f59e0b33;border-radius:10px;padding:10px 14px;font-size:12px;color:#f59e0b';
-            voiceInfo.innerHTML = currentArtist.voiceId
-                ? `🎤 Se usará la voz clonada de <strong>${currentArtist.name}</strong>`
-                : `🎤 Estilo vocal: "${currentArtist.voiceStyle}"`;
-            container.appendChild(voiceInfo);
-        }
+        appendGenBtn(container, 'Generar', cost, async (token, userRef, isAdmin) => {
+            const prompt = container.querySelector('#generic-prompt')?.value?.trim() || '';
+            const params = { prompt };
+            if (audioUrls.length > 0) {
+                if (toolId === 'suno-generate-mashup') params.audio_urls = audioUrls;
+                else params.audio_url = audioUrls[0];
+            }
+            const res = await callMuapi(toolId, params, token);
+            const rid = res.request_id || res.id;
+            let url = res.url || res.audio_url;
+            if (!url && rid) {
+                const p = await pollResult(rid, token, null, 90, 3000);
+                url = p.url;
+            }
+            if (!url) throw new Error('No se recibió URL del resultado.');
+            await deduct(userRef, cost, isAdmin);
+            await saveSong(url, prompt, toolId, null);
+            showSongResult(url, prompt, container);
+        });
+    }
 
-        // Botón generar
-        const genBtn = document.createElement('button');
-        genBtn.style.cssText = 'width:100%;padding:13px;background:#f59e0b;border:none;border-radius:100px;color:#000;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px';
-        genBtn.innerHTML = `Generar <span style="background:rgba(0,0,0,.2);padding:2px 8px;border-radius:100px;font-size:11px;font-family:monospace">${cost} 🪙</span>`;
+    // Helper: append text field
+    function appendField(container, label, placeholder, id, textarea = false, defaultVal = '') {
+        const wrap = document.createElement('div');
+        wrap.style.cssText = 'display:flex;flex-direction:column;gap:5px';
+        const lbl = document.createElement('label');
+        lbl.style.cssText = 'color:#666;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em';
+        lbl.textContent = label;
+        const input = textarea ? document.createElement('textarea') : document.createElement('input');
+        input.id = id; input.placeholder = placeholder;
+        if (defaultVal) input.value = defaultVal;
+        input.style.cssText = 'background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:9px 13px;color:#fff;font-size:13px;outline:none;font-family:inherit;transition:border-color .15s';
+        if (textarea) { input.rows = 3; input.style.resize = 'none'; }
+        input.addEventListener('focus', () => input.style.borderColor = '#f59e0b66');
+        input.addEventListener('blur',  () => input.style.borderColor = '#2a2a2a');
+        wrap.appendChild(lbl); wrap.appendChild(input); container.appendChild(wrap);
+    }
 
-        genBtn.addEventListener('click', async () => {
-            const prompt = promptInput.value.trim();
-            if (!prompt) return alert('Escribe un prompt primero.');
+    // Helper: append generate button with inline progress
+    function appendGenBtn(container, label, cost, onGenerate) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.style.cssText = 'width:100%;padding:12px;background:#f59e0b;border:none;border-radius:100px;color:#000;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:background .15s';
+        btn.innerHTML = `${label} <span style="background:rgba(0,0,0,.2);padding:2px 7px;border-radius:100px;font-size:11px;font-family:monospace">${cost} 🪙</span>`;
+        btn.addEventListener('mouseenter', () => btn.style.background = '#fbbf24');
+        btn.addEventListener('mouseleave', () => btn.style.background = '#f59e0b');
+
+        // Inline progress bar under button
+        const progressWrap = document.createElement('div');
+        progressWrap.style.cssText = 'display:none;flex-direction:column;gap:6px';
+        const progressBar = document.createElement('div');
+        progressBar.style.cssText = 'width:100%;background:#1a1a1a;border-radius:100px;height:4px;overflow:hidden;border:1px solid #2a2a2a';
+        progressBar.innerHTML = '<div id="inline-bar" style="height:100%;background:linear-gradient(90deg,#f59e0b,#fbbf24);border-radius:100px;width:0%;transition:width .5s ease"></div>';
+        const progressLabel = document.createElement('p');
+        progressLabel.style.cssText = 'color:#888;font-size:11px;margin:0;text-align:center;font-family:monospace';
+        progressLabel.textContent = '';
+        progressWrap.appendChild(progressBar);
+        progressWrap.appendChild(progressLabel);
+
+        btn.addEventListener('click', async () => {
             if (!currentUser) return alert('Debes iniciar sesión.');
+            btn.disabled = true;
+            btn.innerHTML = '<div style="width:14px;height:14px;border:2px solid #00000033;border-top-color:#000;border-radius:50%;animation:spin 1s linear infinite"></div> Generando...';
+            progressWrap.style.display = 'flex';
 
-            genBtn.disabled = true;
-            genBtn.innerHTML = `<div style="width:16px;height:16px;border:2px solid #00000033;border-top-color:#000;border-radius:50%;animation:spin 1s linear infinite"></div> Generando...`;
+            const token   = await currentUser.getIdToken();
+            const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', currentUser.uid);
 
             try {
-                const token = await currentUser.getIdToken();
-                const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', currentUser.uid);
-                const { isAdmin } = await checkCredits(userRef, cost);
-
-                // Construir params según herramienta
-                let params = { prompt };
-
-                // Añadir contexto del artista al prompt
-                const artistContext = [
-                    currentArtist.genre && `genre: ${currentArtist.genre}`,
-                    currentArtist.style && `style: ${currentArtist.style}`,
-                    currentArtist.voiceStyle && `voice style: ${currentArtist.voiceStyle}`,
-                ].filter(Boolean).join(', ');
-
-                if (artistContext && toolId === 'suno-create-music') {
-                    params.style = artistContext;
-                    if (currentArtist.voiceId) params.voice_id = currentArtist.voiceId;
-                    if (container._titleInput?.value) params.title = container._titleInput.value;
-                }
-
-                if (toolId === 'suno-generate-lyrics') {
-                    params.topic = prompt;
-                    delete params.prompt;
-                }
-
-                const audioUrls = container._audioUrls ? container._audioUrls() : [];
-                if (audioUrls.length > 0) {
-                    if (toolId === 'suno-generate-mashup') params.audio_urls = audioUrls;
-                    else params.audio_url = audioUrls[0];
-                }
-
-                // Llamada API
-                const res = await callMuapi(toolId, params, token);
-                const rid = res.request_id || res.id;
-                let resultUrl = res.url || res.audio_url || res.output?.outputs?.[0] || res.outputs?.[0];
-                let resultText = res.text || res.lyrics || res.output?.text;
-
-                if (!resultUrl && !resultText && rid) {
-                    genBtn.innerHTML = `<div style="width:16px;height:16px;border:2px solid #00000033;border-top-color:#000;border-radius:50%;animation:spin 1s linear infinite"></div> Procesando...`;
-                    const polled = await pollResult(rid, token, 90, 3000);
-                    resultUrl  = polled.url;
-                    resultText = polled.data?.text || polled.data?.lyrics;
-                }
-
-                await deductCredits(userRef, cost, isAdmin);
-
-                // Guardar en Firebase
-                const songData = {
-                    title:     container._titleInput?.value || prompt.slice(0, 40),
-                    prompt,
-                    tool:      toolId,
-                    url:       resultUrl || null,
-                    lyrics:    resultText || null,
-                    artistId:  currentArtist.id,
-                    createdAt: serverTimestamp()
+                const isAdmin = await checkAndDeduct(userRef, cost);
+                // Inject progress callback into pollResult via onGenerate
+                container._progressCallback = (pct, secs) => {
+                    const bar = progressWrap.querySelector('#inline-bar');
+                    if (bar) bar.style.width = `${pct}%`;
+                    progressLabel.textContent = `${pct}% · ${Math.round(secs)}s`;
                 };
-                await addDoc(
-                    collection(db, 'artifacts', APP_ID, 'public', 'data', 'users', currentUser.uid, 'artists', currentArtist.id, 'songs'),
-                    songData
-                );
-
-                // Mostrar resultado
-                if (resultText && !resultUrl) {
-                    // Solo texto (lyrics, boost)
-                    const textResult = document.createElement('div');
-                    textResult.style.cssText = 'background:#1a1a1a;border:1px solid #2a2a2a;border-radius:12px;padding:16px;color:#fff;font-size:13px;line-height:1.6;white-space:pre-wrap;animation:fadeUp .3s ease';
-                    textResult.textContent = resultText;
-                    container.appendChild(textResult);
-                } else if (resultUrl) {
-                    showSongResult(resultUrl, songData.title, container);
-                }
-
-                // Recargar lista de canciones
-                const sg = document.querySelector('#songs-grid');
-                if (sg) loadSongs(sg);
-
+                await onGenerate(token, userRef, isAdmin);
             } catch (err) {
-                console.error(err);
-                alert(`Error: ${err.message}`);
+                alert('Error: ' + err.message);
             } finally {
-                genBtn.disabled = false;
-                genBtn.innerHTML = `Generar <span style="background:rgba(0,0,0,.2);padding:2px 8px;border-radius:100px;font-size:11px;font-family:monospace">${cost} 🪙</span>`;
+                btn.disabled = false;
+                btn.innerHTML = `${label} <span style="background:rgba(0,0,0,.2);padding:2px 7px;border-radius:100px;font-size:11px;font-family:monospace">${cost} 🪙</span>`;
+                progressWrap.style.display = 'none';
+                const bar = progressWrap.querySelector('#inline-bar');
+                if (bar) bar.style.width = '0%';
             }
         });
 
-        container.appendChild(genBtn);
+        container.appendChild(btn);
+        container.appendChild(progressWrap);
+    }
+
+    // ── BUILD CREATE SONG PANEL ──
+    function buildCreateSongPanel(container) {
+        const cost = COSTS.SONG_CREATE;
+
+        appendField(container, 'Título de la canción', `Ej: ${currentArtist?.name || 'Mi artista'} - Sin título`, 'song-title-input');
+        appendField(container, 'Estilo musical', 'Ej: Reggaeton, trap, melódico...', 'song-style-input', false,
+            [currentArtist?.genre, currentArtist?.style].filter(Boolean).join(', '));
+
+        // Song type
+        const typeWrap = document.createElement('div');
+        typeWrap.style.cssText = 'display:flex;flex-direction:column;gap:6px';
+        const typeLbl = document.createElement('label');
+        typeLbl.style.cssText = 'color:#666;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em';
+        typeLbl.textContent = 'Tipo de canción';
+        typeWrap.appendChild(typeLbl);
+
+        let songType = 'vocals';
+        const typeRow = document.createElement('div');
+        typeRow.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:8px';
+
+        const makeTypeCard = (icon, title, sub, mode) => {
+            const c = document.createElement('div');
+            const active = mode === songType;
+            c.style.cssText = `background:${active ? '#f59e0b22' : '#1a1a1a'};border:${active ? '2px solid #f59e0b66' : '1px solid #2a2a2a'};border-radius:12px;padding:10px;cursor:pointer;text-align:center;transition:all .15s`;
+            c.innerHTML = `<div style="font-size:18px">${icon}</div><div style="color:${active ? '#f59e0b' : '#888'};font-size:11px;font-weight:700;margin-top:3px">${title}</div><div style="color:#555;font-size:10px">${sub}</div>`;
+            c.addEventListener('click', () => {
+                songType = mode;
+                [vocalsCard, instrCard].forEach((card, i) => {
+                    const m = i === 0 ? 'vocals' : 'instrumental';
+                    const a = m === mode;
+                    card.style.background = a ? '#f59e0b22' : '#1a1a1a';
+                    card.style.border     = a ? '2px solid #f59e0b66' : '1px solid #2a2a2a';
+                    card.querySelector('div:nth-child(2)').style.color = a ? '#f59e0b' : '#888';
+                });
+                lyricsSection.style.opacity = mode === 'vocals' ? '1' : '.3';
+                lyricsSection.style.pointerEvents = mode === 'vocals' ? 'auto' : 'none';
+            });
+            return c;
+        };
+
+        const vocalsCard = makeTypeCard('🎤', 'Con voz', 'El artista canta', 'vocals');
+        const instrCard  = makeTypeCard('🎸', 'Instrumental', 'Solo música', 'instrumental');
+        typeRow.appendChild(vocalsCard);
+        typeRow.appendChild(instrCard);
+        typeWrap.appendChild(typeRow);
+        container.appendChild(typeWrap);
+
+        // Lyrics section
+        const lyricsSection = document.createElement('div');
+        lyricsSection.style.cssText = 'background:#111;border:1px solid #2a2a2a;border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px;transition:opacity .2s';
+
+        const lyricsHeader = document.createElement('div');
+        lyricsHeader.style.cssText = 'display:flex;align-items:center;justify-content:space-between';
+
+        const lyricsTitle = document.createElement('p');
+        lyricsTitle.style.cssText = 'color:#fff;font-size:12px;font-weight:700;margin:0';
+        lyricsTitle.textContent = '✍️ Letra de la canción';
+
+        const lyricsToggle = document.createElement('div');
+        lyricsToggle.style.cssText = 'display:flex;gap:4px';
+
+        let lyricsMode = 'manual';
+        const manualBtn = document.createElement('button');
+        manualBtn.type = 'button';
+        manualBtn.style.cssText = 'padding:3px 9px;background:#f59e0b22;border:1px solid #f59e0b66;border-radius:8px;color:#f59e0b;font-size:10px;font-weight:700;cursor:pointer';
+        manualBtn.textContent = 'Escribir';
+
+        const aiBtn = document.createElement('button');
+        aiBtn.type = 'button';
+        aiBtn.style.cssText = 'padding:3px 9px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;color:#888;font-size:10px;font-weight:700;cursor:pointer';
+        aiBtn.textContent = '✨ IA (1 🪙)';
+
+        lyricsToggle.appendChild(manualBtn);
+        lyricsToggle.appendChild(aiBtn);
+        lyricsHeader.appendChild(lyricsTitle);
+        lyricsHeader.appendChild(lyricsToggle);
+        lyricsSection.appendChild(lyricsHeader);
+
+        const lyricsTextarea = document.createElement('textarea');
+        lyricsTextarea.id = 'song-lyrics-input';
+        lyricsTextarea.rows = 5;
+        lyricsTextarea.placeholder = 'Escribe la letra de tu canción aquí...';
+        lyricsTextarea.style.cssText = 'background:#0a0a0a;border:1px solid #2a2a2a;border-radius:10px;padding:9px 13px;color:#fff;font-size:12px;outline:none;font-family:monospace;resize:vertical;line-height:1.6;transition:border-color .15s';
+        lyricsTextarea.addEventListener('focus', () => lyricsTextarea.style.borderColor = '#f59e0b66');
+        lyricsTextarea.addEventListener('blur',  () => lyricsTextarea.style.borderColor = '#2a2a2a');
+
+        const aiPanel = document.createElement('div');
+        aiPanel.style.cssText = 'display:none;flex-direction:column;gap:6px';
+        const aiTheme = document.createElement('input');
+        aiTheme.placeholder = 'Tema: amor, fiesta, éxito, desamor...';
+        aiTheme.style.cssText = 'background:#0a0a0a;border:1px solid #2a2a2a;border-radius:10px;padding:9px 13px;color:#fff;font-size:12px;outline:none;font-family:inherit;transition:border-color .15s';
+        aiTheme.addEventListener('focus', () => aiTheme.style.borderColor = '#f59e0b66');
+        aiTheme.addEventListener('blur',  () => aiTheme.style.borderColor = '#2a2a2a');
+
+        const genLyricsBtn = document.createElement('button');
+        genLyricsBtn.type = 'button';
+        genLyricsBtn.style.cssText = 'padding:8px 16px;background:#3b82f6;border:none;border-radius:100px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;width:fit-content';
+        genLyricsBtn.textContent = '✨ Generar letra';
+        genLyricsBtn.addEventListener('click', async () => {
+            if (!aiTheme.value.trim()) return alert('Escribe el tema de la letra.');
+            genLyricsBtn.disabled = true;
+            genLyricsBtn.textContent = '⏳ Generando...';
+            try {
+                const token = await currentUser.getIdToken();
+                const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', currentUser.uid);
+                const isAdmin = await checkAndDeduct(userRef, COSTS.LYRICS_GENERATE);
+                const res = await callMuapi('gpt-5-mini', { prompt: `Write song lyrics in Spanish for a ${currentArtist?.genre || 'pop'} song by ${currentArtist?.name || 'the artist'}. Theme: ${aiTheme.value}. Include [Verso 1], [Coro], [Verso 2], [Coro], [Bridge], [Outro].` }, token);
+                const rid = res.request_id || res.id;
+                let text = res.text || res.output?.text;
+                if (!text && rid) { const p = await pollResult(rid, token, null, 30, 2000); text = p.data?.text || p.url; }
+                if (text) {
+                    lyricsTextarea.value = text;
+                    await deduct(userRef, COSTS.LYRICS_GENERATE, isAdmin);
+                    lyricsMode = 'manual';
+                    manualBtn.style.cssText = 'padding:3px 9px;background:#f59e0b22;border:1px solid #f59e0b66;border-radius:8px;color:#f59e0b;font-size:10px;font-weight:700;cursor:pointer';
+                    aiBtn.style.cssText = 'padding:3px 9px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;color:#888;font-size:10px;font-weight:700;cursor:pointer';
+                    lyricsTextarea.parentElement.style.display = 'flex';
+                    aiPanel.style.display = 'none';
+                }
+            } catch (e) { alert(e.message); }
+            finally { genLyricsBtn.disabled = false; genLyricsBtn.textContent = '✨ Generar letra'; }
+        });
+
+        aiPanel.appendChild(aiTheme);
+        aiPanel.appendChild(genLyricsBtn);
+
+        manualBtn.addEventListener('click', () => {
+            lyricsMode = 'manual';
+            manualBtn.style.cssText = 'padding:3px 9px;background:#f59e0b22;border:1px solid #f59e0b66;border-radius:8px;color:#f59e0b;font-size:10px;font-weight:700;cursor:pointer';
+            aiBtn.style.cssText = 'padding:3px 9px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;color:#888;font-size:10px;font-weight:700;cursor:pointer';
+            lyricsTextarea.style.display = 'block'; aiPanel.style.display = 'none';
+        });
+        aiBtn.addEventListener('click', () => {
+            lyricsMode = 'ai';
+            aiBtn.style.cssText = 'padding:3px 9px;background:#f59e0b22;border:1px solid #f59e0b66;border-radius:8px;color:#f59e0b;font-size:10px;font-weight:700;cursor:pointer';
+            manualBtn.style.cssText = 'padding:3px 9px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;color:#888;font-size:10px;font-weight:700;cursor:pointer';
+            aiPanel.style.display = 'flex'; lyricsTextarea.style.display = 'none';
+        });
+
+        lyricsSection.appendChild(lyricsTextarea);
+        lyricsSection.appendChild(aiPanel);
+        container.appendChild(lyricsSection);
+
+        // Voice info
+        if (currentArtist?.voiceId || currentArtist?.voiceStyle) {
+            const vi = document.createElement('div');
+            vi.style.cssText = 'background:#f59e0b11;border:1px solid #f59e0b33;border-radius:10px;padding:9px 13px;font-size:12px;color:#f59e0b';
+            vi.innerHTML = currentArtist.voiceId ? `🎤 Voz clonada de <strong>${currentArtist.name}</strong>` : `🎤 Estilo vocal: "${currentArtist.voiceStyle}"`;
+            container.appendChild(vi);
+        }
+
+        // Generate button
+        appendGenBtn(container, 'Crear canción', cost, async (token, userRef, isAdmin) => {
+            const title  = container.querySelector('#song-title-input')?.value?.trim();
+            const style  = container.querySelector('#song-style-input')?.value?.trim() || `${currentArtist?.genre || ''} ${currentArtist?.style || ''}`.trim();
+            const lyrics = container.querySelector('#song-lyrics-input')?.value?.trim();
+            const isInstrumental = songType === 'instrumental';
+
+            const params = {
+                prompt: isInstrumental ? `${style} instrumental track, no vocals` : `${style} song by ${currentArtist?.name || 'artist'}`,
+                style,
+                title: title || `${currentArtist?.name || 'Canción'} - Sin título`,
+                instrumental: isInstrumental,
+            };
+            if (!isInstrumental && lyrics)                              params.lyrics   = lyrics;
+            if (!isInstrumental && currentArtist?.voiceId)              params.voice_id = currentArtist.voiceId;
+            if (!isInstrumental && currentArtist?.voiceStyle && !currentArtist?.voiceId) {
+                params.prompt += `, ${currentArtist.voiceStyle}`;
+            }
+
+            const res = await callMuapi('suno-create-music', params, token);
+            const rid = res.request_id || res.id;
+            let url = res.url || res.audio_url;
+            if (!url && rid) {
+                const cb = container._progressCallback;
+                const p  = await pollResult(rid, token, cb, 90, 3000);
+                url = p.url;
+            }
+            if (!url) throw new Error('No se recibió URL de la canción.');
+            await deduct(userRef, cost, isAdmin);
+            await saveSong(url, params.title, 'suno-create-music', lyrics);
+            showSongResult(url, params.title, container);
+            const sg = document.querySelector('#km-songs-grid');
+            if (sg) loadSongs(sg);
+        });
+    }
+
+    async function saveSong(url, title, tool, lyrics) {
+        if (!currentArtist || !currentUser) return;
+        await addDoc(collection(db, 'artifacts', APP_ID, 'public', 'data', 'users', currentUser.uid, 'artists', currentArtist.id, 'songs'), {
+            title: title || 'Canción', url, tool, lyrics: lyrics || null, createdAt: serverTimestamp()
+        });
     }
 
     function showSongResult(url, title, container) {
-        const resultCard = document.createElement('div');
-        resultCard.style.cssText = 'background:#1a1a1a;border:1px solid #f59e0b44;border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px;animation:fadeUp .3s ease';
-        resultCard.innerHTML = `
-            <p style="color:#f59e0b;font-size:13px;font-weight:700;margin:0">✓ ${title || 'Resultado generado'}</p>
-            <audio controls src="${url}" style="width:100%;border-radius:8px;accent-color:#f59e0b"></audio>
-        `;
+        const card = document.createElement('div');
+        card.className = 'km-card';
+        card.style.cssText = 'background:#1a1a1a;border:1px solid #f59e0b44;border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px';
+        card.innerHTML = `<p style="color:#f59e0b;font-size:12px;font-weight:700;margin:0">✓ ${title || 'Resultado'}</p>`;
+        const audio = document.createElement('audio');
+        audio.controls = true; audio.src = url;
+        audio.style.cssText = 'width:100%;accent-color:#f59e0b;border-radius:8px';
         const dlBtn = document.createElement('button');
-        dlBtn.style.cssText = 'background:#f59e0b;border:none;border-radius:100px;padding:8px 20px;color:#000;font-size:12px;font-weight:700;cursor:pointer;width:fit-content';
+        dlBtn.type = 'button';
+        dlBtn.style.cssText = 'background:#f59e0b;border:none;border-radius:100px;padding:7px 16px;color:#000;font-size:11px;font-weight:700;cursor:pointer;width:fit-content';
         dlBtn.textContent = '↓ Descargar';
         dlBtn.addEventListener('click', async () => {
             try {
@@ -1117,8 +1195,11 @@ export function KreateMusicStudio() {
                 document.body.appendChild(a); a.click(); document.body.removeChild(a);
             } catch { window.open(url, '_blank'); }
         });
-        resultCard.appendChild(dlBtn);
-        container.insertBefore(resultCard, container.querySelector('button[style*="f59e0b"]') || container.lastChild);
+        card.appendChild(audio);
+        card.appendChild(dlBtn);
+        const genBtn = container.querySelector('button[style*="f59e0b"]');
+        if (genBtn) container.insertBefore(card, genBtn);
+        else container.appendChild(card);
     }
 
     async function loadSongs(container) {
@@ -1128,161 +1209,63 @@ export function KreateMusicStudio() {
             const q    = query(collection(db, 'artifacts', APP_ID, 'public', 'data', 'users', currentUser.uid, 'artists', currentArtist.id, 'songs'), orderBy('createdAt', 'desc'), limit(20));
             const snap = await getDocs(q);
             if (snap.empty) {
-                container.innerHTML = `<p style="color:#555;font-size:12px;text-align:center;padding:16px">Sin canciones aún. ¡Crea la primera!</p>`;
+                container.innerHTML = '<p style="color:#555;font-size:12px;text-align:center;padding:16px">Sin canciones aún</p>';
                 return;
             }
             snap.forEach(d => {
                 const song = { id: d.id, ...d.data() };
                 const card = document.createElement('div');
-                card.style.cssText = 'background:#1a1a1a;border:1px solid #2a2a2a;border-radius:12px;padding:12px 16px;display:flex;flex-direction:column;gap:8px;animation:fadeUp .3s ease';
-                card.innerHTML = `<p style="color:#fff;font-size:13px;font-weight:700;margin:0">${song.title || song.prompt?.slice(0,40) || 'Canción'}</p>`;
+                card.className = 'km-card';
+                card.style.cssText = 'background:#1a1a1a;border:1px solid #2a2a2a;border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px';
+                card.innerHTML = `<p style="color:#fff;font-size:12px;font-weight:700;margin:0">${song.title || 'Canción'}</p>`;
                 if (song.url) {
                     const audio = document.createElement('audio');
-                    audio.controls = true;
-                    audio.src = song.url;
+                    audio.controls = true; audio.src = song.url;
                     audio.style.cssText = 'width:100%;accent-color:#f59e0b;border-radius:8px';
                     card.appendChild(audio);
-                }
-                if (song.lyrics) {
-                    const lyr = document.createElement('pre');
-                    lyr.style.cssText = 'color:#888;font-size:11px;white-space:pre-wrap;margin:0;max-height:80px;overflow:hidden;font-family:inherit';
-                    lyr.textContent = song.lyrics.slice(0, 200) + (song.lyrics.length > 200 ? '...' : '');
-                    card.appendChild(lyr);
+                    const reuseBtn = document.createElement('button');
+                    reuseBtn.type = 'button';
+                    reuseBtn.style.cssText = 'padding:5px 12px;background:#3b82f622;border:1px solid #3b82f666;border-radius:100px;color:#60a5fa;font-size:10px;font-weight:700;cursor:pointer;width:fit-content';
+                    reuseBtn.textContent = `🎤 Usar como referencia de voz (${COSTS.CLONE_VOICE_LATER} 🪙)`;
+                    reuseBtn.addEventListener('click', async () => {
+                        const ok = await confirmDialog('Usar voz de esta pista', `Se clonará la voz de esta canción como referencia permanente para ${currentArtist.name}. Coste: ${COSTS.CLONE_VOICE_LATER} 🪙`, 'Confirmar');
+                        if (!ok) return;
+                        reuseBtn.disabled = true; reuseBtn.textContent = '⏳ Configurando...';
+                        try {
+                            const token = await currentUser.getIdToken();
+                            const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', currentUser.uid);
+                            const isAdmin = await checkAndDeduct(userRef, COSTS.CLONE_VOICE_LATER);
+                            const cloneRes = await callMuapi('suno-voice-clone', { audio_url: song.url }, token);
+                            const voiceId  = cloneRes.voice_id || cloneRes.id;
+                            if (!voiceId) throw new Error('No se obtuvo voice_id.');
+                            await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', currentUser.uid, 'artists', currentArtist.id), { voiceId });
+                            await deduct(userRef, COSTS.CLONE_VOICE_LATER, isAdmin);
+                            currentArtist.voiceId = voiceId;
+                            reuseBtn.textContent = '✓ Voz configurada';
+                            reuseBtn.style.background = '#f59e0b22';
+                            reuseBtn.style.borderColor = '#f59e0b66';
+                            reuseBtn.style.color = '#f59e0b';
+                        } catch (err) {
+                            reuseBtn.disabled = false;
+                            reuseBtn.textContent = `🎤 Usar como referencia de voz (${COSTS.CLONE_VOICE_LATER} 🪙)`;
+                            alert('Error: ' + err.message);
+                        }
+                    });
+                    card.appendChild(reuseBtn);
                 }
                 container.appendChild(card);
             });
         } catch (e) { console.error('[KreateMusic] loadSongs:', e); }
     }
 
-    // ============================================================
-    // PANEL: FOTOS
-    // ============================================================
-    function buildPhotosPanel() {
-        const panel = document.createElement('div');
-        panel.style.cssText = 'flex-direction:column;overflow-y:auto;padding:24px;gap:16px;height:100%';
-
-        const desc = document.createElement('p');
-        desc.style.cssText = 'color:#888;font-size:13px;margin:0';
-        desc.textContent = 'Genera nuevas fotos del artista manteniendo consistencia de rostro y complexión.';
-        panel.appendChild(desc);
-
-        const SCENES = [
-            { id: 'studio',   label: '🎙 Estudio de grabación', prompt: 'in a professional recording studio with microphone and mixing board, cinematic lighting' },
-            { id: 'show',     label: '🎤 Show / Concierto',     prompt: 'on stage performing at a concert, crowd in background, dramatic stage lighting' },
-            { id: 'social',   label: '📱 Redes sociales',       prompt: 'casual social media photo, selfie style, natural lighting, lifestyle' },
-            { id: 'fashion',  label: '👗 Sesión de moda',       prompt: 'high fashion editorial photoshoot, luxury setting, professional photographer' },
-            { id: 'street',   label: '🏙 Urbano / Calle',       prompt: 'urban street photography, city background, golden hour lighting, natural' },
-            { id: 'coffee',   label: '☕ Cafetería / Casual',   prompt: 'sitting at a cafe, casual relaxed vibe, warm coffee shop lighting' },
-            { id: 'custom',   label: '✏️ Personalizado',        prompt: '' },
-        ];
-
-        let selectedScene = SCENES[0];
-        const sceneLabel = document.createElement('p');
-        sceneLabel.style.cssText = 'color:#888;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin:0';
-        sceneLabel.textContent = 'Escenario';
-        panel.appendChild(sceneLabel);
-
-        const sceneGrid = document.createElement('div');
-        sceneGrid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px';
-
-        SCENES.forEach(scene => {
-            const card = document.createElement('div');
-            const isActive = scene.id === selectedScene.id;
-            card.style.cssText = `background:${isActive ? '#f59e0b22' : '#1a1a1a'};border:1px solid ${isActive ? '#f59e0b66' : '#2a2a2a'};border-radius:10px;padding:10px;cursor:pointer;font-size:12px;color:${isActive ? '#f59e0b' : '#888'};font-weight:700;transition:all .15s`;
-            card.textContent = scene.label;
-            card.addEventListener('click', () => {
-                selectedScene = scene;
-                sceneGrid.querySelectorAll('div').forEach(c => {
-                    c.style.background = '#1a1a1a'; c.style.borderColor = '#2a2a2a'; c.style.color = '#888';
-                });
-                card.style.background = '#f59e0b22'; card.style.borderColor = '#f59e0b66'; card.style.color = '#f59e0b';
-                customInput.style.display = scene.id === 'custom' ? 'block' : 'none';
-            });
-            sceneGrid.appendChild(card);
-        });
-        panel.appendChild(sceneGrid);
-
-        const customInput = document.createElement('input');
-        customInput.placeholder = 'Describe el escenario personalizado...';
-        customInput.style.cssText = 'display:none;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:10px 14px;color:#fff;font-size:13px;outline:none;font-family:inherit;width:100%';
-        panel.appendChild(customInput);
-
-        // Fotos existentes
-        const photosLabel = document.createElement('p');
-        photosLabel.style.cssText = 'color:#888;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin:0';
-        photosLabel.textContent = 'Fotos generadas';
-        panel.appendChild(photosLabel);
-
-        const photosGrid = document.createElement('div');
-        photosGrid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px';
-        panel.appendChild(photosGrid);
-        loadPhotos(photosGrid);
-
-        // Botón generar foto
-        const genPhotoBtn = document.createElement('button');
-        genPhotoBtn.style.cssText = 'width:100%;padding:13px;background:#f59e0b;border:none;border-radius:100px;color:#000;font-size:14px;font-weight:700;cursor:pointer;flex-shrink:0;margin-top:auto';
-        genPhotoBtn.innerHTML = `Generar foto <span style="background:rgba(0,0,0,.2);padding:2px 8px;border-radius:100px;font-size:11px;font-family:monospace">${MUSIC_COSTS['nano-banana-2-edit']} 🪙</span>`;
-
-        genPhotoBtn.addEventListener('click', async () => {
-            if (!currentArtist?.referencePhotoUrl) return alert('El artista no tiene foto de referencia.');
-            if (!currentUser) return alert('Debes iniciar sesión.');
-
-            genPhotoBtn.disabled = true;
-            genPhotoBtn.textContent = '⏳ Generando...';
-
-            try {
-                const token = await currentUser.getIdToken();
-                const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', currentUser.uid);
-                const { isAdmin } = await checkCredits(userRef, MUSIC_COSTS['nano-banana-2-edit']);
-
-                const scenePrompt = selectedScene.id === 'custom' ? customInput.value : selectedScene.prompt;
-                const editPrompt = `Same person as in the reference image, ${scenePrompt}, maintain exact facial features, body, hair, skin tone — only change the scene and background. Professional photography, 8K quality.`;
-
-                const res = await callMuapi('nano-banana-2-edit', {
-                    prompt: editPrompt,
-                    images_list: [currentArtist.referencePhotoUrl],
-                    aspect_ratio: '1:1'
-                }, token);
-
-                const rid = res.request_id || res.id;
-                let photoUrl = res.url || res.output?.outputs?.[0] || res.outputs?.[0];
-
-                if (!photoUrl && rid) {
-                    genPhotoBtn.textContent = '⏳ Procesando...';
-                    const result = await pollResult(rid, token, 60, 3000);
-                    photoUrl = result.url;
-                }
-
-                if (!photoUrl) throw new Error('No se generó la foto.');
-
-                await deductCredits(userRef, MUSIC_COSTS['nano-banana-2-edit'], isAdmin);
-
-                await addDoc(
-                    collection(db, 'artifacts', APP_ID, 'public', 'data', 'users', currentUser.uid, 'artists', currentArtist.id, 'photos'),
-                    { url: photoUrl, scene: selectedScene.id, createdAt: serverTimestamp() }
-                );
-
-                // Añadir a la grid
-                addPhotoCard(photoUrl, photosGrid);
-
-            } catch (err) {
-                console.error(err);
-                alert(`Error: ${err.message}`);
-            } finally {
-                genPhotoBtn.disabled = false;
-                genPhotoBtn.innerHTML = `Generar foto <span style="background:rgba(0,0,0,.2);padding:2px 8px;border-radius:100px;font-size:11px;font-family:monospace">${MUSIC_COSTS['nano-banana-2-edit']} 🪙</span>`;
-            }
-        });
-
-        panel.appendChild(genPhotoBtn);
-        return panel;
-    }
-
-    function addPhotoCard(url, grid) {
+    function addPhotoCard(url, grid, ar) {
+        const arMap = { '9:16': 'aspect-ratio:9/16', '16:9': 'aspect-ratio:16/9' };
+        const arStyle = arMap[ar] || 'aspect-ratio:1';
         const card = document.createElement('div');
-        card.style.cssText = 'aspect-ratio:1;border-radius:12px;overflow:hidden;background:#1a1a1a;border:1px solid #2a2a2a;cursor:pointer;animation:fadeUp .3s ease;position:relative;group';
-        card.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover">`;
-        card.addEventListener('click', () => window.open(url, '_blank'));
+        card.className = 'km-card';
+        card.style.cssText = arStyle + ';border-radius:10px;overflow:hidden;background:#1a1a1a;border:1px solid #2a2a2a;cursor:pointer';
+        card.innerHTML = '<img src="' + url + '" style="width:100%;height:100%;object-fit:cover">';
+        card.addEventListener('click', () => openAsBlob(url, 'kreateia-photo'));
         grid.prepend(card);
     }
 
@@ -1291,150 +1274,25 @@ export function KreateMusicStudio() {
         try {
             const q    = query(collection(db, 'artifacts', APP_ID, 'public', 'data', 'users', currentUser.uid, 'artists', currentArtist.id, 'photos'), orderBy('createdAt', 'desc'), limit(30));
             const snap = await getDocs(q);
-            snap.forEach(d => addPhotoCard(d.data().url, grid));
+            snap.forEach(d => addPhotoCard(d.data().url, grid, d.data().aspect_ratio || '1:1'));
         } catch (e) { console.error('[KreateMusic] loadPhotos:', e); }
     }
 
-    // ============================================================
-    // PANEL: VOZ
-    // ============================================================
-    function buildVoicePanel() {
-        const panel = document.createElement('div');
-        panel.style.cssText = 'flex-direction:column;overflow-y:auto;padding:24px;gap:16px;height:100%';
-
-        const info = document.createElement('div');
-        info.style.cssText = 'background:#111;border:1px solid #2a2a2a;border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px';
-
-        const currentVoice = document.createElement('div');
-        currentVoice.innerHTML = `
-            <p style="color:#888;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin:0 0 8px">Configuración actual</p>
-            ${currentArtist?.voiceId
-                ? `<div style="background:#f59e0b11;border:1px solid #f59e0b33;border-radius:10px;padding:10px 14px;color:#f59e0b;font-size:13px">🎤 Voz clonada activa — ID: <code style="font-size:11px">${currentArtist.voiceId}</code></div>`
-                : currentArtist?.voiceStyle
-                    ? `<div style="background:#3b82f611;border:1px solid #3b82f633;border-radius:10px;padding:10px 14px;color:#60a5fa;font-size:13px">🎵 Estilo vocal: "${currentArtist.voiceStyle}"</div>`
-                    : `<div style="background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:10px 14px;color:#555;font-size:13px">Sin configuración de voz</div>`
-            }
-        `;
-        info.appendChild(currentVoice);
-
-        // Actualizar estilo vocal
-        const styleSection = document.createElement('div');
-        styleSection.style.cssText = 'display:flex;flex-direction:column;gap:8px;margin-top:8px';
-        const styleLbl = document.createElement('p');
-        styleLbl.style.cssText = 'color:#888;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin:0';
-        styleLbl.textContent = 'Actualizar estilo vocal';
-        const styleInput = document.createElement('input');
-        styleInput.value = currentArtist?.voiceStyle || '';
-        styleInput.placeholder = 'Ej: voz masculina, profunda, con acento caribeño...';
-        styleInput.style.cssText = 'background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:10px 14px;color:#fff;font-size:13px;outline:none;font-family:inherit';
-        const saveStyleBtn = document.createElement('button');
-        saveStyleBtn.style.cssText = 'padding:8px 20px;background:#3b82f6;border:none;border-radius:100px;color:#fff;font-size:12px;font-weight:700;cursor:pointer;width:fit-content';
-        saveStyleBtn.textContent = 'Guardar estilo';
-        saveStyleBtn.addEventListener('click', async () => {
-            if (!currentUser || !currentArtist) return;
-            try {
-                await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', currentUser.uid, 'artists', currentArtist.id), { voiceStyle: styleInput.value });
-                currentArtist.voiceStyle = styleInput.value;
-                saveStyleBtn.textContent = '✓ Guardado';
-                setTimeout(() => { saveStyleBtn.textContent = 'Guardar estilo'; }, 2000);
-            } catch (e) { alert('Error: ' + e.message); }
-        });
-        styleSection.appendChild(styleLbl);
-        styleSection.appendChild(styleInput);
-        styleSection.appendChild(saveStyleBtn);
-        info.appendChild(styleSection);
-
-        // Clonar nueva voz
-        const cloneSection = document.createElement('div');
-        cloneSection.style.cssText = 'display:flex;flex-direction:column;gap:8px;margin-top:8px;padding-top:16px;border-top:1px solid #1f1f1f';
-        cloneSection.innerHTML = `<p style="color:#888;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin:0">Clonar nueva voz (10 segundos)</p>`;
-
-        const voiceFileInput = document.createElement('input');
-        voiceFileInput.type = 'file'; voiceFileInput.accept = 'audio/*'; voiceFileInput.style.display = 'none';
-        let voiceFileUrl = null;
-
-        const voiceUploadBtn = document.createElement('button');
-        voiceUploadBtn.style.cssText = 'background:#1a1a1a;border:1px dashed #2a2a2a;border-radius:10px;padding:14px;color:#888;font-size:12px;cursor:pointer;width:100%;text-align:center';
-        voiceUploadBtn.textContent = '🎙 Seleccionar audio de 10s';
-        voiceUploadBtn.addEventListener('click', () => voiceFileInput.click());
-        voiceFileInput.addEventListener('change', async (e) => {
-            const file = e.target.files[0]; if (!file) return;
-            voiceUploadBtn.textContent = '⏳ Subiendo...';
-            try {
-                const token = await currentUser.getIdToken();
-                const fd = new FormData(); fd.append('file', file);
-                const resp = await fetch('/api/v1/upload_file', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd });
-                const data = await resp.json();
-                voiceFileUrl = data.url || data.file_url;
-                voiceUploadBtn.textContent = `✓ ${file.name}`;
-                voiceUploadBtn.style.borderColor = '#f59e0b66';
-                voiceUploadBtn.style.color = '#f59e0b';
-            } catch (err) {
-                voiceUploadBtn.textContent = '🎙 Seleccionar audio de 10s';
-                alert('Error: ' + err.message);
-            }
-        });
-
-        const cloneBtn = document.createElement('button');
-        cloneBtn.style.cssText = 'padding:10px 20px;background:#f59e0b;border:none;border-radius:100px;color:#000;font-size:12px;font-weight:700;cursor:pointer;width:fit-content';
-        cloneBtn.textContent = 'Clonar voz (gratis)';
-        cloneBtn.addEventListener('click', async () => {
-            if (!voiceFileUrl) return alert('Sube un audio primero.');
-            cloneBtn.textContent = '⏳ Clonando...';
-            try {
-                const token = await currentUser.getIdToken();
-                const res = await callMuapi('suno-voice-clone', { audio_url: voiceFileUrl }, token);
-                const voiceId = res.voice_id || res.id;
-                if (!voiceId) throw new Error('No se obtuvo voice_id.');
-                await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', currentUser.uid, 'artists', currentArtist.id), { voiceId });
-                currentArtist.voiceId = voiceId;
-                cloneBtn.textContent = '✓ Voz clonada';
-                currentVoice.querySelector('div:last-child').style.cssText = 'background:#f59e0b11;border:1px solid #f59e0b33;border-radius:10px;padding:10px 14px;color:#f59e0b;font-size:13px';
-                currentVoice.querySelector('div:last-child').textContent = `🎤 Voz clonada activa — ID: ${voiceId}`;
-            } catch (err) {
-                cloneBtn.textContent = 'Clonar voz (gratis)';
-                alert('Error: ' + err.message);
-            }
-        });
-
-        cloneSection.appendChild(voiceFileInput);
-        cloneSection.appendChild(voiceUploadBtn);
-        cloneSection.appendChild(cloneBtn);
-        info.appendChild(cloneSection);
-        panel.appendChild(info);
-
-        return panel;
-    }
-
-    // ============================================================
-    // CARGAR ARTISTAS DESDE FIREBASE
-    // ============================================================
     async function loadArtists(user) {
         try {
             const q    = query(collection(db, 'artifacts', APP_ID, 'public', 'data', 'users', user.uid, 'artists'), orderBy('createdAt', 'desc'));
             const snap = await getDocs(q);
-            artists = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            artists    = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         } catch (e) { console.error('[KreateMusic] loadArtists:', e); }
         renderArtistList();
         showView('artistList');
     }
 
-    // ============================================================
-    // AUTH LISTENER
-    // ============================================================
     onAuthStateChanged(auth, (user) => {
-        if (user) {
-            currentUser = user;
-            loadArtists(user);
-        } else {
-            currentUser = null;
-            showView('auth');
-        }
+        if (user) { currentUser = user; loadArtists(user); }
+        else { currentUser = null; showView('auth'); }
     });
 
-    // Init
     showView('auth');
-    renderCreateArtist(); // pre-render for speed
-
     return root;
 }
