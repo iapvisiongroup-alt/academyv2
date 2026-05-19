@@ -4,7 +4,7 @@ import { AuthModal } from './AuthModal.js';
 import { createUploadPicker } from './UploadPicker.js';
 import { createControlBtn, createDropdownSystem } from './dropdowns.js';
 import { auth, db, APP_ID } from '../lib/firebase.js';
-import { collection, addDoc, query, orderBy, limit, getDocs, serverTimestamp, doc, getDoc, updateDoc, increment } from 'firebase/firestore';
+import { collection, addDoc, query, orderBy, limit, getDocs, serverTimestamp, doc } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 
 const ACTIVE_T2I = [{ id: 'nano-banana-2',      name: 'KreateImage 2',      desc: 'Generación de imágenes en alta calidad' }];
@@ -275,15 +275,7 @@ export function ImageStudio() {
         if (!auth.currentUser) return alert('Debes iniciar sesión.');
         if (!imageMode && !promptText) return alert('Por favor, escribe un prompt.');
 
-        const cost    = getModelCost(selectedModel);
-        const userRef = doc(db,'artifacts',APP_ID,'public','data','users',auth.currentUser.uid);
-
-        try {
-            const snap    = await getDoc(userRef);
-            const credits = snap.exists() ? (snap.data().credits || 0) : 0;
-            const isAdmin = snap.exists() && snap.data().role === 'admin';
-            if (!isAdmin && credits < cost) return alert(`⚠️ Saldo insuficiente.\n\nNecesitas ${cost} 🪙 y tienes ${credits} 🪙.`);
-        } catch { return alert('Error verificando saldo.'); }
+        const cost = getModelCost(selectedModel);
 
         galleryHeader.classList.remove('hidden');
         const loadingCard = document.createElement('div');
@@ -326,7 +318,7 @@ export function ImageStudio() {
 
             if (!res?.url) throw new Error('No se recibió URL de la imagen.');
 
-            try { await updateDoc(userRef, { credits: increment(-cost) }); } catch {}
+            // Créditos descontados por el backend
 
             const entry  = { url: res.url, prompt: finalPrompt, model: selectedModel, aspect_ratio: selectedAr, createdAt: serverTimestamp() };
             const docRef = await addDoc(collection(db,'artifacts',APP_ID,'public','data','users',auth.currentUser.uid,'generations'), entry);
