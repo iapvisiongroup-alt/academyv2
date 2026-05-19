@@ -113,8 +113,9 @@ async function firestoreDeductCredits(projectId, docPath, cost, accessToken) {
         headers: { 'Authorization': `Bearer ${accessToken}` }
     });
     if (!readRes.ok) {
+        const errBody = await readRes.text();
         await rollback(baseUrl, transaction, accessToken);
-        throw new Error('Error leyendo créditos');
+        throw new Error(`Error leyendo créditos (${readRes.status}): ${errBody.slice(0, 200)}`);
     }
     const doc = await readRes.json();
 
@@ -275,8 +276,17 @@ export async function onRequest(context) {
     // Si hay coste, verificar créditos
     let uid = null;
     if (cost > 0) {
-        const idToken = (request.headers.get('Authorization') || '').replace('Bearer ', '').trim();
-        if (!idToken) return jsonError('No autenticado', 401);
+        // Leer header — probar varias formas por compatibilidad con Cloudflare
+        const authHeader = request.headers.get('Authorization')
+                        || request.headers.get('authorization')
+                        || '';
+        const idToken = authHeader.startsWith('Bearer ')
+            ? authHeader.slice(7).trim()
+            : authHeader.trim();
+
+        if (!idToken) {
+            return jsonError('No autenticado — header: ' + (authHeader ? 'presente pero vacío' : 'ausente'), 401);
+        }
 
         try {
             uid = await verifyFirebaseToken(idToken, env.FIREBASE_API_KEY);
