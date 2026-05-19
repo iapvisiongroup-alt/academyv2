@@ -7,8 +7,8 @@ import { auth, db, APP_ID } from '../lib/firebase.js';
 import { collection, addDoc, query, orderBy, limit, getDocs, serverTimestamp, doc, getDoc, updateDoc, increment } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 
-const ACTIVE_T2I = [{ id: 'nano-banana-2',      name: 'KreateImage 2',      desc: 'Flux · Alta calidad' }];
-const ACTIVE_I2I = [{ id: 'nano-banana-2-edit',  name: 'KreateImage 2 Edit', desc: 'Flux · Edición con imagen' }];
+const ACTIVE_T2I = [{ id: 'nano-banana-2',      name: 'KreateImage 2',      desc: 'Generación de imágenes en alta calidad' }];
+const ACTIVE_I2I = [{ id: 'nano-banana-2-edit',  name: 'KreateImage 2 Edit', desc: 'Edición de imágenes con IA' }];
 
 const getModelCost = (id) => {
     // Precio MuAPI real + 35% margen. 1 CR = $0.01
