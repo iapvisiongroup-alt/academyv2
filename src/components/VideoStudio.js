@@ -29,12 +29,19 @@ const getApiId = (uiId, mode) => {
     return 'seedance-v2.0-t2v';
 };
 
-const getVideoCost = (apiId, duration) => {
-    const s = parseInt(duration) || 5;
-    let cpp = 2.0;
-    if (apiId.includes('veo'))   cpp = 2.5;
-    if (apiId.includes('kling')) cpp = 3.0;
-    return Math.ceil(s * cpp * 2);
+const getVideoCost = (apiId) => {
+    // Precio MuAPI real + 35% margen. 1 CR = $0.01
+    const costMap = {
+        'seedance-v2.0-t2v':                     0.75,
+        'seedance-2-vip-image-to-video-fast':     1.05,
+        'seedance-2.0-omni-reference-480p':       1.44,
+        'sd-2-vip-extend':                        1.05,
+        'veo3.1-fast-text-to-video':              0.40,
+        'veo3.1-lite-image-to-video':             0.30,
+        'kling-v3.0-std-motion-control':          1.63,
+    };
+    const base = costMap[apiId] || 0.75;
+    return Math.ceil(base * 1.35 * 100);
 };
 
 const AR_LABELS = {
@@ -292,7 +299,7 @@ export function VideoStudio() {
     function updateControlsForModel() {
         const mode       = getCurrentMode();
         const finalApiId = getApiId(selectedUiId, mode);
-        const cost       = getVideoCost(finalApiId, selectedDuration);
+        const cost       = getVideoCost(finalApiId);
 
         updateLabel('v-model-btn-label',    selectedModelName);
         updateLabel('v-ar-btn-label',       selectedAr);
@@ -421,7 +428,7 @@ export function VideoStudio() {
         const promptText  = textarea.value.trim();
         const currentMode = getCurrentMode();
         const finalApiId  = getApiId(selectedUiId, currentMode);
-        const cost        = getVideoCost(finalApiId, selectedDuration);
+        const cost        = getVideoCost(finalApiId);
 
         if (!auth?.currentUser) {
             if (typeof AuthModal === 'function') return AuthModal(() => handleGenerate());
