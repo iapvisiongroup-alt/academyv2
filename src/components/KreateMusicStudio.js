@@ -302,32 +302,38 @@ export function KreateMusicStudio() {
     views.artistList = artistListView;
     root.appendChild(artistListView);
 
+    // Header fijo — fuera de renderArtistList para que el botón no se destruya
+    const artistListHeader = document.createElement('div');
+    artistListHeader.style.cssText = 'display:flex;align-items:center;justify-content:space-between;flex-shrink:0';
+    artistListHeader.innerHTML = '<div><h1 style="color:#fff;font-size:22px;font-weight:900;margin:0">KreateMusic</h1><p style="color:#555;font-size:12px;margin:4px 0 0">Tus artistas de IA</p></div>';
+
+    const newBtn = document.createElement('button');
+    newBtn.type = 'button';
+    newBtn.style.cssText = 'display:flex;align-items:center;gap:6px;padding:10px 18px;background:#f59e0b;border:none;border-radius:100px;color:#000;font-size:13px;font-weight:700;cursor:pointer';
+    newBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 5v14M5 12h14"/></svg> Nuevo artista';
+    newBtn.onclick = (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        renderCreateArtist();
+        showView('createArtist');
+    };
+    artistListHeader.appendChild(newBtn);
+    artistListView.appendChild(artistListHeader);
+
+    // Contenedor de cards — solo esto se recarga
+    const artistGridContainer = document.createElement('div');
+    artistGridContainer.style.cssText = 'display:flex;flex-direction:column;gap:24px;flex:1';
+    artistListView.appendChild(artistGridContainer);
+
     function renderArtistList() {
-        artistListView.innerHTML = '';
-
-        const header = document.createElement('div');
-        header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;flex-shrink:0';
-        const titleEl = document.createElement('div');
-        titleEl.innerHTML = '<h1 style="color:#fff;font-size:22px;font-weight:900;margin:0">KreateMusic</h1><p style="color:#555;font-size:12px;margin:4px 0 0">Tus artistas de IA</p>';
-
-        const newBtn = document.createElement('button');
-        newBtn.type = 'button';
-        newBtn.style.cssText = 'display:flex;align-items:center;gap:6px;padding:10px 18px;background:#f59e0b;border:none;border-radius:100px;color:#000;font-size:13px;font-weight:700;cursor:pointer';
-        newBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M12 5v14M5 12h14"/></svg> Nuevo artista`;
-        newBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            renderCreateArtist();
-            showView('createArtist');
-        });
-        header.appendChild(titleEl);
-        header.appendChild(newBtn);
-        artistListView.appendChild(header);
+        artistGridContainer.innerHTML = '';
+        const header = artistListHeader; // ya está en el DOM, no tocar
 
         if (artists.length === 0) {
             const empty = document.createElement('div');
             empty.style.cssText = 'flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center';
             empty.innerHTML = '<div style="font-size:56px;opacity:.2">🎤</div><p style="color:#fff;font-size:16px;font-weight:700;margin:0">Sin artistas aún</p><p style="color:#555;font-size:13px;margin:0">Crea tu primer artista de IA</p>';
-            artistListView.appendChild(empty);
+            artistGridContainer.appendChild(empty);
             return;
         }
 
@@ -385,7 +391,7 @@ export function KreateMusicStudio() {
             grid.appendChild(card);
         });
 
-        artistListView.appendChild(grid);
+        artistGridContainer.appendChild(grid);
     }
 
     async function deleteArtist(artist) {
