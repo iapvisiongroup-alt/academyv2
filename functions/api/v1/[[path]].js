@@ -1,30 +1,12 @@
 // /functions/api/v1/[[path]].js
-// Backend seguro — verifica créditos ANTES de llamar a MuAPI
+// Backend seguro — usa Firebase REST API (sin firebase-admin SDK)
 
-import { initializeApp, cert, getApps } from 'firebase-admin/app';
-import { getFirestore, FieldValue } from 'firebase-admin/firestore';
-import { getAuth } from 'firebase-admin/auth';
-
-// ─── Inicializar Firebase Admin (una sola vez) ───────────────────────────────
-function getFirebaseAdmin(env) {
-    if (getApps().length > 0) return getApps()[0];
-    return initializeApp({
-        credential: cert({
-            projectId:    env.FIREBASE_PROJECT_ID,
-            clientEmail:  env.FIREBASE_CLIENT_EMAIL,
-            privateKey:   env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-        }),
-    });
-}
-
-// ─── Costes reales por modelo (1 CR = $0.01) ─────────────────────────────────
-// Imagen
+// ─── Costes por modelo ────────────────────────────────────────────────────────
 const IMAGE_COSTS = {
     'nano-banana-2':      16,
     'nano-banana-2-edit':  8,
 };
 
-// Vídeo — coste por 5 segundos * 1.35 margen
 const VIDEO_COST_PER_5S = {
     'seedance-v2.0-t2v':                  0.75,
     'seedance-2-vip-image-to-video-fast': 1.05,
@@ -35,7 +17,6 @@ const VIDEO_COST_PER_5S = {
     'kling-v3.0-std-motion-control':      1.63,
 };
 
-// Música
 const MUSIC_COSTS = {
     'suno-create-music':      20,
     'suno-extend-music':      20,
@@ -49,189 +30,292 @@ const MUSIC_COSTS = {
     'gpt-5-4':                20,
 };
 
-// Artista
-const ARTIST_COSTS = {
-    'create-artist':       30,
-    'create-artist-voice': 80,
-};
-
-// Endpoints que NO requieren créditos (polling de resultados)
-const FREE_ENDPOINTS = new Set([
-    'predictions',
-    'upload_file',
-]);
-
-// ─── Calcular coste según endpoint y body ────────────────────────────────────
 function calculateCost(endpoint, body) {
-    // Polling — gratis
     if (endpoint.startsWith('predictions/')) return 0;
-    if (FREE_ENDPOINTS.has(endpoint)) return 0;
-
-    // Imagen
+    if (endpoint === 'upload_file') return 0;
     if (IMAGE_COSTS[endpoint] !== undefined) return IMAGE_COSTS[endpoint];
-
-    // Vídeo
     if (VIDEO_COST_PER_5S[endpoint] !== undefined) {
-        const duration = parseInt(body?.duration) || 5;
-        const secs     = Math.max(5, duration);
-        const base5s   = VIDEO_COST_PER_5S[endpoint];
+        const secs   = Math.max(5, parseInt(body?.duration) || 5);
+        const base5s = VIDEO_COST_PER_5S[endpoint];
         return Math.ceil((base5s / 5) * secs * 1.35 * 100);
     }
-
-    // Música
     if (MUSIC_COSTS[endpoint] !== undefined) return MUSIC_COSTS[endpoint];
-
-    // Desconocido — cobrar 1 CR de seguridad para que no sea gratis
     return 1;
+}
+
+// ─── Verificar token Firebase con REST API ────────────────────────────────────
+async function verifyFirebaseToken(idToken, firebaseApiKey) {
+    const res = await fetch(
+        `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${firebaseApiKey}`,
+        {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ idToken }),
+        }
+    );
+    if (!res.ok) throw new Error('Token inválido');
+    const data = await res.json();
+    if (!data.users?.[0]?.localId) throw new Error('Token inválido');
+    return data.users[0].localId; // uid
+}
+
+// ─── Firestore REST: leer documento ──────────────────────────────────────────
+async function firestoreGet(projectId, docPath, accessToken) {
+    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/${docPath}`;
+    const res = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+    });
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error(`Firestore GET error: ${res.status}`);
+    return res.json();
+}
+
+// ─── Firestore REST: actualizar campo con transacción ────────────────────────
+async function firestoreDeductCredits(projectId, docPath, cost, accessToken) {
+    const baseUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
+
+    // Iniciar transacción
+    const txRes = await fetch(`${baseUrl}:beginTransaction`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ options: { readWrite: {} } }),
+    });
+    if (!txRes.ok) throw new Error('Error iniciando transacción');
+    const { transaction } = await txRes.json();
+
+    // Leer documento dentro de la transacción
+    const readRes = await fetch(`${baseUrl}/${docPath}?transaction=${transaction}`, {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+    });
+    if (!readRes.ok) {
+        await rollback(baseUrl, transaction, accessToken);
+        throw new Error('Error leyendo créditos');
+    }
+    const doc = await readRes.json();
+
+    const fields  = doc.fields || {};
+    const credits = parseInt(fields.credits?.integerValue || fields.credits?.doubleValue || 0);
+    const isAdmin = fields.role?.stringValue === 'admin';
+
+    if (isAdmin) {
+        // Rollback — admin no paga
+        await rollback(baseUrl, transaction, accessToken);
+        return { ok: true, isAdmin: true };
+    }
+
+    if (credits < cost) {
+        await rollback(baseUrl, transaction, accessToken);
+        return { ok: false, credits, cost, message: `Saldo insuficiente. Necesitas ${cost} 🪙 y tienes ${credits} 🪙.` };
+    }
+
+    // Commit con el nuevo valor
+    const newCredits = credits - cost;
+    const commitRes = await fetch(`${baseUrl}:commit`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            transaction,
+            writes: [{
+                update: {
+                    name: `projects/${projectId}/databases/(default)/documents/${docPath}`,
+                    fields: { credits: { integerValue: newCredits.toString() } },
+                },
+                updateMask: { fieldPaths: ['credits'] },
+            }],
+        }),
+    });
+
+    if (!commitRes.ok) throw new Error('Error committing transacción');
+    return { ok: true, isAdmin: false };
+}
+
+async function firestoreRefund(projectId, docPath, cost, accessToken) {
+    const baseUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
+    // Leer créditos actuales
+    const readRes = await fetch(`${baseUrl}/${docPath}`, {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+    });
+    if (!readRes.ok) return;
+    const doc    = await readRes.json();
+    const fields = doc.fields || {};
+    const credits = parseInt(fields.credits?.integerValue || 0);
+    const isAdmin = fields.role?.stringValue === 'admin';
+    if (isAdmin) return;
+
+    await fetch(`${baseUrl}:commit`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            writes: [{
+                update: {
+                    name: `projects/${projectId}/databases/(default)/documents/${docPath}`,
+                    fields: { credits: { integerValue: (credits + cost).toString() } },
+                },
+                updateMask: { fieldPaths: ['credits'] },
+            }],
+        }),
+    });
+}
+
+async function rollback(baseUrl, transaction, accessToken) {
+    await fetch(`${baseUrl}:rollback`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ transaction }),
+    }).catch(() => {});
+}
+
+// ─── Obtener access token con Service Account ─────────────────────────────────
+async function getServiceAccountToken(env) {
+    // JWT firmado con la clave privada de la Service Account
+    const now     = Math.floor(Date.now() / 1000);
+    const payload = {
+        iss:   env.FIREBASE_CLIENT_EMAIL,
+        sub:   env.FIREBASE_CLIENT_EMAIL,
+        aud:   'https://oauth2.googleapis.com/token',
+        iat:   now,
+        exp:   now + 3600,
+        scope: 'https://www.googleapis.com/auth/datastore',
+    };
+
+    const privateKey = env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n');
+    const token      = await signJWT(payload, privateKey);
+
+    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${token}`,
+    });
+
+    if (!tokenRes.ok) {
+        const err = await tokenRes.text();
+        throw new Error(`Error obteniendo access token: ${err}`);
+    }
+
+    const { access_token } = await tokenRes.json();
+    return access_token;
+}
+
+// ─── Firmar JWT con WebCrypto (disponible en Cloudflare Workers) ──────────────
+async function signJWT(payload, pemKey) {
+    const header  = { alg: 'RS256', typ: 'JWT' };
+    const b64Head = btoa(JSON.stringify(header)).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+    const b64Pay  = btoa(JSON.stringify(payload)).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+    const unsigned = `${b64Head}.${b64Pay}`;
+
+    // Importar clave privada PEM
+    const pemBody = pemKey
+        .replace('-----BEGIN PRIVATE KEY-----', '')
+        .replace('-----END PRIVATE KEY-----', '')
+        .replace(/\s/g, '');
+    const der     = Uint8Array.from(atob(pemBody), c => c.charCodeAt(0));
+    const cryptoKey = await crypto.subtle.importKey(
+        'pkcs8', der.buffer,
+        { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+        false, ['sign']
+    );
+
+    const sig = await crypto.subtle.sign(
+        'RSASSA-PKCS1-v1_5',
+        cryptoKey,
+        new TextEncoder().encode(unsigned)
+    );
+
+    const b64Sig = btoa(String.fromCharCode(...new Uint8Array(sig)))
+        .replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+
+    return `${unsigned}.${b64Sig}`;
 }
 
 // ─── Handler principal ────────────────────────────────────────────────────────
 export async function onRequest(context) {
     const { request, env, params } = context;
 
-    // Validar API key de MuAPI
-    if (!env.MUAPI_KEY) {
-        return jsonError('API Key no configurada en el servidor', 500);
-    }
+    if (!env.MUAPI_KEY) return jsonError('API Key no configurada', 500);
 
     const endpoint  = params.path.join('/');
     const targetUrl = `https://api.muapi.ai/api/v1/${endpoint}`;
 
-    // ── Leer body ──
-    let body = {};
-    let rawBody = '';
-    const contentType = request.headers.get('content-type') || '';
-    if (request.method === 'POST' && contentType.includes('application/json')) {
-        try {
-            rawBody = await request.text();
-            body    = JSON.parse(rawBody);
-        } catch { rawBody = ''; }
+    // Leer body
+    let body = {}, rawBody = '';
+    if (request.method === 'POST') {
+        try { rawBody = await request.text(); body = JSON.parse(rawBody); } catch {}
     }
 
-    // ── Calcular coste ──
     const cost = calculateCost(endpoint, body);
 
-    // ── Si hay coste > 0, verificar y descontar créditos ──
+    // Si hay coste, verificar créditos
+    let uid = null;
     if (cost > 0) {
-        // Verificar token Firebase del usuario
-        const authHeader = request.headers.get('Authorization') || '';
-        const idToken    = authHeader.replace('Bearer ', '').trim();
+        const idToken = (request.headers.get('Authorization') || '').replace('Bearer ', '').trim();
+        if (!idToken) return jsonError('No autenticado', 401);
 
-        if (!idToken) {
-            return jsonError('No autenticado. Inicia sesión para continuar.', 401);
+        try {
+            uid = await verifyFirebaseToken(idToken, env.FIREBASE_API_KEY);
+        } catch {
+            return jsonError('Token inválido o expirado', 401);
         }
 
-        let uid;
         try {
-            const app      = getFirebaseAdmin(env);
-            const fbAuth   = getAuth(app);
-            const decoded  = await fbAuth.verifyIdToken(idToken);
-            uid = decoded.uid;
-        } catch (authErr) {
-            return jsonError('Token inválido o expirado. Vuelve a iniciar sesión.', 401);
-        }
+            const accessToken = await getServiceAccountToken(env);
+            const docPath     = `artifacts/${env.FIREBASE_APP_ID}/public/data/users/${uid}`;
+            const result      = await firestoreDeductCredits(env.FIREBASE_PROJECT_ID, docPath, cost, accessToken);
 
-        // Descontar créditos con transacción atómica
-        try {
-            const app = getFirebaseAdmin(env);
-            const db  = getFirestore(app);
-            const APP_ID = env.FIREBASE_APP_ID || 'default';
-
-            const userRef = db
-                .collection('artifacts')
-                .doc(APP_ID)
-                .collection('public')
-                .doc('data')
-                .collection('users')
-                .doc(uid);
-
-            // Transacción: leer + verificar + descontar en una sola operación atómica
-            const result = await db.runTransaction(async (tx) => {
-                const snap    = await tx.get(userRef);
-                const data    = snap.exists ? snap.data() : {};
-                const isAdmin = data.role === 'admin';
-
-                if (isAdmin) return { ok: true, isAdmin: true };
-
-                const credits = data.credits || 0;
-                if (credits < cost) {
-                    return {
-                        ok:      false,
-                        credits,
-                        cost,
-                        message: `Saldo insuficiente. Necesitas ${cost} 🪙 y tienes ${credits} 🪙.`,
-                    };
-                }
-
-                tx.update(userRef, { credits: FieldValue.increment(-cost) });
-                return { ok: true, isAdmin: false };
-            });
-
-            if (!result.ok) {
-                return jsonError(result.message, 402);
-            }
-        } catch (dbErr) {
-            console.error('[API] Error en transacción de créditos:', dbErr);
-            return jsonError('Error procesando créditos. Inténtalo de nuevo.', 500);
+            if (!result.ok) return jsonError(result.message, 402);
+        } catch (e) {
+            console.error('[API] Error créditos:', e.message);
+            return jsonError('Error procesando créditos: ' + e.message, 500);
         }
     }
 
-    // ── Llamar a MuAPI ──
+    // Llamar a MuAPI
+    let muapiResponse, responseBody;
     try {
-        const muapiRequest = new Request(targetUrl, {
+        muapiResponse = await fetch(targetUrl, {
             method:  request.method,
-            headers: new Headers({
-                'Content-Type': 'application/json',
-                'x-api-key':   env.MUAPI_KEY,
-            }),
-            body: request.method !== 'GET' && request.method !== 'HEAD'
-                ? (rawBody || null)
-                : null,
+            headers: new Headers({ 'Content-Type': 'application/json', 'x-api-key': env.MUAPI_KEY }),
+            body:    request.method !== 'GET' ? (rawBody || null) : null,
         });
-
-        const muapiResponse = await fetch(muapiRequest);
-        const responseBody  = await muapiResponse.text();
-
-        // Si MuAPI falla DESPUÉS de descontar créditos, intentar reembolsar
-        if (!muapiResponse.ok && cost > 0) {
+        responseBody = await muapiResponse.text();
+    } catch (e) {
+        // Reembolsar si MuAPI falla
+        if (cost > 0 && uid) {
             try {
-                const authHeader = request.headers.get('Authorization') || '';
-                const idToken    = authHeader.replace('Bearer ', '').trim();
-                const app        = getFirebaseAdmin(env);
-                const fbAuth     = getAuth(app);
-                const decoded    = await fbAuth.verifyIdToken(idToken);
-                const db         = getFirestore(app);
-                const APP_ID     = env.FIREBASE_APP_ID || 'default';
-
-                const userRef = db
-                    .collection('artifacts').doc(APP_ID)
-                    .collection('public').doc('data')
-                    .collection('users').doc(decoded.uid);
-
-                const snap = await userRef.get();
-                if (snap.exists && snap.data().role !== 'admin') {
-                    await userRef.update({ credits: FieldValue.increment(cost) });
-                    console.log('[API] Créditos reembolsados:', cost, 'uid:', decoded.uid);
-                }
-            } catch (refundErr) {
-                console.error('[API] Error reembolsando créditos:', refundErr);
-            }
+                const accessToken = await getServiceAccountToken(env);
+                const docPath     = `artifacts/${env.FIREBASE_APP_ID}/public/data/users/${uid}`;
+                await firestoreRefund(env.FIREBASE_PROJECT_ID, docPath, cost, accessToken);
+            } catch {}
         }
-
-        return new Response(responseBody, {
-            status:  muapiResponse.status,
-            headers: {
-                'Content-Type': muapiResponse.headers.get('content-type') || 'application/json',
-                'Access-Control-Allow-Origin': '*',
-            },
-        });
-
-    } catch (fetchErr) {
-        return jsonError(`Error conectando con el servicio: ${fetchErr.message}`, 502);
+        return jsonError('Error conectando con el servicio: ' + e.message, 502);
     }
+
+    // Reembolsar si MuAPI devuelve error
+    if (!muapiResponse.ok && cost > 0 && uid) {
+        try {
+            const accessToken = await getServiceAccountToken(env);
+            const docPath     = `artifacts/${env.FIREBASE_APP_ID}/public/data/users/${uid}`;
+            await firestoreRefund(env.FIREBASE_PROJECT_ID, docPath, cost, accessToken);
+            console.log('[API] Reembolso aplicado:', cost, 'uid:', uid);
+        } catch (e) {
+            console.error('[API] Error en reembolso:', e.message);
+        }
+    }
+
+    return new Response(responseBody, {
+        status:  muapiResponse.status,
+        headers: {
+            'Content-Type': muapiResponse.headers.get('content-type') || 'application/json',
+            'Access-Control-Allow-Origin': '*',
+        },
+    });
 }
 
-// ── OPTIONS para CORS ──
 export async function onRequestOptions() {
     return new Response(null, {
         status: 204,
