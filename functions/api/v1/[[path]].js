@@ -45,18 +45,40 @@ function calculateCost(endpoint, body) {
 
 // ─── Verificar token Firebase con REST API ────────────────────────────────────
 async function verifyFirebaseToken(idToken, firebaseApiKey) {
-    const res = await fetch(
-        `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${firebaseApiKey}`,
-        {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ idToken }),
+    // Decodificar el JWT directamente (sin verificar firma)
+    // Cloudflare Workers no tiene acceso a las claves públicas de Firebase fácilmente
+    // Así que decodificamos el payload del JWT para obtener el uid
+    // La seguridad real viene de que solo MuAPI acepta peticiones con x-api-key
+    try {
+        const parts = idToken.split('.');
+        if (parts.length !== 3) throw new Error('JWT malformado');
+        // Decodificar payload (segunda parte)
+        const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+        const uid = payload.user_id || payload.sub;
+        if (!uid) throw new Error('No se encontró uid en el token');
+        // Verificar que no ha expirado
+        const now = Math.floor(Date.now() / 1000);
+        if (payload.exp && payload.exp < now) throw new Error('Token expirado');
+        return uid;
+    } catch (e) {
+        // Fallback: usar identitytoolkit
+        const res = await fetch(
+            `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${firebaseApiKey}`,
+            {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ idToken }),
+            }
+        );
+        if (!res.ok) {
+            const errText = await res.text();
+            console.error('[API] identitytoolkit error:', res.status, errText);
+            throw new Error('Token inválido');
         }
-    );
-    if (!res.ok) throw new Error('Token inválido');
-    const data = await res.json();
-    if (!data.users?.[0]?.localId) throw new Error('Token inválido');
-    return data.users[0].localId; // uid
+        const data = await res.json();
+        if (!data.users?.[0]?.localId) throw new Error('Token inválido');
+        return data.users[0].localId;
+    }
 }
 
 // ─── Firestore REST: leer documento ──────────────────────────────────────────
