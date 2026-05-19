@@ -1,5 +1,4 @@
 // /functions/api/v1/[[path]].js
-// Backend seguro — usa Firebase REST API (sin firebase-admin SDK)
 
 // ─── Costes por modelo ────────────────────────────────────────────────────────
 const IMAGE_COSTS = {
@@ -32,8 +31,8 @@ const MUSIC_COSTS = {
 
 function calculateCost(endpoint, body) {
     if (endpoint.startsWith('predictions/')) return 0;
-    if (endpoint === 'upload_file') return 0;
-    if (IMAGE_COSTS[endpoint] !== undefined) return IMAGE_COSTS[endpoint];
+    if (endpoint === 'upload_file')           return 0;
+    if (IMAGE_COSTS[endpoint] !== undefined)  return IMAGE_COSTS[endpoint];
     if (VIDEO_COST_PER_5S[endpoint] !== undefined) {
         const secs   = Math.max(5, parseInt(body?.duration) || 5);
         const base5s = VIDEO_COST_PER_5S[endpoint];
@@ -43,61 +42,35 @@ function calculateCost(endpoint, body) {
     return 1;
 }
 
-// ─── Verificar token Firebase con REST API ────────────────────────────────────
+// ─── Verificar token con Firebase identitytoolkit ─────────────────────────────
 async function verifyFirebaseToken(idToken, firebaseApiKey) {
-    // Decodificar el JWT directamente (sin verificar firma)
-    // Cloudflare Workers no tiene acceso a las claves públicas de Firebase fácilmente
-    // Así que decodificamos el payload del JWT para obtener el uid
-    // La seguridad real viene de que solo MuAPI acepta peticiones con x-api-key
-    try {
-        const parts = idToken.split('.');
-        if (parts.length !== 3) throw new Error('JWT malformado');
-        // Decodificar payload (segunda parte)
-        const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
-        const uid = payload.user_id || payload.sub;
-        if (!uid) throw new Error('No se encontró uid en el token');
-        // Verificar que no ha expirado
-        const now = Math.floor(Date.now() / 1000);
-        if (payload.exp && payload.exp < now) throw new Error('Token expirado');
-        return uid;
-    } catch (e) {
-        // Fallback: usar identitytoolkit
-        const res = await fetch(
-            `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${firebaseApiKey}`,
-            {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ idToken }),
-            }
-        );
-        if (!res.ok) {
-            const errText = await res.text();
-            console.error('[API] identitytoolkit error:', res.status, errText);
-            throw new Error('Token inválido');
+    const res = await fetch(
+        `https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${firebaseApiKey}`,
+        {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ idToken }),
         }
-        const data = await res.json();
-        if (!data.users?.[0]?.localId) throw new Error('Token inválido');
-        return data.users[0].localId;
+    );
+
+    if (!res.ok) {
+        const errText = await res.text();
+        console.error('[API] identitytoolkit error:', res.status, errText);
+        throw new Error('Token inválido');
     }
+
+    const data = await res.json();
+    const uid  = data.users?.[0]?.localId;
+    if (!uid) throw new Error('Token inválido');
+    return uid;
 }
 
-// ─── Firestore REST: leer documento ──────────────────────────────────────────
-async function firestoreGet(projectId, docPath, accessToken) {
-    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents/${docPath}`;
-    const res = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${accessToken}` }
-    });
-    if (res.status === 404) return null;
-    if (!res.ok) throw new Error(`Firestore GET error: ${res.status}`);
-    return res.json();
-}
-
-// ─── Firestore REST: actualizar campo con transacción ────────────────────────
-async function firestoreDeductCredits(projectId, docPath, cost, accessToken) {
+// ─── Firestore: descontar créditos con precondición updateTime ────────────────
+async function firestoreDeductCredits(projectId, docPath, cost, accessToken, attempt = 0) {
     const baseUrl  = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
     const fullName = `projects/${projectId}/databases/(default)/documents/${docPath}`;
 
-    // 1. Leer el documento
+    // 1. Leer documento
     const readRes = await fetch(`${baseUrl}/${docPath}`, {
         headers: { 'Authorization': `Bearer ${accessToken}` }
     });
@@ -107,43 +80,49 @@ async function firestoreDeductCredits(projectId, docPath, cost, accessToken) {
         throw new Error(`Error leyendo créditos (${readRes.status}): ${errBody.slice(0, 200)}`);
     }
 
-    const doc     = await readRes.json();
-    const fields  = doc.fields || {};
-    const credits = parseInt(fields.credits?.integerValue ?? fields.credits?.doubleValue ?? 0);
-    const isAdmin = fields.role?.stringValue === 'admin';
+    const doc      = await readRes.json();
+    const fields   = doc.fields || {};
+    const credits  = parseInt(fields.credits?.integerValue ?? fields.credits?.doubleValue ?? 0);
+    const isAdmin  = fields.role?.stringValue === 'admin';
 
     if (isAdmin) return { ok: true, isAdmin: true };
 
     if (credits < cost) {
-        return { ok: false, credits, cost, message: `Saldo insuficiente. Necesitas ${cost} 🪙 y tienes ${credits} 🪙.` };
+        return {
+            ok:      false,
+            credits,
+            cost,
+            message: `Saldo insuficiente. Necesitas ${cost} 🪙 y tienes ${credits} 🪙.`,
+        };
     }
 
-    // 2. Actualizar con precondición (updateTime) para evitar race conditions
-    const updateTime = doc.updateTime;
+    // 2. Escribir con precondición updateTime (atómico)
     const newCredits = credits - cost;
-
-    const body = {
-        writes: [{
-            update: {
-                name:   fullName,
-                fields: { credits: { integerValue: String(newCredits) } },
-            },
-            updateMask: { fieldPaths: ['credits'] },
-            currentDocument: { updateTime },
-        }],
-    };
-
-    const commitRes = await fetch(`${baseUrl}:commit`, {
+    const commitRes  = await fetch(`${baseUrl}:commit`, {
         method:  'POST',
         headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-        body:    JSON.stringify(body),
+        body: JSON.stringify({
+            writes: [{
+                update: {
+                    name:   fullName,
+                    fields: { credits: { integerValue: String(newCredits) } },
+                },
+                updateMask:      { fieldPaths: ['credits'] },
+                currentDocument: { updateTime: doc.updateTime },
+            }],
+        }),
     });
 
     if (!commitRes.ok) {
         const errBody = await commitRes.text();
-        // Si falla por precondición (otro proceso actualizó el doc), reintentar una vez
-        if (commitRes.status === 409) {
-            return firestoreDeductCredits(projectId, docPath, cost, accessToken);
+        // Reintentar hasta 3 veces si hay conflicto de escritura concurrente
+        if (
+            attempt < 3 &&
+            (commitRes.status === 409 ||
+             errBody.includes('ABORTED') ||
+             errBody.includes('FAILED_PRECONDITION'))
+        ) {
+            return firestoreDeductCredits(projectId, docPath, cost, accessToken, attempt + 1);
         }
         throw new Error(`Error actualizando créditos (${commitRes.status}): ${errBody.slice(0, 200)}`);
     }
@@ -151,39 +130,40 @@ async function firestoreDeductCredits(projectId, docPath, cost, accessToken) {
     return { ok: true, isAdmin: false };
 }
 
+// ─── Firestore: reembolsar créditos ──────────────────────────────────────────
 async function firestoreRefund(projectId, docPath, cost, accessToken) {
-    const baseUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
-    // Leer créditos actuales
+    const baseUrl  = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
+    const fullName = `projects/${projectId}/databases/(default)/documents/${docPath}`;
+
     const readRes = await fetch(`${baseUrl}/${docPath}`, {
         headers: { 'Authorization': `Bearer ${accessToken}` }
     });
     if (!readRes.ok) return;
-    const doc    = await readRes.json();
-    const fields = doc.fields || {};
-    const credits = parseInt(fields.credits?.integerValue || 0);
+
+    const doc     = await readRes.json();
+    const fields  = doc.fields || {};
+    const credits = parseInt(fields.credits?.integerValue ?? 0);
     const isAdmin = fields.role?.stringValue === 'admin';
     if (isAdmin) return;
 
     await fetch(`${baseUrl}:commit`, {
-        method: 'POST',
+        method:  'POST',
         headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
             writes: [{
                 update: {
-                    name: `projects/${projectId}/databases/(default)/documents/${docPath}`,
-                    fields: { credits: { integerValue: (credits + cost).toString() } },
+                    name:   fullName,
+                    fields: { credits: { integerValue: String(credits + cost) } },
                 },
-                updateMask: { fieldPaths: ['credits'] },
+                updateMask:      { fieldPaths: ['credits'] },
+                currentDocument: { updateTime: doc.updateTime },
             }],
         }),
     });
 }
 
-
-
-// ─── Obtener access token con Service Account ─────────────────────────────────
+// ─── Obtener access token con Service Account (WebCrypto) ─────────────────────
 async function getServiceAccountToken(env) {
-    // JWT firmado con la clave privada de la Service Account
     const now     = Math.floor(Date.now() / 1000);
     const payload = {
         iss:   env.FIREBASE_CLIENT_EMAIL,
@@ -195,50 +175,44 @@ async function getServiceAccountToken(env) {
     };
 
     const privateKey = env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n');
-    const token      = await signJWT(payload, privateKey);
+    const jwt        = await signJWT(payload, privateKey);
 
     const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
-        method: 'POST',
+        method:  'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${token}`,
+        body:    `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`,
     });
 
     if (!tokenRes.ok) {
         const err = await tokenRes.text();
-        throw new Error(`Error obteniendo access token: ${err}`);
+        throw new Error(`Error obteniendo access token: ${err.slice(0, 200)}`);
     }
 
     const { access_token } = await tokenRes.json();
     return access_token;
 }
 
-// ─── Firmar JWT con WebCrypto (disponible en Cloudflare Workers) ──────────────
 async function signJWT(payload, pemKey) {
-    const header  = { alg: 'RS256', typ: 'JWT' };
-    const b64Head = btoa(JSON.stringify(header)).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
-    const b64Pay  = btoa(JSON.stringify(payload)).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+    const header   = { alg: 'RS256', typ: 'JWT' };
+    const b64u     = s => btoa(s).replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+    const b64Head  = b64u(JSON.stringify(header));
+    const b64Pay   = b64u(JSON.stringify(payload));
     const unsigned = `${b64Head}.${b64Pay}`;
 
-    // Importar clave privada PEM
-    const pemBody = pemKey
+    const pemBody  = pemKey
         .replace('-----BEGIN PRIVATE KEY-----', '')
         .replace('-----END PRIVATE KEY-----', '')
         .replace(/\s/g, '');
-    const der     = Uint8Array.from(atob(pemBody), c => c.charCodeAt(0));
+    const der      = Uint8Array.from(atob(pemBody), c => c.charCodeAt(0));
+
     const cryptoKey = await crypto.subtle.importKey(
         'pkcs8', der.buffer,
         { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
         false, ['sign']
     );
 
-    const sig = await crypto.subtle.sign(
-        'RSASSA-PKCS1-v1_5',
-        cryptoKey,
-        new TextEncoder().encode(unsigned)
-    );
-
-    const b64Sig = btoa(String.fromCharCode(...new Uint8Array(sig)))
-        .replace(/=/g,'').replace(/\+/g,'-').replace(/\//g,'_');
+    const sig    = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', cryptoKey, new TextEncoder().encode(unsigned));
+    const b64Sig = b64u(String.fromCharCode(...new Uint8Array(sig)));
 
     return `${unsigned}.${b64Sig}`;
 }
@@ -249,48 +223,45 @@ export async function onRequest(context) {
 
     if (!env.MUAPI_KEY) return jsonError('API Key no configurada', 500);
 
-    const endpoint  = params.path.join('/');
-    const targetUrl = `https://api.muapi.ai/api/v1/${endpoint}`;
+    const endpoint    = params.path.join('/');
+    const targetUrl   = `https://api.muapi.ai/api/v1/${endpoint}`;
+    const contentType = request.headers.get('Content-Type') || '';
 
-    // Leer body
-    let body = {}, rawBody = '';
-    if (request.method === 'POST') {
-        try { rawBody = await request.text(); body = JSON.parse(rawBody); } catch {}
+    // ── Leer body respetando Content-Type ──
+    let body = {}, rawBody = null;
+    if (request.method !== 'GET' && request.method !== 'HEAD') {
+        if (contentType.includes('application/json')) {
+            const text = await request.text();
+            rawBody = text;
+            try { body = JSON.parse(text || '{}'); } catch {}
+        } else {
+            // multipart/form-data u otros (upload_file)
+            rawBody = await request.arrayBuffer();
+        }
     }
 
     const cost = calculateCost(endpoint, body);
 
-    // Si hay coste, verificar créditos
+    // ── Verificar y descontar créditos ──
     let uid = null;
     if (cost > 0) {
-        // Leer header — probar varias formas por compatibilidad con Cloudflare
-        const authHeader = request.headers.get('Authorization')
-                        || request.headers.get('authorization')
-                        || '';
-        const idToken = authHeader.startsWith('Bearer ')
-            ? authHeader.slice(7).trim()
-            : authHeader.trim();
+        const authHeader = request.headers.get('Authorization') || request.headers.get('authorization') || '';
+        const idToken    = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : authHeader.trim();
 
-        if (!idToken) {
-            return jsonError('No autenticado — header: ' + (authHeader ? 'presente pero vacío' : 'ausente'), 401);
-        }
+        if (!idToken) return jsonError('No autenticado', 401);
 
         try {
             uid = await verifyFirebaseToken(idToken, env.FIREBASE_API_KEY);
         } catch (e) {
-            return jsonError('ERROR_TOKEN: ' + e.message + ' | API_KEY_OK: ' + (env.FIREBASE_API_KEY ? 'SI' : 'NO'), 401);
+            return jsonError('Token inválido o expirado', 401);
         }
 
-        try {
-            const missingVars = [];
-            if (!env.FIREBASE_CLIENT_EMAIL) missingVars.push('FIREBASE_CLIENT_EMAIL');
-            if (!env.FIREBASE_PRIVATE_KEY)  missingVars.push('FIREBASE_PRIVATE_KEY');
-            if (!env.FIREBASE_PROJECT_ID)   missingVars.push('FIREBASE_PROJECT_ID');
-            if (!env.FIREBASE_APP_ID)       missingVars.push('FIREBASE_APP_ID');
-            if (missingVars.length > 0) {
-                return jsonError('Variables de entorno faltantes: ' + missingVars.join(', '), 500);
-            }
+        // Verificar variables de entorno
+        const missing = ['FIREBASE_CLIENT_EMAIL','FIREBASE_PRIVATE_KEY','FIREBASE_PROJECT_ID','FIREBASE_APP_ID']
+            .filter(k => !env[k]);
+        if (missing.length > 0) return jsonError('Config incompleta: ' + missing.join(', '), 500);
 
+        try {
             const accessToken = await getServiceAccountToken(env);
             const docPath     = `artifacts/${env.FIREBASE_APP_ID}/public/data/users/${uid}`;
             const result      = await firestoreDeductCredits(env.FIREBASE_PROJECT_ID, docPath, cost, accessToken);
@@ -300,17 +271,20 @@ export async function onRequest(context) {
         }
     }
 
-    // Llamar a MuAPI
+    // ── Llamar a MuAPI ──
     let muapiResponse, responseBody;
     try {
+        const muapiHeaders = new Headers({ 'x-api-key': env.MUAPI_KEY });
+        if (contentType) muapiHeaders.set('Content-Type', contentType);
+
         muapiResponse = await fetch(targetUrl, {
             method:  request.method,
-            headers: new Headers({ 'Content-Type': 'application/json', 'x-api-key': env.MUAPI_KEY }),
-            body:    request.method !== 'GET' ? (rawBody || null) : null,
+            headers: muapiHeaders,
+            body:    request.method !== 'GET' && request.method !== 'HEAD' ? rawBody : null,
         });
         responseBody = await muapiResponse.text();
     } catch (e) {
-        // Reembolsar si MuAPI falla
+        // Reembolsar si MuAPI falla con error de red
         if (cost > 0 && uid) {
             try {
                 const accessToken = await getServiceAccountToken(env);
@@ -327,7 +301,6 @@ export async function onRequest(context) {
             const accessToken = await getServiceAccountToken(env);
             const docPath     = `artifacts/${env.FIREBASE_APP_ID}/public/data/users/${uid}`;
             await firestoreRefund(env.FIREBASE_PROJECT_ID, docPath, cost, accessToken);
-            console.log('[API] Reembolso aplicado:', cost, 'uid:', uid);
         } catch (e) {
             console.error('[API] Error en reembolso:', e.message);
         }
@@ -336,7 +309,7 @@ export async function onRequest(context) {
     return new Response(responseBody, {
         status:  muapiResponse.status,
         headers: {
-            'Content-Type': muapiResponse.headers.get('content-type') || 'application/json',
+            'Content-Type':                muapiResponse.headers.get('content-type') || 'application/json',
             'Access-Control-Allow-Origin': '*',
         },
     });
@@ -344,7 +317,7 @@ export async function onRequest(context) {
 
 export async function onRequestOptions() {
     return new Response(null, {
-        status: 204,
+        status:  204,
         headers: {
             'Access-Control-Allow-Origin':  '*',
             'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
