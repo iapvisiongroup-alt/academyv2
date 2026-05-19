@@ -759,18 +759,22 @@ export function KreateMusicStudio() {
         TOOLS.forEach(tool => {
             const card = document.createElement('div');
             const isActive = tool.id === selectedTool;
-            card.style.cssText = `background:${isActive ? '#f59e0b22' : '#1a1a1a'};border:${isActive ? '2px solid #f59e0b66' : '1px solid #2a2a2a'};border-radius:10px;padding:8px 6px;cursor:pointer;text-align:center;transition:all .15s`;
-            card.innerHTML = `<div style="font-size:16px">${tool.icon}</div><div style="color:${isActive ? '#f59e0b' : '#888'};font-size:10px;font-weight:700;margin-top:2px;line-height:1.2">${tool.label}</div>`;
+            card.className = 'km-tool-card';
+            card.dataset.toolId = tool.id;
+            card.style.cssText = `background:${isActive ? '#f59e0b22' : '#1a1a1a'};border:${isActive ? '2px solid #f59e0b' : '1px solid #2a2a2a'};border-radius:10px;padding:8px 6px;cursor:pointer;text-align:center;transition:all .15s;box-shadow:${isActive ? '0 0 12px rgba(245,158,11,.2)' : 'none'}`;
+            card.innerHTML = `<div class="tool-icon" style="font-size:16px">${tool.icon}</div><div class="tool-label" style="color:${isActive ? '#f59e0b' : '#888'};font-size:10px;font-weight:700;margin-top:2px;line-height:1.2">${tool.label}</div>`;
 
             card.addEventListener('click', () => {
                 selectedTool = tool.id;
-                toolGrid.querySelectorAll('div').forEach((c, i) => {
-                    const t = TOOLS[i];
-                    const active = t?.id === tool.id;
-                    c.style.background   = active ? '#f59e0b22' : '#1a1a1a';
-                    c.style.border       = active ? '2px solid #f59e0b66' : '1px solid #2a2a2a';
-                    const lbl = c.querySelector('div:last-child');
-                    if (lbl) lbl.style.color = active ? '#f59e0b' : '#888';
+                // Resetear todos los cards usando referencia directa al array
+                toolGrid.querySelectorAll('.km-tool-card').forEach(c => {
+                    const isActive = c.dataset.toolId === tool.id;
+                    c.style.background = isActive ? '#f59e0b22' : '#1a1a1a';
+                    c.style.border     = isActive ? '2px solid #f59e0b' : '1px solid #2a2a2a';
+                    const icon = c.querySelector('.tool-icon');
+                    const lbl  = c.querySelector('.tool-label');
+                    if (icon) icon.style.filter = isActive ? 'none' : 'grayscale(0)';
+                    if (lbl)  lbl.style.color   = isActive ? '#f59e0b' : '#888';
                 });
                 renderToolPanel(tool.id, toolPanelContainer);
             });
@@ -1005,16 +1009,19 @@ export function KreateMusicStudio() {
         const makeTypeCard = (icon, title, sub, mode) => {
             const c = document.createElement('div');
             const active = mode === songType;
-            c.style.cssText = `background:${active ? '#f59e0b22' : '#1a1a1a'};border:${active ? '2px solid #f59e0b66' : '1px solid #2a2a2a'};border-radius:12px;padding:10px;cursor:pointer;text-align:center;transition:all .15s`;
-            c.innerHTML = `<div style="font-size:18px">${icon}</div><div style="color:${active ? '#f59e0b' : '#888'};font-size:11px;font-weight:700;margin-top:3px">${title}</div><div style="color:#555;font-size:10px">${sub}</div>`;
+            c.className = 'km-type-card';
+            c.dataset.mode = mode;
+            c.style.cssText = `background:${active ? '#f59e0b22' : '#1a1a1a'};border:${active ? '2px solid #f59e0b' : '1px solid #2a2a2a'};border-radius:12px;padding:10px;cursor:pointer;text-align:center;transition:all .15s;box-shadow:${active ? '0 0 12px rgba(245,158,11,.2)' : 'none'}`;
+            c.innerHTML = `<div class="type-icon" style="font-size:18px">${icon}</div><div class="type-label" style="color:${active ? '#f59e0b' : '#888'};font-size:11px;font-weight:700;margin-top:3px">${title}</div><div style="color:#555;font-size:10px">${sub}</div>`;
             c.addEventListener('click', () => {
                 songType = mode;
-                [vocalsCard, instrCard].forEach((card, i) => {
-                    const m = i === 0 ? 'vocals' : 'instrumental';
-                    const a = m === mode;
+                typeRow.querySelectorAll('.km-type-card').forEach(card => {
+                    const a = card.dataset.mode === mode;
                     card.style.background = a ? '#f59e0b22' : '#1a1a1a';
-                    card.style.border     = a ? '2px solid #f59e0b66' : '1px solid #2a2a2a';
-                    card.querySelector('div:nth-child(2)').style.color = a ? '#f59e0b' : '#888';
+                    card.style.border     = a ? '2px solid #f59e0b' : '1px solid #2a2a2a';
+                    card.style.boxShadow  = a ? '0 0 12px rgba(245,158,11,.2)' : 'none';
+                    const lbl = card.querySelector('.type-label');
+                    if (lbl) lbl.style.color = a ? '#f59e0b' : '#888';
                 });
                 lyricsSection.style.opacity = mode === 'vocals' ? '1' : '.3';
                 lyricsSection.style.pointerEvents = mode === 'vocals' ? 'auto' : 'none';
@@ -1141,13 +1148,20 @@ export function KreateMusicStudio() {
             const isInstrumental = songType === 'instrumental';
 
             const params = {
-                prompt: isInstrumental ? `${style} instrumental track, no vocals` : `${style} song by ${currentArtist?.name || 'artist'}`,
+                model:                'V5',
+                custom_mode:          true,
+                prompt:               isInstrumental
+                                        ? `${style} instrumental track, no vocals`
+                                        : `${style} song by ${currentArtist?.name || 'artist'}`,
                 style,
-                title: title || `${currentArtist?.name || 'Canción'} - Sin título`,
-                instrumental: isInstrumental,
+                title:                title || `${currentArtist?.name || 'Canción'} - Sin título`,
+                instrumental:         isInstrumental,
+                style_weight:         0.65,
+                weirdness_constraint: 0.5,
+                audio_weight:         0.65,
             };
-            if (!isInstrumental && lyrics)                              params.lyrics   = lyrics;
-            if (!isInstrumental && currentArtist?.voiceId)              params.voice_id = currentArtist.voiceId;
+            if (!isInstrumental && lyrics)             params.lyrics     = lyrics;
+            if (!isInstrumental && currentArtist?.voiceId)  params.persona_id = currentArtist.voiceId;
             if (!isInstrumental && currentArtist?.voiceStyle && !currentArtist?.voiceId) {
                 params.prompt += `, ${currentArtist.voiceStyle}`;
             }
@@ -1283,15 +1297,19 @@ export function KreateMusicStudio() {
         AR_OPTIONS.forEach(ar => {
             const card = document.createElement('div');
             const active = ar.value === selectedAr;
-            card.style.cssText = `background:${active?'#f59e0b22':'#1a1a1a'};border:${active?'2px solid #f59e0b66':'1px solid #2a2a2a'};border-radius:10px;padding:10px;cursor:pointer;text-align:center;transition:all .15s`;
+            card.className = 'km-ar-card';
+            card.dataset.val = ar.value;
+            card.style.cssText = `background:${active?'#f59e0b22':'#1a1a1a'};border:${active?'2px solid #f59e0b':'1px solid #2a2a2a'};border-radius:10px;padding:10px;cursor:pointer;text-align:center;transition:all .15s;box-shadow:${active?'0 0 10px rgba(245,158,11,.15)':'none'}`;
             card.innerHTML = `<div style="color:${active?'#f59e0b':'#fff'};font-size:13px;font-weight:700">${ar.label}</div><div style="color:#555;font-size:10px">${ar.sub}</div>`;
             card.addEventListener('click', () => {
                 selectedAr = ar.value;
-                arRow.querySelectorAll('div').forEach((c,i) => {
-                    const a = AR_OPTIONS[i].value === ar.value;
+                arRow.querySelectorAll('.km-ar-card').forEach(c => {
+                    const a = c.dataset.val === ar.value;
                     c.style.background = a?'#f59e0b22':'#1a1a1a';
-                    c.style.border     = a?'2px solid #f59e0b66':'1px solid #2a2a2a';
-                    c.querySelector('div:first-child').style.color = a?'#f59e0b':'#fff';
+                    c.style.border     = a?'2px solid #f59e0b':'1px solid #2a2a2a';
+                    c.style.boxShadow  = a?'0 0 10px rgba(245,158,11,.15)':'none';
+                    const lbl = c.querySelector('div:first-child');
+                    if (lbl) lbl.style.color = a?'#f59e0b':'#fff';
                 });
             });
             arRow.appendChild(card);
@@ -1325,15 +1343,18 @@ export function KreateMusicStudio() {
         SCENES.forEach(scene => {
             const card = document.createElement('div');
             const active = scene.id === selectedScene.id;
-            card.style.cssText = `background:${active?'#f59e0b22':'#1a1a1a'};border:${active?'2px solid #f59e0b66':'1px solid #2a2a2a'};border-radius:10px;padding:8px;cursor:pointer;font-size:10px;font-weight:700;color:${active?'#f59e0b':'#888'};text-align:center;transition:all .15s`;
+            card.className = 'km-scene-card';
+            card.dataset.sceneId = scene.id;
+            card.style.cssText = `background:${active?'#f59e0b22':'#1a1a1a'};border:${active?'2px solid #f59e0b':'1px solid #2a2a2a'};border-radius:10px;padding:8px;cursor:pointer;font-size:10px;font-weight:700;color:${active?'#f59e0b':'#888'};text-align:center;transition:all .15s;box-shadow:${active?'0 0 10px rgba(245,158,11,.15)':'none'}`;
             card.textContent = scene.label;
             card.addEventListener('click', () => {
                 selectedScene = scene;
-                sceneGrid.querySelectorAll('div').forEach((c,i) => {
-                    const a = SCENES[i]?.id === scene.id;
+                sceneGrid.querySelectorAll('.km-scene-card').forEach(c => {
+                    const a = c.dataset.sceneId === scene.id;
                     c.style.background = a?'#f59e0b22':'#1a1a1a';
-                    c.style.border     = a?'2px solid #f59e0b66':'1px solid #2a2a2a';
+                    c.style.border     = a?'2px solid #f59e0b':'1px solid #2a2a2a';
                     c.style.color      = a?'#f59e0b':'#888';
+                    c.style.boxShadow  = a?'0 0 10px rgba(245,158,11,.15)':'none';
                 });
                 customInput.style.display = scene.id === 'custom' ? 'block' : 'none';
             });
