@@ -280,15 +280,24 @@ export async function onRequest(context) {
 
         try {
             uid = await verifyFirebaseToken(idToken, env.FIREBASE_API_KEY);
-        } catch {
-            return jsonError('Token inválido o expirado', 401);
+            console.log('[API] UID verificado:', uid);
+        } catch (e) {
+            console.error('[API] Error verificando token:', e.message);
+            return jsonError('Token inválido o expirado: ' + e.message, 401);
         }
 
         try {
+            console.log('[API] Obteniendo service account token...');
+            console.log('[API] FIREBASE_CLIENT_EMAIL:', env.FIREBASE_CLIENT_EMAIL ? 'OK' : 'FALTA');
+            console.log('[API] FIREBASE_PRIVATE_KEY:', env.FIREBASE_PRIVATE_KEY ? 'OK' : 'FALTA');
+            console.log('[API] FIREBASE_PROJECT_ID:', env.FIREBASE_PROJECT_ID);
+            console.log('[API] FIREBASE_APP_ID:', env.FIREBASE_APP_ID);
             const accessToken = await getServiceAccountToken(env);
+            console.log('[API] Access token obtenido OK');
             const docPath     = `artifacts/${env.FIREBASE_APP_ID}/public/data/users/${uid}`;
+            console.log('[API] DocPath:', docPath, 'Coste:', cost);
             const result      = await firestoreDeductCredits(env.FIREBASE_PROJECT_ID, docPath, cost, accessToken);
-
+            console.log('[API] Resultado transacción:', JSON.stringify(result));
             if (!result.ok) return jsonError(result.message, 402);
         } catch (e) {
             console.error('[API] Error créditos:', e.message);
