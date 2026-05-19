@@ -5,31 +5,53 @@ import { Footer } from './components/Footer.js';
 import { CookieBanner } from './components/CookieBanner.js';
 
 const app = document.querySelector('#app');
-// Hacemos que toda la app ocupe la pantalla completa
 app.className = 'flex flex-col h-screen overflow-hidden';
+
 let contentArea;
 
-// Enrutador Principal
 function navigate(page) {
     if (!contentArea) return;
     contentArea.innerHTML = '';
 
     if (page === 'image') {
         contentArea.appendChild(ImageStudio());
+
     } else if (page === 'video') {
         import('./components/VideoStudio.js').then(({ VideoStudio }) => {
             contentArea.appendChild(VideoStudio());
         });
+
+    } else if (page === 'music') {
+        import('./components/KreateMusicStudio.js').then(({ KreateMusicStudio }) => {
+            contentArea.appendChild(KreateMusicStudio());
+        });
+
     } else if (page === 'cinema') {
         import('./components/CinemaStudio.js').then(({ CinemaStudio }) => {
             contentArea.appendChild(CinemaStudio());
         });
+
     } else if (page === 'lipsync') {
         import('./components/LipSyncStudio.js').then(({ LipSyncStudio }) => {
             contentArea.appendChild(LipSyncStudio());
         });
+
+    } else if (page === 'library') {
+        import('./components/LibraryStudio.js').then(({ LibraryStudio }) => {
+            contentArea.appendChild(LibraryStudio());
+        }).catch(() => {
+            // Fallback si no existe el componente todavía
+            const div = document.createElement('div');
+            div.className = 'flex-1 flex flex-col items-center justify-center bg-[#050505] w-full h-full p-8';
+            div.innerHTML = `
+                <div style="font-size:64px;opacity:.3">📚</div>
+                <h2 style="color:#fff;font-size:24px;font-weight:900;margin:16px 0 8px">Historial</h2>
+                <p style="color:#555;font-size:14px">Próximamente disponible</p>
+            `;
+            contentArea.appendChild(div);
+        });
+
     } else if (page === 'academy') {
-        // Pantalla temporal para la academia
         const academyDiv = document.createElement('div');
         academyDiv.className = 'flex-1 flex flex-col items-center justify-center bg-[#050505] w-full h-full p-8';
         academyDiv.innerHTML = `
@@ -43,28 +65,20 @@ function navigate(page) {
 
 app.innerHTML = '';
 
-// 1. Añadimos la Cabecera
 app.appendChild(Header(navigate));
 
-// 2. Añadimos el Área de Contenido (Estudios)
 contentArea = document.createElement('main');
 contentArea.id = 'content-area';
 contentArea.className = 'flex-1 relative w-full overflow-hidden flex flex-col bg-[#050505]';
 app.appendChild(contentArea);
 
-// 3. Añadimos el Pie de Página (Footer)
 app.appendChild(Footer());
 
-// 4. Inyectamos el Banner de Cookies si no ha sido aceptado
 const cookieBanner = CookieBanner();
-if (cookieBanner) {
-    document.body.appendChild(cookieBanner);
-}
+if (cookieBanner) document.body.appendChild(cookieBanner);
 
-// Ruta inicial al cargar la web
 navigate('image');
 
-// Escuchador de eventos de navegación
 window.addEventListener('navigate', (e) => {
     if (e.detail.page === 'settings') {
         import('./components/SettingsModal.js').then(({ SettingsModal }) => {
