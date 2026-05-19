@@ -1208,16 +1208,18 @@ export function KreateMusicStudio() {
             const res = await callMuapi('suno-create-music', params, token);
             const rid = res.request_id || res.id;
             let url = res.url || res.audio_url;
+            let pollData = null;
             if (!url && rid) {
                 const cb = container._progressCallback;
                 const p  = await pollResult(rid, token, cb, 90, 3000);
                 url = p.url;
+                pollData = p.data;
             }
             if (!url) throw new Error('No se recibió URL de la canción.');
             await deduct(userRef, cost, isAdmin);
 
             // Guardar song_id de Suno en el perfil del artista para consistencia de voz
-            const sunoSongId = res?.id || res?.song_id || p?.data?.id || p?.data?.song_id || null;
+            const sunoSongId = res?.id || res?.song_id || pollData?.id || pollData?.song_id || null;
             if (sunoSongId && !currentArtist.sunoSongId) {
                 try {
                     await updateDoc(
