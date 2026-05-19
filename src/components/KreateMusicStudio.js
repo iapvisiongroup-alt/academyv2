@@ -35,7 +35,7 @@ const COSTS = {
     SONG_ADD_VOCALS:        20,
     SONG_ADD_INSTRUMENTAL:  20,
     SONG_MASHUP:            20,
-    LYRICS_GENERATE:         1,   // gpt-5-4
+    LYRICS_GENERATE:        20,   // gpt-5-mini
     SOUNDS_GENERATE:         4,
 };
 
@@ -108,10 +108,10 @@ if (!document.querySelector('#km-styles')) {
 }
 
 
-// Extrae texto de la respuesta de gpt-5-4 (cubre todas las estructuras posibles)
+// Extrae texto de la respuesta de suno-generate-lyrics (cubre todas las estructuras posibles)
 function extractTextResult(res) {
     if (!res) return null;
-    // Schema real gpt-5-4: output.outputs[0] contiene el texto
+    // Schema real suno-generate-lyrics: output.outputs[0] contiene el texto
     const fromOutput = res?.output?.outputs?.[0] || res?.outputs?.[0];
     if (fromOutput && typeof fromOutput === 'string') return fromOutput;
     return res?.text
@@ -833,8 +833,8 @@ export function KreateMusicStudio() {
                 const theme = container.querySelector('#theme-input')?.value?.trim();
                 if (!theme) throw new Error('Escribe el tema de la letra.');
                 const prompt = `Write song lyrics in Spanish for a ${currentArtist?.genre || 'pop'} song. Theme: ${theme}. Include [Verso 1], [Coro], [Verso 2], [Coro], [Bridge], [Outro]. Make it authentic.`;
-                const res = await callMuapi('gpt-5-4', { prompt }, token);
-                console.log('[gpt-5-4] respuesta:', JSON.stringify(res).slice(0, 300));
+                const res = await callMuapi('gpt-5-mini', { prompt }, token);
+                console.log('[suno-generate-lyrics] respuesta:', JSON.stringify(res).slice(0, 300));
                 const rid = res.request_id || res.id;
                 let text  = extractTextResult(res);
                 if (!text && rid) {
@@ -1006,6 +1006,50 @@ export function KreateMusicStudio() {
         appendField(container, 'Estilo musical', 'Ej: Reggaeton, trap, melódico...', 'song-style-input', false,
             [currentArtist?.genre, currentArtist?.style].filter(Boolean).join(', '));
 
+        // Duración
+        const durWrap = document.createElement('div');
+        durWrap.style.cssText = 'display:flex;flex-direction:column;gap:6px';
+        const durLbl = document.createElement('label');
+        durLbl.style.cssText = 'color:#666;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em';
+        durLbl.textContent = 'Duración';
+        const durRow = document.createElement('div');
+        durRow.style.cssText = 'display:grid;grid-template-columns:repeat(4,1fr);gap:6px';
+        const DURATIONS = [{val:30,label:'30s'},{val:60,label:'1 min'},{val:120,label:'2 min'},{val:180,label:'3 min'}];
+        let selectedDur = 120;
+        const durSelect = document.createElement('select');
+        durSelect.id = 'song-duration-select';
+        durSelect.style.display = 'none';
+        durSelect.value = '120';
+        DURATIONS.forEach(d => {
+            const opt = document.createElement('option');
+            opt.value = d.val; opt.textContent = d.label;
+            if (d.val === 120) opt.selected = true;
+            durSelect.appendChild(opt);
+        });
+        DURATIONS.forEach(d => {
+            const card = document.createElement('div');
+            const active = d.val === selectedDur;
+            card.className = 'km-dur-card';
+            card.dataset.val = d.val;
+            card.style.cssText = `background:${active?'#f59e0b22':'#1a1a1a'};border:${active?'2px solid #f59e0b':'1px solid #2a2a2a'};border-radius:10px;padding:8px;cursor:pointer;text-align:center;font-size:12px;font-weight:700;color:${active?'#f59e0b':'#888'};transition:all .15s`;
+            card.textContent = d.label;
+            card.addEventListener('click', () => {
+                selectedDur = d.val;
+                durSelect.value = d.val;
+                durRow.querySelectorAll('.km-dur-card').forEach(c => {
+                    const a = parseInt(c.dataset.val) === d.val;
+                    c.style.background = a?'#f59e0b22':'#1a1a1a';
+                    c.style.border     = a?'2px solid #f59e0b':'1px solid #2a2a2a';
+                    c.style.color      = a?'#f59e0b':'#888';
+                });
+            });
+            durRow.appendChild(card);
+        });
+        durWrap.appendChild(durLbl);
+        durWrap.appendChild(durRow);
+        durWrap.appendChild(durSelect);
+        container.appendChild(durWrap);
+
         // Song type
         const typeWrap = document.createElement('div');
         typeWrap.style.cssText = 'display:flex;flex-direction:column;gap:6px';
@@ -1108,8 +1152,8 @@ export function KreateMusicStudio() {
                 const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', currentUser.uid);
                 const isAdmin = await checkAndDeduct(userRef, COSTS.LYRICS_GENERATE);
                 const lyricsPrompt = `Write song lyrics in Spanish for a ${currentArtist?.genre || 'pop'} song by ${currentArtist?.name || 'the artist'}. Theme: ${aiTheme.value}. Style: ${currentArtist?.style || ''}. Include [Verso 1], [Coro], [Verso 2], [Coro], [Bridge], [Outro]. Write ONLY the lyrics, no explanations.`;
-                const res = await callMuapi('gpt-5-4', { prompt: lyricsPrompt }, token);
-                console.log('[gpt-5-4 lyrics] respuesta:', JSON.stringify(res).slice(0, 300));
+                const res = await callMuapi('gpt-5-mini', { prompt: lyricsPrompt }, token);
+                console.log('[suno-generate-lyrics lyrics] respuesta:', JSON.stringify(res).slice(0, 300));
                 const rid = res.request_id || res.id;
                 let text = extractTextResult(res);
                 if (!text && rid) { const p = await pollResult(rid, token, null, 60, 3000); text = extractTextResult(p.data) || extractTextResult(p) || p.url; }
@@ -1161,6 +1205,9 @@ export function KreateMusicStudio() {
             const lyrics = container.querySelector('#song-lyrics-input')?.value?.trim();
             const isInstrumental = songType === 'instrumental';
 
+            const durationSel = container.querySelector('#song-duration-select');
+            const duration = durationSel ? parseInt(durationSel.value) : 120;
+
             const params = {
                 model:                'V5',
                 custom_mode:          true,
@@ -1170,6 +1217,7 @@ export function KreateMusicStudio() {
                 style,
                 title:                title || `${currentArtist?.name || 'Canción'} - Sin título`,
                 instrumental:         isInstrumental,
+                duration:             duration,
                 style_weight:         0.65,
                 weirdness_constraint: 0.5,
                 audio_weight:         0.65,
