@@ -510,8 +510,8 @@ export function KreateMusicStudio() {
             return card;
         };
 
-        const styleCard = makeVoiceCard('✍️', 'Estilo textual', 'Describe la voz', '+0 🪙', 'style');
-        const cloneCard = makeVoiceCard('🎙', 'Clonar voz real', 'Audio de 10s', '+50 🪙', 'clone');
+        const styleCard = makeVoiceCard('✍️', 'Estilo textual', 'Describe la voz', `+0 🪙 (${COSTS.CREATE_ARTIST} total)`, 'style');
+        const cloneCard = makeVoiceCard('🎙', 'Clonar voz real', 'Audio de 10s', `+50 🪙 (${COSTS.CREATE_ARTIST_VOICE} total)`, 'clone');
 
         const setVoiceMode = (mode) => {
             voiceMode = mode;
@@ -573,12 +573,12 @@ export function KreateMusicStudio() {
         // CREATE BUTTON
         const totalCostEl = document.createElement('p');
         totalCostEl.style.cssText = 'color:#555;font-size:12px;text-align:center;margin:0';
-        totalCostEl.textContent = 'Coste total: 30 🪙';
+        totalCostEl.textContent = `Coste total: ${COSTS.CREATE_ARTIST} 🪙`;
 
         // Update cost display when voice mode changes
         const origSetVoiceMode = setVoiceMode;
-        styleCard.addEventListener('click', () => { totalCostEl.textContent = 'Coste total: 30 🪙'; });
-        cloneCard.addEventListener('click', () => { totalCostEl.textContent = 'Coste total: 80 🪙'; });
+        styleCard.addEventListener('click', () => { totalCostEl.textContent = `Coste total: ${COSTS.CREATE_ARTIST} 🪙`; });
+        cloneCard.addEventListener('click', () => { totalCostEl.textContent = `Coste total: ${COSTS.CREATE_ARTIST_VOICE} 🪙`; });
 
         const createBtn = document.createElement('button');
         createBtn.type = 'button';
@@ -666,9 +666,8 @@ export function KreateMusicStudio() {
                     url: refPhotoUrl, scene: 'studio_reference', aspect_ratio: '1:1', createdAt: serverTimestamp()
                 });
 
-                await deduct(userRef, cost, isAdmin);
-
                 prog.complete(refPhotoUrl);
+                await deduct(userRef, cost, isAdmin);
                 await new Promise(r => setTimeout(r, 1500));
                 prog.remove();
 
