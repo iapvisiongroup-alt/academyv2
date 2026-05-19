@@ -1158,4 +1158,7 @@ export function KreateMusicStudio() {
 
     // Init
     showView('auth');
-    renderCreateArtist(); // pre-
+    renderCreateArtist(); // pre-render for speed
+
+    return root;
+}
