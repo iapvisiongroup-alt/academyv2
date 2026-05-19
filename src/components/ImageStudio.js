@@ -11,9 +11,10 @@ const ACTIVE_T2I = [{ id: 'nano-banana-2',      name: 'KreateImage 2',      desc
 const ACTIVE_I2I = [{ id: 'nano-banana-2-edit',  name: 'KreateImage 2 Edit', desc: 'Flux · Edición con imagen' }];
 
 const getModelCost = (id) => {
-    if (id === 'nano-banana-2')      return 24;
-    if (id === 'nano-banana-2-edit') return 12;
-    return 6;
+    // Precio MuAPI real + 35% margen. 1 CR = $0.01
+    if (id === 'nano-banana-2')      return 16;  // $0.12 * 1.35 = $0.162
+    if (id === 'nano-banana-2-edit') return 8;   // $0.06 * 1.35 = $0.081
+    return 8;
 };
 
 const STYLE_PRESETS = ['Ninguno','Fotorrealista','Anime','Cinematográfico','Pintura al Óleo','Acuarela','Arte Digital','Arte Conceptual','Cyberpunk'];
