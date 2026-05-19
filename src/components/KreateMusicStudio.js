@@ -9,20 +9,13 @@ import { createControlBtn, createDropdownSystem } from './dropdowns.js';
 // ============================================================
 // ABRIR IMAGEN COMO BLOB (oculta URL de MuAPI)
 // ============================================================
-async function openAsBlob(url, prefix = 'kreateia') {
+async function openAsBlob(url) {
     try {
         const blob    = await fetch(url).then(r => r.blob());
         const blobUrl = URL.createObjectURL(blob);
-        const a       = document.createElement('a');
-        a.href   = blobUrl;
-        a.target = '_blank';
-        a.rel    = 'noopener';
-        // Nombre aleatorio tipo kreateia-a3f9b2c1
-        a.download = `${prefix}-${Math.random().toString(16).slice(2, 10)}`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+        // Abre en nueva pestaña sin descargar — URL oculta
+        window.open(blobUrl, '_blank');
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
     } catch {
         window.open(url, '_blank');
     }
@@ -117,12 +110,14 @@ if (!document.querySelector('#km-styles')) {
 
 // Extrae texto de la respuesta de gpt-5-4 (cubre todas las estructuras posibles)
 function extractTextResult(res) {
+    if (!res) return null;
+    // Schema real gpt-5-4: output.outputs[0] contiene el texto
+    const fromOutput = res?.output?.outputs?.[0] || res?.outputs?.[0];
+    if (fromOutput && typeof fromOutput === 'string') return fromOutput;
     return res?.text
         || res?.result
         || res?.output?.text
         || res?.output?.result
-        || res?.output?.outputs?.[0]
-        || res?.outputs?.[0]
         || res?.content
         || res?.message
         || res?.choices?.[0]?.message?.content
@@ -843,7 +838,7 @@ export function KreateMusicStudio() {
                 const rid = res.request_id || res.id;
                 let text  = extractTextResult(res);
                 if (!text && rid) {
-                    const p = await pollResult(rid, token, null, 30, 2000);
+                    const p = await pollResult(rid, token, null, 60, 3000);
                     text = extractTextResult(p.data) || extractTextResult(p) || p.url;
                 }
                 if (!text) throw new Error('No se generó la letra.');
@@ -1076,7 +1071,7 @@ export function KreateMusicStudio() {
         const aiBtn = document.createElement('button');
         aiBtn.type = 'button';
         aiBtn.style.cssText = 'padding:3px 9px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:8px;color:#888;font-size:10px;font-weight:700;cursor:pointer';
-        aiBtn.textContent = '✨ IA (1 🪙)';
+        aiBtn.textContent = 'Generar Letra';
 
         lyricsToggle.appendChild(manualBtn);
         lyricsToggle.appendChild(aiBtn);
@@ -1117,7 +1112,7 @@ export function KreateMusicStudio() {
                 console.log('[gpt-5-4 lyrics] respuesta:', JSON.stringify(res).slice(0, 300));
                 const rid = res.request_id || res.id;
                 let text = extractTextResult(res);
-                if (!text && rid) { const p = await pollResult(rid, token, null, 30, 2000); text = extractTextResult(p.data) || extractTextResult(p) || p.url; }
+                if (!text && rid) { const p = await pollResult(rid, token, null, 60, 3000); text = extractTextResult(p.data) || extractTextResult(p) || p.url; }
                 if (text) {
                     lyricsTextarea.value = text;
                     await deduct(userRef, COSTS.LYRICS_GENERATE, isAdmin);
