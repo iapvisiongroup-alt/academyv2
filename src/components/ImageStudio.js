@@ -10,12 +10,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 const ACTIVE_T2I = [{ id: 'nano-banana-2',      name: 'KreateImage 2',      desc: 'Generación de imágenes en alta calidad' }];
 const ACTIVE_I2I = [{ id: 'nano-banana-2-edit',  name: 'KreateImage 2 Edit', desc: 'Edición de imágenes con IA' }];
 
-const getModelCost = (id) => {
-    // Precio MuAPI real + 35% margen. 1 CR = $0.01
-    if (id === 'nano-banana-2')      return 16;  // $0.12 * 1.35 = $0.162
-    if (id === 'nano-banana-2-edit') return 8;   // $0.06 * 1.35 = $0.081
-    return 8;
-};
+
 
 const STYLE_PRESETS = ['Ninguno','Fotorrealista','Anime','Cinematográfico','Pintura al Óleo','Acuarela','Arte Digital','Arte Conceptual','Cyberpunk'];
 
@@ -31,6 +26,7 @@ export function ImageStudio() {
     let negativePrompt    = '';
     let showAdvanced      = false;
     let selectedStyle     = 'Ninguno';
+    let selectedResolution = '720p';
 
     const dd = createDropdownSystem();
 
@@ -61,7 +57,10 @@ export function ImageStudio() {
             if (validRes?.length && qLabel) qLabel.textContent = validRes[0];
         }
 
-        const cost = getModelCost(selectedModel);
+        if (validRes?.length && !validRes.includes(selectedResolution)) {
+            selectedResolution = validRes[0];
+        }
+        const cost = getModelCost(selectedModel, selectedResolution);
         generateBtn.innerHTML = `Generar ✨ <span style="background:rgba(255,255,255,.2);padding:2px 8px;border-radius:100px;font-size:11px;font-family:monospace">${cost} 🪙</span>`;
     };
 
@@ -230,8 +229,10 @@ export function ImageStudio() {
         e.stopPropagation();
         const res = (getCurrentResolutions(selectedModel) || []).map(v => ({ id: v, name: v }));
         dd.openList('Resolución', res, container.querySelector('#quality-btn-label')?.textContent || '', qualityBtn, (val) => {
+            selectedResolution = val;
             const l = container.querySelector('#quality-btn-label');
             if (l) l.textContent = val;
+            updateControlsForMode();
         });
     });
 
@@ -302,6 +303,7 @@ export function ImageStudio() {
                 body: JSON.stringify({
                     prompt: finalPrompt,
                     aspect_ratio: selectedAr,
+                    resolution: selectedResolution,
                     ...(imageMode && { images_list: uploadedImageUrls }),
                     ...(negativePrompt && { negative_prompt: negativePrompt }),
                 }),
