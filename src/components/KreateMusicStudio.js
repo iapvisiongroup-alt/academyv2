@@ -44,8 +44,24 @@ const COSTS = {
 // HELPERS
 // ============================================================
 
+// Mapa de endpoints reales a rutas opacas
+const MUAPI_ROUTE_MAP = {
+    'suno-create-music':      'generate/music/create',
+    'suno-extend-music':      'generate/music/extend',
+    'suno-remix-music':       'generate/music/remix',
+    'suno-add-vocals':        'generate/music/vocals',
+    'suno-add-instrumental':  'generate/music/instrumental',
+    'suno-generate-mashup':   'generate/music/mashup',
+    'suno-generate-sounds':   'generate/music/sounds',
+    'suno-voice-clone':       'generate/music/clone-voice',
+    'gpt-5-mini':             'generate/music/lyrics',
+    'nano-banana-2':          'generate/artist/photo',
+    'nano-banana-2-edit':     'generate/artist/photo-edit',
+};
+
 async function callMuapi(endpoint, params, token) {
-    const resp = await fetch(`/api/v1/${endpoint}`, {
+    const route = MUAPI_ROUTE_MAP[endpoint] || endpoint;
+    const resp = await fetch(`/api/v1/${route}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(params)
@@ -650,7 +666,7 @@ export function KreateMusicStudio() {
                     try {
                         const cloneRes = await callMuapi('suno-voice-clone', { audio_url: voiceFileUrl }, token);
                         voiceId = cloneRes.voice_id || cloneRes.id;
-                    } catch (e) { console.warn('Voice clone failed:', e.message); }
+                    } catch (e) { }
                 }
 
                 prog.update(92, 'Guardando en Firebase...');
@@ -1250,8 +1266,7 @@ export function KreateMusicStudio() {
                         { sunoSongId }
                     );
                     currentArtist.sunoSongId = sunoSongId;
-                    console.log('[KreateMusic] sunoSongId guardado:', sunoSongId);
-                } catch(e) { console.warn('No se pudo guardar sunoSongId:', e.message); }
+                } catch(e) { }
             }
 
             await saveSong(url, params.title, 'suno-create-music', lyrics);
