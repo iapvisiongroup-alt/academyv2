@@ -6,17 +6,26 @@ import {
     collection, addDoc, query, orderBy, limit, getDocs,
     serverTimestamp, doc, updateDoc
 } from 'firebase/firestore';
-// saveGenerationTask inline — evita import circular con GenerationCenter
+// saveGenerationTask inline — sin imports dinámicos
 async function saveGenerationTask({ type, endpoint, requestId, prompt, userId }) {
     try {
-        const { collection, addDoc, serverTimestamp } = await import('firebase/firestore');
-        const { db, APP_ID } = await import('../lib/firebase.js');
         return addDoc(
             collection(db, 'artifacts', APP_ID, 'public', 'data', 'users', userId, 'generation_tasks'),
-            { type, endpoint, request_id: requestId || null, prompt: (prompt || '').slice(0, 200),
-              status: 'running', result_url: null, createdAt: serverTimestamp(), updatedAt: serverTimestamp() }
+            {
+                type,
+                endpoint,
+                request_id: requestId || null,
+                prompt: (prompt || '').slice(0, 200),
+                status: 'running',
+                result_url: null,
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+            }
         );
-    } catch(e) { console.warn('saveGenerationTask failed:', e.message); return null; }
+    } catch(e) {
+        console.warn('saveGenerationTask failed:', e.message);
+        return null;
+    }
 }
 import { onAuthStateChanged } from 'firebase/auth';
 
@@ -449,6 +458,8 @@ export function VideoStudio() {
 
     // GENERACIÓN
     async function handleGenerate() {
+        let generationTaskRef = null;
+        let initialRequestId  = null;
         const promptText  = textarea.value.trim();
         const currentMode = getCurrentMode();
         const finalApiId  = getApiId(selectedUiId, currentMode);
@@ -503,8 +514,7 @@ export function VideoStudio() {
             let res = await req.json();
 
             // Guardar task en cola global
-            const initialRequestId = res.request_id || res.id || res.output?.id || null;
-            let generationTaskRef = null;
+            initialRequestId = res.request_id || res.id || res.output?.id || null;
             if (initialRequestId && auth.currentUser) {
                 generationTaskRef = await saveGenerationTask({
                     type:      'video',
@@ -515,14 +525,15 @@ export function VideoStudio() {
                 }).catch(() => null);
             }
 
-            if (res.request_id && !extractVideoUrl(res)) {
+            const pollRequestId = initialRequestId;
+            if (pollRequestId && !extractVideoUrl(res)) {
                 statusText.textContent = 'Renderizando (1-3 min)...';
                 let attempts = 0;
                 while (attempts < 150) {
                     await new Promise(r => setTimeout(r, 2000));
                     attempts++;
                     try {
-                        const poll = await fetch(`/api/v1/predictions/${res.request_id}/result`, { headers: { 'Authorization': `Bearer ${token}` } });
+                        const poll = await fetch(`/api/v1/predictions/${pollRequestId}/result`, { headers: { 'Authorization': `Bearer ${token}` } });
                         if (!poll.ok) { if (poll.status >= 500) continue; throw new Error(`Poll ${poll.status}`); }
                         const p = await poll.json();
                         if (extractVideoUrl(p)) { res = p; break; }
@@ -543,7 +554,7 @@ export function VideoStudio() {
 
             // Créditos descontados por el backend
 
-            const rid = res.request_id || res.output?.id || res.id || null;
+            const rid = initialRequestId || res.request_id || res.output?.id || res.id || null;
             const entryData = { url: finalUrl, prompt: cleanPrompt || 'Vídeo generado', model: finalApiId, duration: selectedDuration, quality: selectedQuality, aspect_ratio: selectedAr, type: 'video', request_id: rid, muapi_request_id: rid, createdAt: serverTimestamp() };
             let realId = rid || Date.now().toString();
             try { const ref = await addDoc(collection(db,'artifacts',APP_ID,'public','data','users',auth.currentUser.uid,'video_generations'), entryData); realId = ref.id; } catch {}
