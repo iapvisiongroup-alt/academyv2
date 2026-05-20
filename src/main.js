@@ -1,4 +1,5 @@
 import './style.css';
+import { GenerationCenter } from './components/GenerationCenter.js';
 import { Header } from './components/Header.js';
 import { ImageStudio } from './components/ImageStudio.js';
 import { Footer } from './components/Footer.js';
@@ -69,6 +70,9 @@ const cookieBanner = CookieBanner();
 if (cookieBanner) document.body.appendChild(cookieBanner);
 
 navigate('image');
+
+// Cola global de generaciones — persiste entre pestañas
+document.body.appendChild(GenerationCenter());
 
 window.addEventListener('navigate', (e) => {
     if (e.detail.page === 'settings') {
