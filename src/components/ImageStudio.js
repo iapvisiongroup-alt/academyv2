@@ -4,17 +4,26 @@ import { createUploadPicker } from './UploadPicker.js';
 import { createControlBtn, createDropdownSystem } from './dropdowns.js';
 import { auth, db, APP_ID } from '../lib/firebase.js';
 import { collection, addDoc, query, orderBy, limit, getDocs, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
-// saveGenerationTask inline — evita import circular con GenerationCenter
+// saveGenerationTask inline — sin imports dinámicos
 async function saveGenerationTask({ type, endpoint, requestId, prompt, userId }) {
     try {
-        const { collection, addDoc, serverTimestamp } = await import('firebase/firestore');
-        const { db, APP_ID } = await import('../lib/firebase.js');
         return addDoc(
             collection(db, 'artifacts', APP_ID, 'public', 'data', 'users', userId, 'generation_tasks'),
-            { type, endpoint, request_id: requestId || null, prompt: (prompt || '').slice(0, 200),
-              status: 'running', result_url: null, createdAt: serverTimestamp(), updatedAt: serverTimestamp() }
+            {
+                type,
+                endpoint,
+                request_id: requestId || null,
+                prompt: (prompt || '').slice(0, 200),
+                status: 'running',
+                result_url: null,
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+            }
         );
-    } catch(e) { console.warn('saveGenerationTask failed:', e.message); return null; }
+    } catch(e) {
+        console.warn('saveGenerationTask failed:', e.message);
+        return null;
+    }
 }
 import { onAuthStateChanged } from 'firebase/auth';
 
@@ -70,15 +79,15 @@ export function ImageStudio() {
         if (aLabel) aLabel.textContent = selectedAr;
 
         const validRes = getCurrentResolutions(selectedModel);
-        const qBtn     = container.querySelector('#quality-btn');
+        if (validRes?.length && !validRes.includes(selectedResolution)) {
+            selectedResolution = validRes[0];
+        }
+
+        const qBtn = container.querySelector('#quality-btn');
         if (qBtn) {
             qBtn.style.display = validRes?.length ? 'flex' : 'none';
             const qLabel = container.querySelector('#quality-btn-label');
-            if (validRes?.length && qLabel) qLabel.textContent = validRes[0];
-        }
-
-        if (validRes?.length && !validRes.includes(selectedResolution)) {
-            selectedResolution = validRes[0];
+            if (validRes?.length && qLabel) qLabel.textContent = selectedResolution;
         }
         const cost = getModelCost(selectedModel, selectedResolution);
         generateBtn.innerHTML = `Generar ✨ <span style="background:rgba(255,255,255,.2);padding:2px 8px;border-radius:100px;font-size:11px;font-family:monospace">${cost} 🪙</span>`;
