@@ -181,12 +181,135 @@ async function signJWT(payload, pemKey) {
     return `${unsigned}.${b64u(String.fromCharCode(...new Uint8Array(sig)))}`;
 }
 
+
+// ─── Media proxy helpers ──────────────────────────────────────────────────────
+function randomCode() {
+    const b = crypto.getRandomValues(new Uint8Array(4));
+    return [...b].map(x => x.toString(16).padStart(2, '0')).join('');
+}
+
+function b64u(bytes) {
+    let s = '';
+    bytes.forEach(b => s += String.fromCharCode(b));
+    return btoa(s).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+}
+
+function unb64u(str) {
+    str = str.replace(/-/g, '+').replace(/_/g, '/');
+    while (str.length % 4) str += '=';
+    const bin = atob(str);
+    return Uint8Array.from(bin, c => c.charCodeAt(0));
+}
+
+async function mediaKey(secret) {
+    const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(secret));
+    return crypto.subtle.importKey('raw', hash, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+}
+
+async function encryptMediaUrl(url, env) {
+    const code = randomCode();
+    const key  = await mediaKey(env.MEDIA_SECRET);
+    const iv   = crypto.getRandomValues(new Uint8Array(12));
+    const enc  = new Uint8Array(await crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv }, key, new TextEncoder().encode(JSON.stringify({ url, code }))
+    ));
+    const packed = new Uint8Array(iv.length + enc.length);
+    packed.set(iv, 0); packed.set(enc, iv.length);
+    return { code, token: b64u(packed) };
+}
+
+async function decryptMediaToken(token, env) {
+    const packed = unb64u(token);
+    const iv     = packed.slice(0, 12);
+    const data   = packed.slice(12);
+    const key    = await mediaKey(env.MEDIA_SECRET);
+    const dec    = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
+    return JSON.parse(new TextDecoder().decode(dec));
+}
+
+function looksLikeMediaUrl(value) {
+    if (typeof value !== 'string') return false;
+    if (!value.startsWith('http://') && !value.startsWith('https://')) return false;
+    if (value.includes('/api/v1/media/kreateia-')) return false;
+    return true;
+}
+
+async function wrapMediaUrls(value, env, request) {
+    if (!env.MEDIA_SECRET) return value;
+    if (looksLikeMediaUrl(value)) {
+        const { code, token } = await encryptMediaUrl(value, env);
+        const origin = new URL(request.url).origin;
+        return `${origin}/api/v1/media/kreateia-${code}/${token}`;
+    }
+    if (Array.isArray(value)) return Promise.all(value.map(v => wrapMediaUrls(v, env, request)));
+    if (value && typeof value === 'object') {
+        const out = {};
+        for (const [k, v] of Object.entries(value)) out[k] = await wrapMediaUrls(v, env, request);
+        return out;
+    }
+    return value;
+}
+
+function extFromContentType(type = '') {
+    if (type.includes('image/jpeg'))  return 'jpg';
+    if (type.includes('image/png'))   return 'png';
+    if (type.includes('image/webp'))  return 'webp';
+    if (type.includes('video/mp4'))   return 'mp4';
+    if (type.includes('audio/mpeg'))  return 'mp3';
+    if (type.includes('audio/wav'))   return 'wav';
+    return 'bin';
+}
+
+async function handleMediaProxy(route, request, env) {
+    if (!env.MEDIA_SECRET) return jsonError('MEDIA_SECRET no configurado', 500);
+    const parts      = route.split('/');
+    const publicName = parts[1] || 'kreateia-media';
+    const token      = parts[2];
+    if (!token) return jsonError('Media token inválido', 400);
+
+    let payload;
+    try { payload = await decryptMediaToken(token, env); }
+    catch { return jsonError('Media token inválido', 400); }
+
+    const headers = new Headers();
+    const range   = request.headers.get('Range');
+    if (range) headers.set('Range', range);
+
+    const upstream = await fetch(payload.url, { headers });
+    if (!upstream.ok && upstream.status !== 206) return jsonError('No se pudo cargar el archivo', upstream.status);
+
+    const contentType = upstream.headers.get('content-type') || 'application/octet-stream';
+    const ext         = extFromContentType(contentType);
+    const safeName    = publicName.startsWith('kreateia-') ? publicName : `kreateia-${payload.code || randomCode()}`;
+
+    const resHeaders = new Headers();
+    resHeaders.set('Content-Type',        contentType);
+    resHeaders.set('Content-Disposition', `inline; filename="${safeName}.${ext}"`);
+    resHeaders.set('Cache-Control',       'public, max-age=86400');
+    resHeaders.set('Access-Control-Allow-Origin', '*');
+
+    const contentRange  = upstream.headers.get('content-range');
+    const acceptRanges  = upstream.headers.get('accept-ranges');
+    const contentLength = upstream.headers.get('content-length');
+    if (contentRange)  resHeaders.set('Content-Range',  contentRange);
+    if (acceptRanges)  resHeaders.set('Accept-Ranges',  acceptRanges);
+    if (contentLength) resHeaders.set('Content-Length', contentLength);
+
+    return new Response(upstream.body, { status: upstream.status, headers: resHeaders });
+}
+
 // ─── Handler principal ────────────────────────────────────────────────────────
 export async function onRequest(context) {
     const { request, env, params } = context;
     if (!env.MUAPI_KEY) return jsonError('API Key no configurada', 500);
 
     const route       = params.path.join('/');
+
+    // Media proxy — devuelve archivos con URL opaca kreateia-...
+    if (route.startsWith('media/')) {
+        return handleMediaProxy(route, request, env);
+    }
+
     const contentType = request.headers.get('Content-Type') || '';
 
     // Leer body
@@ -253,9 +376,19 @@ export async function onRequest(context) {
         catch(e) { console.error('[API] Error reembolso:', e.message); }
     }
 
+    // Envolver URLs de MuAPI con proxy kreateia-...
+    const responseContentType = muapiResponse.headers.get('content-type') || '';
+    if (muapiResponse.ok && responseContentType.includes('application/json') && env.MEDIA_SECRET) {
+        try {
+            const parsed  = JSON.parse(responseBody);
+            const wrapped = await wrapMediaUrls(parsed, env, request);
+            responseBody  = JSON.stringify(wrapped);
+        } catch {}
+    }
+
     return new Response(responseBody, {
         status:  muapiResponse.status,
-        headers: { 'Content-Type': muapiResponse.headers.get('content-type') || 'application/json', 'Access-Control-Allow-Origin': '*' },
+        headers: { 'Content-Type': responseContentType || 'application/json', 'Access-Control-Allow-Origin': '*' },
     });
 }
 
