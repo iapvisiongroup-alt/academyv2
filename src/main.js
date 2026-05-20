@@ -1,5 +1,4 @@
 import './style.css';
-import { GenerationCenter } from './components/GenerationCenter.js';
 import { Header } from './components/Header.js';
 import { ImageStudio } from './components/ImageStudio.js';
 import { Footer } from './components/Footer.js';
@@ -71,8 +70,12 @@ if (cookieBanner) document.body.appendChild(cookieBanner);
 
 navigate('image');
 
-// Cola global de generaciones — persiste entre pestañas
-document.body.appendChild(GenerationCenter());
+// Cola global de generaciones — carga lazy para no bloquear el resto
+import('./components/GenerationCenter.js').then(({ GenerationCenter }) => {
+    if (!document.querySelector('#generation-center-root')) {
+        document.body.appendChild(GenerationCenter());
+    }
+});
 
 window.addEventListener('navigate', (e) => {
     if (e.detail.page === 'settings') {
