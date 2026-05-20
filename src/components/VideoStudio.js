@@ -4,7 +4,7 @@ import { createControlBtn, createDropdownSystem } from './dropdowns.js';
 import { auth, db, APP_ID } from '../lib/firebase.js';
 import {
     collection, addDoc, query, orderBy, limit, getDocs,
-    serverTimestamp, doc
+    serverTimestamp, doc, updateDoc
 } from 'firebase/firestore';
 import { saveGenerationTask } from './GenerationCenter.js';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -28,6 +28,17 @@ const getApiId = (uiId, mode) => {
         return 'seedance-v2.0-t2v';
     }
     return 'seedance-v2.0-t2v';
+};
+
+// Mapa de apiId a ruta opaca del backend
+const API_TO_ROUTE = {
+    'seedance-v2.0-t2v':                  'generate/video/standard',
+    'seedance-2-vip-image-to-video-fast': 'generate/video/i2v',
+    'seedance-2.0-omni-reference-480p':   'generate/video/v2v',
+    'sd-2-vip-extend':                    'generate/video/extend',
+    'veo3.1-fast-text-to-video':          'generate/video/fast',
+    'veo3.1-lite-image-to-video':         'generate/video/fast-i2v',
+    'kling-v3.0-std-motion-control':      'generate/video/motion',
 };
 
 const getVideoCost = (apiId, duration) => {
@@ -471,8 +482,9 @@ export function VideoStudio() {
         textarea.value = ''; textarea.style.height = 'auto';
 
         try {
-            const token = await auth.currentUser.getIdToken();
-            const req   = await fetch(`/api/v1/${finalApiId}`, {
+            const token     = await auth.currentUser.getIdToken();
+            const videoRoute = API_TO_ROUTE[finalApiId] || `generate/video/standard`;
+            const req        = await fetch(`/api/v1/${videoRoute}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
                 body: JSON.stringify(params)
@@ -480,17 +492,18 @@ export function VideoStudio() {
             if (!req.ok) { const t = await req.text(); throw new Error(`Error (${req.status}): ${t.slice(0,200)}`); }
 
             let res = await req.json();
-            console.log('[VideoStudio] Respuesta inicial:', res);
 
             // Guardar task en cola global
-            if ((res.request_id || res.id) && auth.currentUser) {
-                saveGenerationTask({
+            const initialRequestId = res.request_id || res.id || res.output?.id || null;
+            let generationTaskRef = null;
+            if (initialRequestId && auth.currentUser) {
+                generationTaskRef = await saveGenerationTask({
                     type:      'video',
-                    endpoint:  finalApiId,
-                    requestId: res.request_id || res.id,
+                    endpoint:  videoRoute,
+                    requestId: initialRequestId,
                     prompt:    cleanPrompt,
                     userId:    auth.currentUser.uid,
-                }).catch(() => {});
+                }).catch(() => null);
             }
 
             if (res.request_id && !extractVideoUrl(res)) {
@@ -514,6 +527,10 @@ export function VideoStudio() {
 
             const finalUrl = extractVideoUrl(res);
             if (!finalUrl) throw new Error('No se recibió URL del vídeo.');
+
+            if (generationTaskRef && finalUrl) {
+                updateDoc(generationTaskRef, { status: 'completed', result_url: finalUrl, updatedAt: serverTimestamp() }).catch(() => {});
+            }
 
             // Créditos descontados por el backend
 
