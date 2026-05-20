@@ -4,13 +4,33 @@ import { createUploadPicker } from './UploadPicker.js';
 import { createControlBtn, createDropdownSystem } from './dropdowns.js';
 import { auth, db, APP_ID } from '../lib/firebase.js';
 import { collection, addDoc, query, orderBy, limit, getDocs, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
-import { saveGenerationTask } from './GenerationCenter.js';
+// saveGenerationTask inline — evita import circular con GenerationCenter
+async function saveGenerationTask({ type, endpoint, requestId, prompt, userId }) {
+    try {
+        const { collection, addDoc, serverTimestamp } = await import('firebase/firestore');
+        const { db, APP_ID } = await import('../lib/firebase.js');
+        return addDoc(
+            collection(db, 'artifacts', APP_ID, 'public', 'data', 'users', userId, 'generation_tasks'),
+            { type, endpoint, request_id: requestId || null, prompt: (prompt || '').slice(0, 200),
+              status: 'running', result_url: null, createdAt: serverTimestamp(), updatedAt: serverTimestamp() }
+        );
+    } catch(e) { console.warn('saveGenerationTask failed:', e.message); return null; }
+}
 import { onAuthStateChanged } from 'firebase/auth';
 
 const ACTIVE_T2I = [{ id: 'nano-banana-2',      name: 'KreateImage 2',      desc: 'Generación de imágenes en alta calidad' }];
 const ACTIVE_I2I = [{ id: 'nano-banana-2-edit',  name: 'KreateImage 2 Edit', desc: 'Edición de imágenes con IA' }];
 
 
+
+const getModelCost = (id, resolution = '720p') => {
+    const base = id === 'nano-banana-2' ? 16
+        : id === 'nano-banana-2-edit'   ? 8
+        : 8;
+    const multipliers = { '720p': 1, '1080p': 1.5, '2k': 2, '4k': 4 };
+    const mult = multipliers[String(resolution).toLowerCase()] || 1;
+    return Math.ceil(base * mult);
+};
 
 const STYLE_PRESETS = ['Ninguno','Fotorrealista','Anime','Cinematográfico','Pintura al Óleo','Acuarela','Arte Digital','Arte Conceptual','Cyberpunk'];
 
@@ -276,7 +296,7 @@ export function ImageStudio() {
         if (!auth.currentUser) return alert('Debes iniciar sesión.');
         if (!imageMode && !promptText) return alert('Por favor, escribe un prompt.');
 
-        const cost = getModelCost(selectedModel);
+        const cost = getModelCost(selectedModel, selectedResolution);
 
         galleryHeader.classList.remove('hidden');
         const loadingCard = document.createElement('div');
