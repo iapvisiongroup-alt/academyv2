@@ -52,10 +52,18 @@ function calculateCost(route, body) {
 
     let cost = mapped.cost ?? 0;
 
-    // Coste por vídeo escalado con duración
+    // Coste imagen — escala con resolución
+    if (mapped.cost !== undefined && (route.includes('image') || route.includes('artist'))) {
+        const resolution  = String(body?.resolution || '720p').toLowerCase();
+        const multipliers = { '720p': 1, '1080p': 1.5, '2k': 2, '4k': 4 };
+        cost = Math.ceil(mapped.cost * (multipliers[resolution] || 1));
+    }
+
+    // Coste vídeo — escala con duración y calidad
     if (mapped.costType === 'video') {
-        const secs = Math.max(5, parseInt(body?.duration) || 5);
-        cost = Math.ceil((mapped.base5s / 5) * secs * 1.35 * 100);
+        const secs        = Math.max(5, parseInt(body?.duration) || 5);
+        const qualityMult = body?.quality === 'high' ? 1.75 : 1;
+        cost = Math.ceil((mapped.base5s / 5) * secs * 1.35 * 100 * qualityMult);
     }
 
     return { cost, muapiEndpoint: mapped.endpoint };
