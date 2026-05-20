@@ -4,6 +4,7 @@ import { createUploadPicker } from './UploadPicker.js';
 import { createControlBtn, createDropdownSystem } from './dropdowns.js';
 import { auth, db, APP_ID } from '../lib/firebase.js';
 import { collection, addDoc, query, orderBy, limit, getDocs, serverTimestamp, doc } from 'firebase/firestore';
+import { saveGenerationTask } from './GenerationCenter.js';
 import { onAuthStateChanged } from 'firebase/auth';
 
 const ACTIVE_T2I = [{ id: 'nano-banana-2',      name: 'KreateImage 2',      desc: 'Generación de imágenes en alta calidad' }];
@@ -310,6 +311,17 @@ export function ImageStudio() {
 
             if (!req.ok) {
                 throw new Error(res.error || `Error en el servidor: ${req.status}`);
+            }
+
+            // Guardar task en Firestore para cola global
+            if ((res.request_id || res.id) && auth.currentUser) {
+                saveGenerationTask({
+                    type:      'image',
+                    endpoint:  selectedModel,
+                    requestId: res.request_id || res.id,
+                    prompt:    finalPrompt,
+                    userId:    auth.currentUser.uid,
+                }).catch(() => {});
             }
 
             let imageUrl =
