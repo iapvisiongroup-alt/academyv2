@@ -6,6 +6,7 @@ import {
     collection, addDoc, query, orderBy, limit, getDocs,
     serverTimestamp, doc
 } from 'firebase/firestore';
+import { saveGenerationTask } from './GenerationCenter.js';
 import { onAuthStateChanged } from 'firebase/auth';
 
 const V_MODELS = [
@@ -480,6 +481,17 @@ export function VideoStudio() {
 
             let res = await req.json();
             console.log('[VideoStudio] Respuesta inicial:', res);
+
+            // Guardar task en cola global
+            if ((res.request_id || res.id) && auth.currentUser) {
+                saveGenerationTask({
+                    type:      'video',
+                    endpoint:  finalApiId,
+                    requestId: res.request_id || res.id,
+                    prompt:    cleanPrompt,
+                    userId:    auth.currentUser.uid,
+                }).catch(() => {});
+            }
 
             if (res.request_id && !extractVideoUrl(res)) {
                 statusText.textContent = 'Renderizando (1-3 min)...';
