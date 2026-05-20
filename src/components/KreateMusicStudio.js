@@ -26,10 +26,10 @@ async function openAsBlob(url) {
 // ============================================================
 const COSTS = {
     // Costes alineados con el backend (/functions/api/v1/[[path]].js)
-    CREATE_ARTIST:          16,   // nano-banana-2 ($0.12 * 1.35)
-    CREATE_ARTIST_VOICE:    16,   // nano-banana-2 + suno-voice-clone (gratis en MuAPI)
+    CREATE_ARTIST:          32,   // nano-banana-2 a 2K ($0.12 * 1.35 * 2)
+    CREATE_ARTIST_VOICE:    32,   // nano-banana-2 a 2K + suno-voice-clone (gratis)
     CLONE_VOICE_LATER:       0,   // suno-voice-clone (gratis en MuAPI)
-    PHOTO_EXTRA:             8,   // nano-banana-2-edit ($0.06 * 1.35)
+    PHOTO_EXTRA:            16,   // nano-banana-2-edit a 2K ($0.06 * 1.35 * 2)
     SONG_CREATE:            20,   // suno-create-music
     SONG_EXTEND:            20,
     SONG_REMIX:             20,
@@ -38,6 +38,12 @@ const COSTS = {
     SONG_MASHUP:            20,
     LYRICS_GENERATE:        20,   // gpt-5-mini
     SOUNDS_GENERATE:         4,
+};
+
+// Coste dinámico por duración: 10 CR por minuto
+const getSongCreateCost = (duration = 120) => {
+    const secs = parseInt(duration) || 120;
+    return Math.max(5, Math.ceil((secs / 60) * 10));
 };
 
 // ============================================================
@@ -154,11 +160,10 @@ async function checkBalanceForUx(userRef, cost) {
     try {
         const snap    = await getDoc(userRef);
         const credits = snap.exists() ? (snap.data().credits || 0) : 0;
-        const isAdmin = snap.exists() && snap.data().role === 'admin';
-        if (!isAdmin && credits < cost) {
+        if (credits < cost) {
             throw new Error(`Saldo insuficiente. Necesitas ${cost} 🪙 y tienes ${credits} 🪙.`);
         }
-        return isAdmin;
+        return false;
     } catch(e) {
         if (e.message.includes('Saldo insuficiente')) throw e;
         return false;
@@ -873,7 +878,7 @@ export function KreateMusicStudio() {
                 if (!theme) throw new Error('Escribe el tema de la letra.');
                 const prompt = `You are a professional songwriter. Write song lyrics in Spanish for a ${currentArtist?.genre || 'pop'} song. Theme: ${theme}. Style: ${currentArtist?.style || ''}. Structure: [Verso 1], [Coro], [Verso 2], [Coro], [Bridge], [Outro]. IMPORTANT: Output ONLY the lyrics. No introductions, no explanations, no apologies, no comments. Start directly with [Verso 1].`;
                 const res = await callMuapi('gpt-5-mini', { prompt }, token);
-                console.log('[suno-generate-lyrics] respuesta:', JSON.stringify(res).slice(0, 300));
+                
                 const rid = res.request_id || res.id;
                 let text  = extractTextResult(res);
                 if (!text && rid) {
@@ -985,10 +990,11 @@ export function KreateMusicStudio() {
 
     // Helper: append generate button with inline progress
     function appendGenBtn(container, label, cost, onGenerate) {
+        const getCost = typeof cost === 'function' ? cost : () => cost;
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.style.cssText = 'width:100%;padding:12px;background:#f59e0b;border:none;border-radius:100px;color:#000;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:background .15s';
-        btn.innerHTML = `${label} <span style="background:rgba(0,0,0,.2);padding:2px 7px;border-radius:100px;font-size:11px;font-family:monospace">${cost} 🪙</span>`;
+        btn.innerHTML = `${label} <span style="background:rgba(0,0,0,.2);padding:2px 7px;border-radius:100px;font-size:11px;font-family:monospace">${getCost()} 🪙</span>`;
         btn.addEventListener('mouseenter', () => btn.style.background = '#fbbf24');
         btn.addEventListener('mouseleave', () => btn.style.background = '#f59e0b');
 
@@ -1006,6 +1012,7 @@ export function KreateMusicStudio() {
 
         btn.addEventListener('click', async () => {
             if (!currentUser) return alert('Debes iniciar sesión.');
+            const currentCost = getCost();
             btn.disabled = true;
             btn.innerHTML = '<div style="width:14px;height:14px;border:2px solid #00000033;border-top-color:#000;border-radius:50%;animation:spin 1s linear infinite"></div> Generando...';
             progressWrap.style.display = 'flex';
@@ -1014,19 +1021,19 @@ export function KreateMusicStudio() {
             const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', currentUser.uid);
 
             try {
-                const isAdmin = await checkBalanceForUx(userRef, cost);
+                const isAdmin = await checkBalanceForUx(userRef, currentCost);
                 // Inject progress callback into pollResult via onGenerate
                 container._progressCallback = (pct, secs) => {
                     const bar = progressWrap.querySelector('#inline-bar');
                     if (bar) bar.style.width = `${pct}%`;
                     progressLabel.textContent = `${pct}% · ${Math.round(secs)}s`;
                 };
-                await onGenerate(token, userRef, isAdmin);
+                await onGenerate(token, userRef, isAdmin, currentCost);
             } catch (err) {
                 alert('Error: ' + err.message);
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = `${label} <span style="background:rgba(0,0,0,.2);padding:2px 7px;border-radius:100px;font-size:11px;font-family:monospace">${cost} 🪙</span>`;
+                btn.innerHTML = `${label} <span style="background:rgba(0,0,0,.2);padding:2px 7px;border-radius:100px;font-size:11px;font-family:monospace">${getCost()} 🪙</span>`;
                 progressWrap.style.display = 'none';
                 const bar = progressWrap.querySelector('#inline-bar');
                 if (bar) bar.style.width = '0%';
@@ -1039,7 +1046,7 @@ export function KreateMusicStudio() {
 
     // ── BUILD CREATE SONG PANEL ──
     function buildCreateSongPanel(container) {
-        const cost = COSTS.SONG_CREATE;
+        const getCurrentSongCost = () => getSongCreateCost(selectedDur);
 
         appendField(container, 'Título de la canción', `Ej: ${currentArtist?.name || 'Mi artista'} - Sin título`, 'song-title-input');
         appendField(container, 'Estilo musical', 'Ej: Reggaeton, trap, melódico...', 'song-style-input', false,
@@ -1081,6 +1088,12 @@ export function KreateMusicStudio() {
                     c.style.border     = a?'2px solid #f59e0b':'1px solid #2a2a2a';
                     c.style.color      = a?'#f59e0b':'#888';
                 });
+                // Actualizar coste del botón generar
+                const genBtn = container.querySelector('button[style*="border-radius:100px"][style*="f59e0b"]');
+                if (genBtn) {
+                    const span = genBtn.querySelector('span');
+                    if (span) span.textContent = `${getSongCreateCost(selectedDur)} 🪙`;
+                }
             });
             durRow.appendChild(card);
         });
@@ -1180,7 +1193,7 @@ export function KreateMusicStudio() {
                 const isAdmin = await checkBalanceForUx(userRef, COSTS.LYRICS_GENERATE);
                 const lyricsPrompt = `You are a professional songwriter. Write song lyrics in Spanish for a ${currentArtist?.genre || 'pop'} song. Theme: ${aiTheme.value}. Style: ${currentArtist?.style || ''}. Structure: [Verso 1], [Coro], [Verso 2], [Coro], [Bridge], [Outro]. IMPORTANT: Output ONLY the song lyrics. No introductions, no explanations, no apologies, no comments before or after. Start directly with [Verso 1].`;
                 const res = await callMuapi('gpt-5-mini', { prompt: lyricsPrompt }, token);
-                console.log('[suno-generate-lyrics lyrics] respuesta:', JSON.stringify(res).slice(0, 300));
+                
                 const rid = res.request_id || res.id;
                 let text = extractTextResult(res);
                 if (!text && rid) { const p = await pollResult(rid, token, null, 60, 3000); text = extractTextResult(p.data) || extractTextResult(p) || p.url; }
@@ -1227,7 +1240,7 @@ export function KreateMusicStudio() {
         }
 
         // Generate button
-        appendGenBtn(container, 'Crear canción', cost, async (token, userRef, isAdmin) => {
+        appendGenBtn(container, 'Crear canción', getCurrentSongCost, async (token, userRef, isAdmin, currentCost) => {
             const title  = container.querySelector('#song-title-input')?.value?.trim();
             const style  = container.querySelector('#song-style-input')?.value?.trim() || `${currentArtist?.genre || ''} ${currentArtist?.style || ''}`.trim();
             const lyrics = container.querySelector('#song-lyrics-input')?.value?.trim();
@@ -1260,7 +1273,7 @@ export function KreateMusicStudio() {
                 audio_weight:         0.65,
             };
             // duration solo si > 30s para no limitar
-            if (duration && duration > 30) params.duration = duration;
+            if (duration) params.duration = duration;
             // Usar voiceId clonado o sunoSongId como referencia de voz
             if (!isInstrumental) {
                 if (currentArtist?.voiceId) {
@@ -1294,7 +1307,7 @@ export function KreateMusicStudio() {
                 pollData = p.data;
             }
             if (!urls.length) throw new Error('No se recibió URL de la canción.');
-            await deduct(userRef, cost, isAdmin);
+            await deduct(userRef, currentCost, isAdmin);
 
             // Guardar song_id de Suno para consistencia de voz
             const sunoSongId = res?.id || res?.song_id || pollData?.id || pollData?.song_id || null;
