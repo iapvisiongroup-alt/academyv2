@@ -20,7 +20,7 @@ const ROUTE_MAP = {
     'generate/video/motion':       { endpoint: 'kling-v3.0-std-motion-control',   costType: 'video', base5s: 1.63 },
 
     // MÚSICA
-    'generate/music/create':       { endpoint: 'suno-create-music',     cost: 20 },
+    'generate/music/create':       { endpoint: 'suno-create-music',     costType: 'musicDuration' },
     'generate/music/extend':       { endpoint: 'suno-extend-music',     cost: 20 },
     'generate/music/remix':        { endpoint: 'suno-remix-music',      cost: 20 },
     'generate/music/vocals':       { endpoint: 'suno-add-vocals',       cost: 20 },
@@ -54,7 +54,9 @@ function calculateCost(route, body) {
 
     // Coste imagen — escala con resolución
     if (mapped.cost !== undefined && (route.includes('image') || route.includes('artist'))) {
-        const resolution  = String(body?.resolution || '720p').toLowerCase();
+        // Fotos de artista siempre en 2k
+        const defaultRes  = route.includes('artist') ? '2k' : '720p';
+        const resolution  = String(body?.resolution || defaultRes).toLowerCase();
         const multipliers = { '720p': 1, '1080p': 1.5, '2k': 2, '4k': 4 };
         cost = Math.ceil(mapped.cost * (multipliers[resolution] || 1));
     }
@@ -64,6 +66,12 @@ function calculateCost(route, body) {
         const secs        = Math.max(5, parseInt(body?.duration) || 5);
         const qualityMult = body?.quality === 'high' ? 1.75 : 1;
         cost = Math.ceil((mapped.base5s / 5) * secs * 1.35 * 100 * qualityMult);
+    }
+
+    // Coste música — escala con duración (10 CR por minuto, mínimo 5)
+    if (mapped.costType === 'musicDuration') {
+        const secs = Math.max(30, parseInt(body?.duration) || 120);
+        cost = Math.max(5, Math.ceil((secs / 60) * 10));
     }
 
     return { cost, muapiEndpoint: mapped.endpoint };
