@@ -59,56 +59,95 @@ const MUAPI_ROUTE_MAP = {
     'nano-banana-2-edit':     'generate/artist/photo-edit',
 };
 
+function getMuapiErrorMessage(data, fallback = '') {
+    const raw = data?.detail?.error || data?.detail?.message || data?.error?.message
+             || data?.error || data?.message || data?.output?.error || fallback;
+    if (!raw) return '';
+    return typeof raw === 'string' ? raw : JSON.stringify(raw);
+}
+
+function isPolicyError(message) {
+    const m = String(message || '').toLowerCase();
+    return m.includes('copyright') || m.includes('policy') || m.includes('violation')
+        || m.includes('protected') || m.includes('infringe') || m.includes('content');
+}
+
+function friendlyMuapiError(data, status) {
+    const msg = getMuapiErrorMessage(data, `Error ${status}`);
+    if (isPolicyError(msg)) {
+        return 'La generación fue rechazada por copyright o políticas de contenido. Edita la letra/prompt y vuelve a intentarlo.';
+    }
+    return msg || `Error en el servidor: ${status}`;
+}
+
+function extractUrls(data) {
+    const urls = [];
+    const add  = (value) => { if (value && typeof value === 'string') urls.push(value); };
+
+    if (Array.isArray(data?.output?.outputs)) data.output.outputs.forEach(add);
+    if (Array.isArray(data?.outputs))         data.outputs.forEach(add);
+    if (Array.isArray(data?.data?.outputs))   data.data.outputs.forEach(add);
+
+    if (Array.isArray(data?.songs))  data.songs.forEach(s  => add(s.url || s.audio_url));
+    if (Array.isArray(data?.clips))  data.clips.forEach(c  => add(c.url || c.audio_url));
+
+    add(data?.url);
+    add(data?.audio_url);
+    add(data?.output?.url);
+    add(data?.data?.url);
+
+    return [...new Set(urls.filter(Boolean))];
+}
+
 async function callMuapi(endpoint, params, token) {
     const route = MUAPI_ROUTE_MAP[endpoint] || endpoint;
-    const resp = await fetch(`/api/v1/${route}`, {
-        method: 'POST',
+    const resp  = await fetch(`/api/v1/${route}`, {
+        method:  'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify(params)
+        body:    JSON.stringify(params),
     });
-    if (!resp.ok) {
-        const t = await resp.text();
-        throw new Error(`Error (${resp.status}): ${t.slice(0, 300)}`);
-    }
-    return resp.json();
+    const text = await resp.text();
+    let data = {};
+    try { data = text ? JSON.parse(text) : {}; } catch { data = { error: text }; }
+    if (!resp.ok) throw new Error(friendlyMuapiError(data, resp.status));
+    return data;
 }
 
 async function pollResult(requestId, token, onProgress, maxAttempts = 90, interval = 3000) {
+    let lastError = '';
     for (let i = 0; i < maxAttempts; i++) {
         await new Promise(r => setTimeout(r, interval));
         const pct = Math.min(95, Math.round(((i + 1) / maxAttempts) * 100));
         if (onProgress) onProgress(pct, i * interval / 1000);
+
+        let resp;
         try {
-            const resp = await fetch(`/api/v1/predictions/${requestId}/result`, {
-                headers: { 'Authorization': `Bearer ${token}` }
+            resp = await fetch(`/api/v1/predictions/${requestId}/result`, {
+                headers: { 'Authorization': `Bearer ${token}` },
             });
-            if (!resp.ok) {
-                if (resp.status >= 500) continue;
-                const errBody = await resp.json().catch(() => ({}));
-                const errMsg = errBody?.detail?.error || errBody?.error || errBody?.message || '';
-                // Detectar errores de copyright/contenido
-                if (resp.status === 400 || resp.status === 422) {
-                    if (errMsg.toLowerCase().includes('copyright') || errMsg.toLowerCase().includes('content') || errMsg.toLowerCase().includes('policy') || errMsg.toLowerCase().includes('violation')) {
-                        throw new Error('⚠️ La letra contiene contenido protegido por copyright o infringe las políticas de Suno. Por favor edita la letra e inténtalo de nuevo.');
-                    }
-                    throw new Error(`Error de contenido: ${errMsg || resp.status}. Revisa la letra e inténtalo de nuevo.`);
-                }
-                throw new Error(`Poll ${resp.status}: ${errMsg}`);
-            }
-            const data = await resp.json();
-            const status = (data.status || data.output?.status || data?.detail?.status || '').toLowerCase();
-            const errDetail = data?.detail?.error || data.error || data.output?.error || '';
-            if (errDetail.toLowerCase().includes('copyright') || errDetail.toLowerCase().includes('violation')) {
-                throw new Error('⚠️ La letra contiene contenido protegido por copyright. Por favor edita la letra e inténtalo de nuevo.');
-            }
-            const url = data.output?.outputs?.[0] || data.outputs?.[0] || data.url
-                     || data.audio_url || data.output?.url || data.image_url;
-            if (url) return { url, data };
-            if (status === 'failed' || status === 'error')
-                throw new Error(errDetail || 'La generación falló. Revisa el contenido e inténtalo de nuevo.');
-        } catch (e) { if (i >= maxAttempts - 1) throw e; }
+        } catch(e) { lastError = e.message; continue; }
+
+        const text = await resp.text();
+        let data = {};
+        try { data = text ? JSON.parse(text) : {}; } catch { data = { error: text }; }
+
+        if (!resp.ok) {
+            const msg = friendlyMuapiError(data, resp.status);
+            if (resp.status < 500 || isPolicyError(msg)) throw new Error(msg);
+            lastError = msg;
+            continue;
+        }
+
+        const errMsg = getMuapiErrorMessage(data);
+        const status = String(data.status || data.output?.status || data?.detail?.status || '').toLowerCase();
+
+        if (errMsg && isPolicyError(errMsg)) throw new Error(friendlyMuapiError(data, 400));
+        if (status === 'failed' || status === 'error') throw new Error(friendlyMuapiError(data, 400));
+
+        const urls = extractUrls(data);
+        if (urls.length) return { url: urls[0], urls, data };
     }
-    throw new Error('Tiempo de espera agotado.');
+    throw new Error(lastError || 'Tiempo de espera agotado.');
 }
 
 async function checkBalanceForUx(userRef, cost) {
@@ -1246,18 +1285,18 @@ export function KreateMusicStudio() {
 
             const res = await callMuapi('suno-create-music', params, token);
             const rid = res.request_id || res.id;
-            let url = res.url || res.audio_url;
+            let urls = extractUrls(res);
             let pollData = null;
-            if (!url && rid) {
+            if (!urls.length && rid) {
                 const cb = container._progressCallback;
                 const p  = await pollResult(rid, token, cb, 90, 3000);
-                url = p.url;
+                urls     = p.urls || (p.url ? [p.url] : []);
                 pollData = p.data;
             }
-            if (!url) throw new Error('No se recibió URL de la canción.');
+            if (!urls.length) throw new Error('No se recibió URL de la canción.');
             await deduct(userRef, cost, isAdmin);
 
-            // Guardar song_id de Suno en el perfil del artista para consistencia de voz
+            // Guardar song_id de Suno para consistencia de voz
             const sunoSongId = res?.id || res?.song_id || pollData?.id || pollData?.song_id || null;
             if (sunoSongId && !currentArtist.sunoSongId) {
                 try {
@@ -1266,11 +1305,11 @@ export function KreateMusicStudio() {
                         { sunoSongId }
                     );
                     currentArtist.sunoSongId = sunoSongId;
-                } catch(e) { }
+                } catch(e) {}
             }
 
-            await saveSong(url, params.title, 'suno-create-music', lyrics);
-            showSongResult(url, params.title, container);
+            await saveSongResults(urls, params.title, 'suno-create-music', lyrics);
+            showSongResult(urls, params.title, container);
             const sg = document.querySelector('#km-songs-grid');
             if (sg) loadSongs(sg);
         });
@@ -1283,27 +1322,50 @@ export function KreateMusicStudio() {
         });
     }
 
-    function showSongResult(url, title, container) {
+    async function saveSongResults(urls, title, tool, lyrics) {
+        const list = Array.isArray(urls) ? urls : [urls];
+        for (let i = 0; i < list.length; i++) {
+            const suffix = list.length > 1 ? ` - opción ${i + 1}` : '';
+            await saveSong(list[i], `${title || 'Canción'}${suffix}`, tool, lyrics);
+        }
+    }
+
+    function showSongResult(urlOrUrls, title, container) {
+        const urls = Array.isArray(urlOrUrls) ? urlOrUrls : [urlOrUrls];
         const card = document.createElement('div');
         card.className = 'km-card';
         card.style.cssText = 'background:#1a1a1a;border:1px solid #f59e0b44;border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px';
-        card.innerHTML = `<p style="color:#f59e0b;font-size:12px;font-weight:700;margin:0">✓ ${title || 'Resultado'}</p>`;
-        const audio = document.createElement('audio');
-        audio.controls = true; audio.src = url;
-        audio.style.cssText = 'width:100%;accent-color:#f59e0b;border-radius:8px';
-        const dlBtn = document.createElement('button');
-        dlBtn.type = 'button';
-        dlBtn.style.cssText = 'background:#f59e0b;border:none;border-radius:100px;padding:7px 16px;color:#000;font-size:11px;font-weight:700;cursor:pointer;width:fit-content';
-        dlBtn.textContent = '↓ Descargar';
-        dlBtn.addEventListener('click', async () => {
-            try {
-                const blob = await fetch(url).then(r => r.blob());
-                const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `${title || 'kreatemusic'}.mp3` });
-                document.body.appendChild(a); a.click(); document.body.removeChild(a);
-            } catch { window.open(url, '_blank'); }
+        card.innerHTML = `<p style="color:#f59e0b;font-size:12px;font-weight:700;margin:0">✓ ${urls.length > 1 ? `${urls.length} opciones generadas` : (title || 'Resultado')}</p>`;
+
+        urls.forEach((url, index) => {
+            if (urls.length > 1) {
+                const lbl = document.createElement('p');
+                lbl.style.cssText = 'color:#888;font-size:10px;font-weight:700;margin:0';
+                lbl.textContent = `Opción ${index + 1}`;
+                card.appendChild(lbl);
+            }
+            const audio = document.createElement('audio');
+            audio.controls = true; audio.src = url;
+            audio.style.cssText = 'width:100%;accent-color:#f59e0b;border-radius:8px';
+            card.appendChild(audio);
+
+            const dlBtn = document.createElement('button');
+            dlBtn.type = 'button';
+            dlBtn.style.cssText = 'background:#f59e0b;border:none;border-radius:100px;padding:7px 16px;color:#000;font-size:11px;font-weight:700;cursor:pointer;width:fit-content';
+            dlBtn.textContent = `↓ Descargar${urls.length > 1 ? ` opción ${index + 1}` : ''}`;
+            dlBtn.addEventListener('click', async () => {
+                try {
+                    const blob = await fetch(url).then(r => r.blob());
+                    const a = Object.assign(document.createElement('a'), {
+                        href: URL.createObjectURL(blob),
+                        download: `${title || 'kreatemusic'}-${index + 1}.mp3`,
+                    });
+                    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                } catch { window.open(url, '_blank'); }
+            });
+            card.appendChild(dlBtn);
         });
-        card.appendChild(audio);
-        card.appendChild(dlBtn);
+
         const genBtn = container.querySelector('button[style*="f59e0b"]');
         if (genBtn) container.insertBefore(card, genBtn);
         else container.appendChild(card);
