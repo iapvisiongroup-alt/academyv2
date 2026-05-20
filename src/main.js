@@ -73,7 +73,9 @@ navigate('image');
 // Cola global de generaciones — carga lazy para no bloquear el resto
 import('./components/GenerationCenter.js').then(({ GenerationCenter }) => {
     if (!document.querySelector('#generation-center-root')) {
-        document.body.appendChild(GenerationCenter());
+        const gc = GenerationCenter();
+        gc.id = 'generation-center-root';
+        document.body.appendChild(gc);
     }
 });
 
