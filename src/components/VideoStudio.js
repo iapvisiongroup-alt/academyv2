@@ -6,7 +6,18 @@ import {
     collection, addDoc, query, orderBy, limit, getDocs,
     serverTimestamp, doc, updateDoc
 } from 'firebase/firestore';
-import { saveGenerationTask } from './GenerationCenter.js';
+// saveGenerationTask inline — evita import circular con GenerationCenter
+async function saveGenerationTask({ type, endpoint, requestId, prompt, userId }) {
+    try {
+        const { collection, addDoc, serverTimestamp } = await import('firebase/firestore');
+        const { db, APP_ID } = await import('../lib/firebase.js');
+        return addDoc(
+            collection(db, 'artifacts', APP_ID, 'public', 'data', 'users', userId, 'generation_tasks'),
+            { type, endpoint, request_id: requestId || null, prompt: (prompt || '').slice(0, 200),
+              status: 'running', result_url: null, createdAt: serverTimestamp(), updatedAt: serverTimestamp() }
+        );
+    } catch(e) { console.warn('saveGenerationTask failed:', e.message); return null; }
+}
 import { onAuthStateChanged } from 'firebase/auth';
 
 const V_MODELS = [
