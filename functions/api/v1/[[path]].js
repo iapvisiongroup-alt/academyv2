@@ -83,9 +83,6 @@ async function firestoreDeductCredits(projectId, docPath, cost, accessToken, att
     const doc      = await readRes.json();
     const fields   = doc.fields || {};
     const credits  = parseInt(fields.credits?.integerValue ?? fields.credits?.doubleValue ?? 0);
-    const isAdmin  = fields.role?.stringValue === 'admin';
-
-    if (isAdmin) return { ok: true, isAdmin: true };
 
     if (credits < cost) {
         return {
@@ -127,7 +124,7 @@ async function firestoreDeductCredits(projectId, docPath, cost, accessToken, att
         throw new Error(`Error actualizando créditos (${commitRes.status}): ${errBody.slice(0, 200)}`);
     }
 
-    return { ok: true, isAdmin: false };
+    return { ok: true };
 }
 
 // ─── Firestore: reembolsar créditos ──────────────────────────────────────────
@@ -143,9 +140,6 @@ async function firestoreRefund(projectId, docPath, cost, accessToken) {
     const doc     = await readRes.json();
     const fields  = doc.fields || {};
     const credits = parseInt(fields.credits?.integerValue ?? 0);
-    const isAdmin = fields.role?.stringValue === 'admin';
-    if (isAdmin) return;
-
     await fetch(`${baseUrl}:commit`, {
         method:  'POST',
         headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
@@ -241,6 +235,7 @@ export async function onRequest(context) {
     }
 
     const cost = calculateCost(endpoint, body);
+    console.log('[API CREDITOS]', { endpoint, cost });
 
     // ── Verificar y descontar créditos ──
     let uid = null;
