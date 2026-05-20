@@ -41,9 +41,7 @@ const API_TO_ROUTE = {
     'kling-v3.0-std-motion-control':      'generate/video/motion',
 };
 
-const getVideoCost = (apiId, duration) => {
-    // Precio MuAPI por 5s + 35% margen. 1 CR = $0.01
-    // Se escala linealmente con la duración
+const getVideoCost = (apiId, duration, quality = 'basic') => {
     const costPer5s = {
         'seedance-v2.0-t2v':                     0.75,
         'seedance-2-vip-image-to-video-fast':     1.05,
@@ -53,10 +51,10 @@ const getVideoCost = (apiId, duration) => {
         'veo3.1-lite-image-to-video':             0.30,
         'kling-v3.0-std-motion-control':          1.63,
     };
-    const secs    = parseInt(duration) || 5;
-    const base5s  = costPer5s[apiId] || 0.75;
-    const perSec  = base5s / 5;
-    return Math.ceil(perSec * secs * 1.35 * 100);
+    const secs        = parseInt(duration) || 5;
+    const base5s      = costPer5s[apiId] || 0.75;
+    const qualityMult = quality === 'high' ? 1.75 : 1;
+    return Math.ceil((base5s / 5) * secs * 1.35 * 100 * qualityMult);
 };
 
 const AR_LABELS = {
@@ -314,7 +312,7 @@ export function VideoStudio() {
     function updateControlsForModel() {
         const mode       = getCurrentMode();
         const finalApiId = getApiId(selectedUiId, mode);
-        const cost       = getVideoCost(finalApiId, selectedDuration);
+        const cost       = getVideoCost(finalApiId, selectedDuration, selectedQuality);
 
         updateLabel('v-model-btn-label',    selectedModelName);
         updateLabel('v-ar-btn-label',       selectedAr);
@@ -443,7 +441,7 @@ export function VideoStudio() {
         const promptText  = textarea.value.trim();
         const currentMode = getCurrentMode();
         const finalApiId  = getApiId(selectedUiId, currentMode);
-        const cost        = getVideoCost(finalApiId, selectedDuration);
+        const cost        = getVideoCost(finalApiId, selectedDuration, selectedQuality);
 
         if (!auth?.currentUser) {
             if (typeof AuthModal === 'function') return AuthModal(() => handleGenerate());
