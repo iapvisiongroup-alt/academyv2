@@ -3,7 +3,7 @@ import { AuthModal } from './AuthModal.js';
 import { createUploadPicker } from './UploadPicker.js';
 import { createControlBtn, createDropdownSystem } from './dropdowns.js';
 import { auth, db, APP_ID } from '../lib/firebase.js';
-import { collection, addDoc, query, orderBy, limit, getDocs, serverTimestamp, doc } from 'firebase/firestore';
+import { collection, addDoc, query, orderBy, limit, getDocs, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
 import { saveGenerationTask } from './GenerationCenter.js';
 import { onAuthStateChanged } from 'firebase/auth';
 
@@ -264,7 +264,7 @@ export function ImageStudio() {
             const q    = query(collection(db,'artifacts',APP_ID,'public','data','users',user.uid,'generations'), orderBy('createdAt','desc'), limit(20));
             const snap = await getDocs(q);
             snap.forEach(d => renderCard({ id: d.id, ...d.data() }));
-        } catch (e) { console.error('[ImageStudio] Historial:', e); }
+        } catch (e) { }
     };
 
     onAuthStateChanged(auth, (user) => { if (user) loadHistory(user); });
@@ -292,14 +292,14 @@ export function ImageStudio() {
             let res;
             const token = await auth.currentUser.getIdToken();
 
-            const req = await fetch(`/api/v1/${selectedModel}`, {
+            const route = imageMode ? 'generate/image/edit' : 'generate/image/create';
+            const req = await fetch(`/api/v1/${route}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`,
                 },
                 body: JSON.stringify({
-                    model: selectedModel,
                     prompt: finalPrompt,
                     aspect_ratio: selectedAr,
                     ...(imageMode && { images_list: uploadedImageUrls }),
@@ -313,15 +313,16 @@ export function ImageStudio() {
                 throw new Error(res.error || `Error en el servidor: ${req.status}`);
             }
 
-            // Guardar task en Firestore para cola global
-            if ((res.request_id || res.id) && auth.currentUser) {
-                saveGenerationTask({
+            const requestId = res.request_id || res.id || res.output?.id || null;
+            let generationTaskRef = null;
+            if (requestId && auth.currentUser) {
+                generationTaskRef = await saveGenerationTask({
                     type:      'image',
-                    endpoint:  selectedModel,
-                    requestId: res.request_id || res.id,
+                    endpoint:  imageMode ? 'generate/image/edit' : 'generate/image/create',
+                    requestId,
                     prompt:    finalPrompt,
                     userId:    auth.currentUser.uid,
-                }).catch(() => {});
+                }).catch(() => null);
             }
 
             let imageUrl =
@@ -367,6 +368,11 @@ export function ImageStudio() {
 
             if (imageUrl && !res.url) res.url = imageUrl;
 
+            // Actualizar task como completada
+            if (generationTaskRef && res.url) {
+                updateDoc(generationTaskRef, { status: 'completed', result_url: res.url, updatedAt: serverTimestamp() }).catch(() => {});
+            }
+
             if (!res?.url) throw new Error('No se recibió URL de la imagen.');
 
             // Créditos descontados por el backend
@@ -377,7 +383,6 @@ export function ImageStudio() {
             renderCard({ id: docRef.id, ...entry }, true);
 
         } catch (e) {
-            console.error('[ImageStudio] Error:', e);
             loadingCard.innerHTML = `
                 <div class="absolute inset-0" style="background:#ef444411"></div>
                 <div class="z-10 flex flex-col items-center gap-2 p-3 text-center">
