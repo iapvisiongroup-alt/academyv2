@@ -1,6 +1,9 @@
+Sí. Este es el `LandingPage.js` completo final, con los 3 vídeos originales arriba, los 3 nuevos abajo, sección de fotografía/producto y Academia IA semanal.
+
+```js
 const LANDING_VIDEOS = [
     {
-        id: 'video-01',
+        id: 'hero-01',
         url: 'https://cdn.higgsfield.ai/user_3AvFCf0aoS6DTSHhwoX3QgsDzIR/hf_20260409_094557_c0e3952b-1ecf-4621-9b06-eb86a7fe29e8_min.mp4',
         label: 'KreateVideo',
         title: 'Vídeos generativos con acabado cinematográfico',
@@ -8,7 +11,7 @@ const LANDING_VIDEOS = [
         mode: 'Generación de vídeo IA',
     },
     {
-        id: 'video-02',
+        id: 'hero-02',
         url: 'https://cdn.higgsfield.ai/user_3AvFCf0aoS6DTSHhwoX3QgsDzIR/hf_20260409_094505_e898193e-ec14-4ecc-92ed-be976174fc88_min.mp4',
         label: 'KreateVideo',
         title: 'Movimiento, composición y estilo visual',
@@ -16,12 +19,53 @@ const LANDING_VIDEOS = [
         mode: 'Dirección visual con IA',
     },
     {
-        id: 'video-03',
+        id: 'hero-03',
         url: 'https://cdn.higgsfield.ai/user_3AvFCf0aoS6DTSHhwoX3QgsDzIR/hf_20260409_094612_2b122af8-b47a-4518-9d91-9675dd8e3f41_min.mp4',
         label: 'KreateVideo',
         title: 'Contenido audiovisual creado en segundos',
         description: 'Genera clips llamativos para marcas, artistas, creadores y proyectos audiovisuales.',
         mode: 'Prompt a vídeo',
+    },
+];
+
+const GENERATED_VIDEO_SHOWCASE = [
+    {
+        url: 'https://cdn.higgsfield.ai/superhero-gen-preset/b3e830c6-9927-4c6d-8960-8753889adbc9.mp4',
+        label: 'KreateVideo',
+        title: 'Escenas de acción generadas con IA',
+        description: 'Vídeos con movimiento, cámara y estética cinematográfica creados desde una idea visual.',
+        mode: 'Texto a vídeo',
+    },
+    {
+        url: 'https://cdn.higgsfield.ai/superhero-gen-preset/0305a4a8-5674-4650-8976-031af3231207.mp4',
+        label: 'KreateVideo',
+        title: 'Personajes y mundos visuales',
+        description: 'Contenido llamativo para campañas, redes sociales, trailers, conceptos y piezas promocionales.',
+        mode: 'Vídeo creativo',
+    },
+    {
+        url: 'https://cdn.higgsfield.ai/superhero-gen-preset/6b1f33ae-23c3-4ee7-a419-ebe6af659b0d.mp4',
+        label: 'KreateVideo',
+        title: 'Producción visual rápida',
+        description: 'Crea clips impactantes sin rodaje tradicional, ajustando estilo, duración y formato desde el estudio.',
+        mode: 'Generación audiovisual',
+    },
+];
+
+const PHOTO_SHOWCASE = [
+    {
+        type: 'image',
+        url: 'https://d8j0ntlcm91z4.cloudfront.net/user_35h9Zqn0Bk5qurQOPUM7laOSfXO/hf_20260314_185419_c3b256b1-d0e0-4cd9-90bd-c9ee5b8c0878.png',
+        label: 'KreateImage',
+        title: 'Fotografía para redes sociales',
+        description: 'Crea imágenes visualmente cuidadas para perfiles, campañas, anuncios y contenido diario.',
+    },
+    {
+        type: 'video',
+        url: 'https://d8j0ntlcm91z4.cloudfront.net/user_3CIjqzTsrKEUr8OzFBaYO4ux3nG/hf_20260413_121933_7dfa9582-a536-4a83-9041-ee5aa102ff8c.mp4',
+        label: 'KreateImage + KreateVideo',
+        title: 'Producto y contenido social en movimiento',
+        description: 'Convierte imágenes y conceptos de producto en piezas dinámicas para redes o presentación comercial.',
     },
 ];
 
@@ -72,8 +116,8 @@ function injectLandingStyles() {
             position:absolute;
             inset:0;
             background:
-                linear-gradient(to right, rgba(0,0,0,.88), rgba(0,0,0,.42) 45%, rgba(0,0,0,.76)),
-                linear-gradient(to top, #050505 0%, rgba(5,5,5,.18) 45%, rgba(5,5,5,.45) 100%);
+                linear-gradient(to right, rgba(0,0,0,.9), rgba(0,0,0,.42) 46%, rgba(0,0,0,.78)),
+                linear-gradient(to top, #050505 0%, rgba(5,5,5,.2) 48%, rgba(5,5,5,.48) 100%);
         }
 
         .lp-hero-content {
@@ -93,11 +137,11 @@ function injectLandingStyles() {
         }
 
         .lp-title {
-            font-size:72px;
-            line-height:.95;
+            font-size:clamp(42px,7vw,84px);
+            line-height:.96;
             font-weight:950;
             letter-spacing:0;
-            max-width:780px;
+            max-width:820px;
             margin:0;
         }
 
@@ -124,6 +168,7 @@ function injectLandingStyles() {
             font-weight:850;
             cursor:pointer;
             transition:transform .18s ease, background .18s ease, border-color .18s ease;
+            white-space:nowrap;
         }
 
         .lp-btn:hover { transform:translateY(-1px); }
@@ -149,7 +194,7 @@ function injectLandingStyles() {
             grid-template-columns:repeat(3, minmax(0, 1fr));
             gap:10px;
             margin-top:44px;
-            max-width:880px;
+            max-width:900px;
         }
 
         .lp-video-thumb {
@@ -162,6 +207,8 @@ function injectLandingStyles() {
             cursor:pointer;
             opacity:.74;
             transition:opacity .18s ease, border-color .18s ease, transform .18s ease;
+            padding:0;
+            text-align:left;
         }
 
         .lp-video-thumb:hover,
@@ -199,7 +246,7 @@ function injectLandingStyles() {
         }
 
         .lp-section h2 {
-            font-size:42px;
+            font-size:clamp(32px,4.6vw,52px);
             line-height:1.05;
             letter-spacing:0;
             font-weight:950;
@@ -260,13 +307,11 @@ function injectLandingStyles() {
         @media (max-width:860px) {
             .lp-shell { padding:0 16px; }
             .lp-hero { min-height:92vh; }
-            .lp-title { font-size:42px; }
             .lp-copy { font-size:15px; }
             .lp-video-strip { grid-template-columns:1fr; }
             .lp-video-thumb { height:120px; }
             .lp-studio-grid,
             .lp-pricing { grid-template-columns:1fr; }
-            .lp-section h2 { font-size:32px; }
         }
     `;
     document.head.appendChild(style);
@@ -282,42 +327,25 @@ export function LandingPage(navigate) {
 
     root.innerHTML = `
         <section class="lp-hero">
-            <video
-                id="lp-hero-video"
-                class="lp-hero-video"
-                src="${first.url}"
-                autoplay
-                muted
-                loop
-                playsinline
-            ></video>
-
+            <video id="lp-hero-video" class="lp-hero-video" src="${first.url}" autoplay muted loop playsinline></video>
             <div class="lp-hero-shade"></div>
 
             <div class="lp-hero-content">
                 <div class="lp-shell">
                     <p class="lp-kicker">KreateIA Studio</p>
 
-                    <h1 class="lp-title">
-                        Imagen, vídeo y música creados con IA.
-                    </h1>
+                    <h1 class="lp-title">Imagen, vídeo y música creados con IA.</h1>
 
-                    <p class="lp-copy" id="lp-hero-copy">
-                        ${first.description}
-                    </p>
+                    <p class="lp-copy" id="lp-hero-copy">${first.description}</p>
 
                     <div class="lp-actions">
-                        <button class="lp-btn lp-btn-primary" id="lp-open-studio">
-                            Entrar al estudio
-                        </button>
-                        <button class="lp-btn lp-btn-secondary" id="lp-see-videos">
-                            Ver ejemplos generados
-                        </button>
+                        <button class="lp-btn lp-btn-primary" id="lp-open-studio">Entrar al estudio</button>
+                        <button class="lp-btn lp-btn-secondary" id="lp-see-videos">Ver ejemplos generados</button>
                     </div>
 
                     <div class="lp-video-strip" id="lp-video-strip">
                         ${LANDING_VIDEOS.map((video, index) => `
-                            <button class="lp-video-thumb ${index === 0 ? 'is-active' : ''}" data-video="${index}">
+                            <button type="button" class="lp-video-thumb ${index === 0 ? 'is-active' : ''}" data-video="${index}">
                                 <video src="${video.url}" muted loop playsinline></video>
                                 <div class="lp-thumb-text">
                                     <p style="color:#f59e0b;font-size:10px;font-weight:900;margin:0 0 4px">${video.mode}</p>
@@ -339,7 +367,7 @@ export function LandingPage(navigate) {
                 </p>
 
                 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin-top:30px">
-                    ${LANDING_VIDEOS.map(video => `
+                    ${GENERATED_VIDEO_SHOWCASE.map(video => `
                         <article style="position:relative;min-height:360px;border-radius:8px;overflow:hidden;background:#111;border:1px solid rgba(255,255,255,.12)">
                             <video src="${video.url}" autoplay muted loop playsinline style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0"></video>
                             <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.88),rgba(0,0,0,.08))"></div>
@@ -347,6 +375,33 @@ export function LandingPage(navigate) {
                                 <p style="color:#f59e0b;font-size:11px;font-weight:900;margin:0 0 8px">${video.label}</p>
                                 <h3 style="color:#fff;font-size:20px;line-height:1.12;font-weight:950;margin:0 0 10px">${video.title}</h3>
                                 <p style="color:rgba(255,255,255,.68);font-size:13px;line-height:1.5;margin:0">${video.description}</p>
+                            </div>
+                        </article>
+                    `).join('')}
+                </div>
+            </div>
+        </section>
+
+        <section class="lp-section" style="background:#050505">
+            <div class="lp-shell">
+                <p class="lp-kicker" style="color:#3b82f6">KreateImage</p>
+                <h2>Fotografía para redes y producto</h2>
+                <p style="max-width:680px;margin:16px 0 0">
+                    Genera imágenes y piezas visuales para productos, marcas personales, redes sociales, campañas y contenido comercial.
+                </p>
+
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin-top:30px">
+                    ${PHOTO_SHOWCASE.map(item => `
+                        <article style="position:relative;min-height:420px;border-radius:8px;overflow:hidden;background:#111;border:1px solid rgba(255,255,255,.12)">
+                            ${item.type === 'video'
+                                ? `<video src="${item.url}" autoplay muted loop playsinline style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0"></video>`
+                                : `<img src="${item.url}" alt="${item.title}" loading="lazy" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0">`
+                            }
+                            <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.86),rgba(0,0,0,.05))"></div>
+                            <div style="position:absolute;left:18px;right:18px;bottom:18px">
+                                <p style="color:#3b82f6;font-size:11px;font-weight:900;margin:0 0 8px">${item.label}</p>
+                                <h3 style="color:#fff;font-size:20px;line-height:1.12;font-weight:950;margin:0 0 10px">${item.title}</h3>
+                                <p style="color:rgba(255,255,255,.68);font-size:13px;line-height:1.5;margin:0">${item.description}</p>
                             </div>
                         </article>
                     `).join('')}
@@ -377,6 +432,49 @@ export function LandingPage(navigate) {
                         <p>Crea artistas IA, canciones, letras, sonidos, voces, remixes y extensiones musicales.</p>
                         <button class="lp-btn lp-btn-secondary" data-go="music">Abrir KreateMusic</button>
                     </article>
+                </div>
+            </div>
+        </section>
+
+        <section class="lp-section" style="background:#080808">
+            <div class="lp-shell">
+                <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,420px);gap:28px;align-items:center">
+                    <div>
+                        <p class="lp-kicker">Academia IA</p>
+                        <h2>Aprende a crear mejor cada semana</h2>
+                        <p style="max-width:680px;margin:16px 0 0">
+                            En la Academia IA iremos añadiendo nuevos vídeos todas las semanas con tutoriales, flujos de trabajo, ideas creativas y formas prácticas de sacar más partido a KreateImage, KreateVideo y KreateMusic.
+                        </p>
+                        <p style="max-width:680px;margin:14px 0 0">
+                            Formación pensada para creadores, empresas y equipos que quieren aprender a producir contenido con IA de forma clara, visual y aplicada.
+                        </p>
+
+                        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:26px">
+                            <button class="lp-btn lp-btn-primary" data-go="academy">Ver Academia IA</button>
+                            <button class="lp-btn lp-btn-secondary" data-go="video">Crear un vídeo</button>
+                        </div>
+                    </div>
+
+                    <div style="background:#101010;border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:22px">
+                        <p style="color:#f59e0b;font-size:12px;font-weight:900;margin:0 0 16px">Contenido semanal</p>
+
+                        <div style="display:grid;gap:12px">
+                            <div style="border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:12px">
+                                <strong style="display:block;color:#fff;font-size:14px;margin-bottom:5px">Prompts para imagen y vídeo</strong>
+                                <span style="color:#777;font-size:12px">Cómo escribir mejores instrucciones para obtener resultados más precisos.</span>
+                            </div>
+
+                            <div style="border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:12px">
+                                <strong style="display:block;color:#fff;font-size:14px;margin-bottom:5px">Contenido para redes sociales</strong>
+                                <span style="color:#777;font-size:12px">Ideas y procesos para crear piezas visuales listas para publicar.</span>
+                            </div>
+
+                            <div>
+                                <strong style="display:block;color:#fff;font-size:14px;margin-bottom:5px">Música, artistas IA y marca</strong>
+                                <span style="color:#777;font-size:12px">Cómo combinar imagen, voz, canciones y estilo en proyectos creativos.</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>
@@ -413,15 +511,13 @@ export function LandingPage(navigate) {
         <section style="padding:84px 0">
             <div class="lp-shell" style="text-align:center">
                 <p class="lp-kicker">KreateIA Studio</p>
-                <h2 style="font-size:42px;line-height:1.05;font-weight:950;margin:0">
+                <h2 style="font-size:clamp(32px,4.6vw,52px);line-height:1.05;font-weight:950;margin:0">
                     Empieza creando con IA profesional.
                 </h2>
                 <p style="color:rgba(255,255,255,.62);max-width:560px;margin:18px auto 28px;line-height:1.65">
                     Entra al estudio, elige herramienta, configura tu generación y lanza tus creaciones con créditos.
                 </p>
-                <button class="lp-btn lp-btn-primary" id="lp-final-cta">
-                    Entrar al estudio
-                </button>
+                <button class="lp-btn lp-btn-primary" id="lp-final-cta">Entrar al estudio</button>
             </div>
         </section>
     `;
