@@ -58,11 +58,6 @@ function navigate(page) {
             if (token === navToken) contentArea.appendChild(LipSyncStudio());
         });
 
-    } else if (['services', 'faq', 'about', 'contact', 'cookies'].includes(page)) {
-        import('./components/InfoPage.js').then(({ InfoPage }) => {
-            if (token === navToken) contentArea.appendChild(InfoPage(page));
-        });
-
     } else if (page === 'library') {
         const div = document.createElement('div');
         div.className = 'flex-1 flex flex-col items-center justify-center bg-[#050505] w-full h-full p-8';
