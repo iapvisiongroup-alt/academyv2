@@ -104,11 +104,33 @@ export function GenerationCenter() {
             if (resultEl) {
                 resultEl.style.display = 'flex';
                 if (task.type === 'image' && task.result_url) {
-                    resultEl.innerHTML = `<img src="${task.result_url}" style="width:100%;border-radius:8px;border:1px solid #f59e0b44;cursor:pointer" onclick="window.open('${task.result_url}','_blank')">`;
+                    const img = document.createElement('img');
+                    img.src = task.result_url;
+                    img.style.cssText = 'width:100%;border-radius:8px;border:1px solid #f59e0b44;cursor:pointer';
+                    img.addEventListener('click', async () => {
+                        try {
+                            const blob = await fetch(task.result_url).then(r => r.blob());
+                            const blobUrl = URL.createObjectURL(blob);
+                            window.open(blobUrl, '_blank');
+                            setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
+                        } catch { window.open(task.result_url, '_blank'); }
+                    });
+                    resultEl.innerHTML = '';
+                    resultEl.appendChild(img);
                 } else if (task.type === 'video' && task.result_url) {
-                    resultEl.innerHTML = `<video src="${task.result_url}" style="width:100%;border-radius:8px" muted autoplay loop controls></video>`;
+                    const video = document.createElement('video');
+                    video.src = task.result_url;
+                    video.style.cssText = 'width:100%;border-radius:8px';
+                    video.muted = true; video.autoplay = true; video.loop = true; video.controls = true;
+                    resultEl.innerHTML = '';
+                    resultEl.appendChild(video);
                 } else if (task.type === 'music' && task.result_url) {
-                    resultEl.innerHTML = `<audio src="${task.result_url}" controls style="width:100%;accent-color:#f59e0b"></audio>`;
+                    const audio = document.createElement('audio');
+                    audio.src = task.result_url;
+                    audio.controls = true;
+                    audio.style.cssText = 'width:100%;accent-color:#f59e0b';
+                    resultEl.innerHTML = '';
+                    resultEl.appendChild(audio);
                 }
             }
             autoRemove(task.id, task.ref, 12000);
