@@ -230,8 +230,15 @@ async function decryptMediaToken(token, env) {
 function looksLikeMediaUrl(value) {
     if (typeof value !== 'string') return false;
     if (!value.startsWith('http://') && !value.startsWith('https://')) return false;
+    // Ya es una URL proxied nuestra
     if (value.includes('/api/v1/media/kreateia-')) return false;
-    return true;
+    // Solo envolver URLs de proveedores externos conocidos
+    const externalDomains = [
+        'muapi.ai', 'cdn.muapi.ai', 'cloudfront.net', 'd3adwkbyhxyrtq',
+        'storage.googleapis.com', 'replicate.delivery', 'pbxt.replicate',
+        'lh3.googleusercontent', 'suno.ai', 'cdn.suno.ai',
+    ];
+    return externalDomains.some(d => value.includes(d));
 }
 
 async function wrapMediaUrls(value, env, request) {
