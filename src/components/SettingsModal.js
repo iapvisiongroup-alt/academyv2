@@ -1,6 +1,6 @@
 import { auth, db, APP_ID } from '../lib/firebase.js';
 import { signOut, deleteUser } from 'firebase/auth';
-import { doc, getDoc, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, deleteDoc, collection, query, orderBy, limit, getDocs } from 'firebase/firestore';
 import { PricingModal } from './PricingModal.js';
 
 // ── Modales de contenido legal ────────────────────────────────────────────────
@@ -115,6 +115,7 @@ export function SettingsModal() {
             </div>
             <button class="tab-btn active w-full text-left px-4 py-3 rounded-xl bg-white/10 text-white font-bold transition-colors" data-tab="profile">👤 Mi Perfil</button>
             <button class="tab-btn w-full text-left px-4 py-3 rounded-xl hover:bg-white/5 text-white/50 hover:text-white font-bold transition-colors" data-tab="billing">💳 Créditos y Pagos</button>
+            <button class="tab-btn w-full text-left px-4 py-3 rounded-xl hover:bg-white/5 text-white/50 hover:text-white font-bold transition-colors" data-tab="invoices">🧾 Mis Facturas</button>
             <button class="tab-btn w-full text-left px-4 py-3 rounded-xl hover:bg-white/5 text-white/50 hover:text-white font-bold transition-colors" data-tab="legal">⚖️ Legal y Privacidad</button>
             <div class="mt-auto pt-8">
                 <button id="logout-btn" class="w-full bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 font-bold rounded-xl px-4 py-3 transition-all flex items-center justify-center gap-2">
@@ -160,6 +161,14 @@ export function SettingsModal() {
                 </div>
             </div>
 
+            <!-- Pestaña: Facturas -->
+            <div id="tab-invoices" class="tab-content hidden animate-fade-in">
+                <h3 class="text-xl font-bold text-white mb-6">Mis Facturas</h3>
+                <div id="invoices-list" class="space-y-3">
+                    <p class="text-white/40 text-sm text-center py-8">Cargando facturas...</p>
+                </div>
+            </div>
+
             <!-- Pestaña: Legal -->
             <div id="tab-legal" class="tab-content hidden animate-fade-in">
                 <h3 class="text-xl font-bold text-white mb-6">Legal y Privacidad</h3>
@@ -184,6 +193,51 @@ export function SettingsModal() {
         </div>
     `;
 
+    // ── Cargar facturas ───────────────────────────────────────────────────────
+    const loadInvoices = async () => {
+        const listEl = modal.querySelector('#invoices-list');
+        if (!listEl || !user) return;
+
+        try {
+            const invRef = collection(db, 'artifacts', APP_ID, 'public', 'data', 'users', user.uid, 'invoices');
+            const q      = query(invRef, orderBy('createdAt', 'desc'), limit(20));
+            const snap   = await getDocs(q);
+
+            if (snap.empty) {
+                listEl.innerHTML = '<p class="text-white/40 text-sm text-center py-8">No tienes facturas todavía.<br>Aparecerán aquí tras cada compra de créditos.</p>';
+                return;
+            }
+
+            listEl.innerHTML = '';
+            snap.forEach(docSnap => {
+                const inv    = docSnap.data();
+                const date   = inv.createdAt ? new Date(inv.createdAt).toLocaleDateString('es-ES', { day:'2-digit', month:'short', year:'numeric' }) : '—';
+                const amount = inv.amount ? `${(inv.amount / 100).toFixed(2)}€` : '—';
+
+                const card = document.createElement('div');
+                card.style.cssText = 'background:#111;border:1px solid #222;border-radius:14px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px';
+                card.innerHTML = `
+                    <div style="display:flex;align-items:center;gap:14px">
+                        <div style="width:40px;height:40px;background:#f59e0b22;border:1px solid #f59e0b44;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🧾</div>
+                        <div>
+                            <p style="color:#fff;font-weight:700;margin:0;font-size:14px">${inv.planName || inv.planId || 'Créditos'}</p>
+                            <p style="color:#666;font-size:11px;margin:2px 0 0">${date} · ${inv.email || ''}</p>
+                        </div>
+                    </div>
+                    <div style="text-align:right;flex-shrink:0">
+                        <p style="color:#f59e0b;font-weight:800;margin:0;font-size:15px">${amount}</p>
+                        <p style="color:#4ade80;font-size:11px;margin:2px 0 0">+${inv.credits || 0} 🪙</p>
+                        <span style="background:#4ade8022;color:#4ade80;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;border:1px solid #4ade8044">Pagado</span>
+                    </div>
+                `;
+                listEl.appendChild(card);
+            });
+        } catch(e) {
+            listEl.innerHTML = '<p class="text-white/40 text-sm text-center py-8">Error cargando facturas.</p>';
+            console.error('[Invoices]', e);
+        }
+    };
+
     // ── Tabs ──────────────────────────────────────────────────────────────────
     const tabBtns     = modal.querySelectorAll('.tab-btn');
     const tabContents = modal.querySelectorAll('.tab-content');
@@ -193,7 +247,9 @@ export function SettingsModal() {
             tabContents.forEach(c => c.classList.add('hidden'));
             btn.classList.remove('text-white/50');
             btn.classList.add('bg-white/10','text-white');
-            modal.querySelector(`#tab-${btn.getAttribute('data-tab')}`).classList.remove('hidden');
+            const tabId = btn.getAttribute('data-tab');
+            modal.querySelector(`#tab-${tabId}`).classList.remove('hidden');
+            if (tabId === 'invoices') loadInvoices();
         };
     });
 
