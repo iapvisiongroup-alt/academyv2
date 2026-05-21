@@ -36,7 +36,7 @@ export function Header(navigate) {
             <span class="ml-2 text-white/50 font-medium text-sm">Studio</span>
         </div>
     `;
-    logoContainer.onclick = () => navigate('image');
+    logoContainer.onclick = () => navigate('home');
 
     // ── Menú de navegación ──
     // Nombres de marca blanca — sin referencias a tecnologías externas
