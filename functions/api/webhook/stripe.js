@@ -39,6 +39,36 @@ async function getServiceAccountToken(env) {
     return (await res.json()).access_token;
 }
 
+async function saveInvoice(projectId, appId, uid, invoiceData, accessToken) {
+    const baseUrl  = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
+    const invoiceId = `inv_${Date.now()}`;
+    const docPath  = `artifacts/${appId}/public/data/users/${uid}/invoices/${invoiceId}`;
+
+    const body = {
+        fields: {
+            invoiceId:   { stringValue: invoiceId },
+            planId:      { stringValue: invoiceData.planId },
+            planName:    { stringValue: invoiceData.planName },
+            credits:     { integerValue: String(invoiceData.credits) },
+            amount:      { integerValue: String(invoiceData.amount) },
+            currency:    { stringValue: invoiceData.currency },
+            email:       { stringValue: invoiceData.email },
+            name:        { stringValue: invoiceData.name || '' },
+            status:      { stringValue: 'paid' },
+            stripeSession: { stringValue: invoiceData.stripeSession },
+            createdAt:   { timestampValue: new Date().toISOString() },
+        }
+    };
+
+    await fetch(`${baseUrl}/${docPath}`, {
+        method:  'PATCH',
+        headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+        body:    JSON.stringify(body),
+    });
+
+    return invoiceId;
+}
+
 async function addCreditsToUser(projectId, appId, uid, credits, accessToken) {
     const baseUrl  = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
     const docPath  = `artifacts/${appId}/public/data/users/${uid}`;
@@ -163,6 +193,28 @@ export async function onRequestPost(context) {
             );
 
             console.log(`✅ Créditos añadidos — uid:${uid} | nuevo saldo:${newBalance}`);
+
+            // Guardar factura en Firestore
+            const PLAN_NAMES = { starter: 'Iniciación', pro: 'Creador Pro', max: 'Estudio Max' };
+            const PLAN_PRICES = { starter: 999, pro: 2499, max: 6999 };
+            await saveInvoice(
+                env.FIREBASE_PROJECT_ID,
+                env.FIREBASE_APP_ID,
+                uid,
+                {
+                    planId:        planId,
+                    planName:      PLAN_NAMES[planId] || planId,
+                    credits:       creditsToAdd,
+                    amount:        PLAN_PRICES[planId] || session.amount_total || 0,
+                    currency:      session.currency || 'eur',
+                    email:         session.customer_details?.email || '',
+                    name:          session.customer_details?.name || '',
+                    stripeSession: session.id,
+                },
+                accessToken
+            );
+
+            console.log(`🧾 Factura guardada — uid:${uid} | plan:${planId}`);
             return new Response(JSON.stringify({ status: 'success', credits: newBalance }), { status: 200 });
         }
 
