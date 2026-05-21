@@ -1,5 +1,6 @@
 import './style.css';
 import { Header } from './components/Header.js';
+import { LandingPage } from './components/LandingPage.js';
 import { ImageStudio } from './components/ImageStudio.js';
 import { Footer } from './components/Footer.js';
 import { CookieBanner } from './components/CookieBanner.js';
@@ -13,7 +14,10 @@ function navigate(page) {
     if (!contentArea) return;
     contentArea.innerHTML = '';
 
-    if (page === 'image') {
+    if (page === 'home') {
+        contentArea.appendChild(LandingPage(navigate));
+
+    } else if (page === 'image') {
         contentArea.appendChild(ImageStudio());
 
     } else if (page === 'video') {
@@ -68,7 +72,7 @@ app.appendChild(Footer());
 const cookieBanner = CookieBanner();
 if (cookieBanner) document.body.appendChild(cookieBanner);
 
-navigate('image');
+navigate('home');
 
 // Cola global de generaciones — carga lazy para no bloquear el resto
 import('./components/GenerationCenter.js').then(({ GenerationCenter }) => {
