@@ -9,9 +9,27 @@ const app = document.querySelector('#app');
 app.className = 'flex flex-col h-screen overflow-hidden';
 
 let contentArea;
+let navToken = 0;
+
+function openAdminPanel() {
+    import('./components/AdminPanel.js').then(({ AdminPanel }) => {
+        if (!document.querySelector('#admin-panel-root')) {
+            const panel = AdminPanel();
+            panel.id = 'admin-panel-root';
+            document.body.appendChild(panel);
+        }
+    });
+}
 
 function navigate(page) {
     if (!contentArea) return;
+
+    if (page === 'admin') {
+        openAdminPanel();
+        return;
+    }
+
+    const token = ++navToken;
     contentArea.innerHTML = '';
 
     if (page === 'home') {
@@ -22,22 +40,27 @@ function navigate(page) {
 
     } else if (page === 'video') {
         import('./components/VideoStudio.js').then(({ VideoStudio }) => {
-            contentArea.appendChild(VideoStudio());
+            if (token === navToken) contentArea.appendChild(VideoStudio());
         });
 
     } else if (page === 'music') {
         import('./components/KreateMusicStudio.js').then(({ KreateMusicStudio }) => {
-            contentArea.appendChild(KreateMusicStudio());
+            if (token === navToken) contentArea.appendChild(KreateMusicStudio());
         });
 
     } else if (page === 'cinema') {
         import('./components/CinemaStudio.js').then(({ CinemaStudio }) => {
-            contentArea.appendChild(CinemaStudio());
+            if (token === navToken) contentArea.appendChild(CinemaStudio());
         });
 
     } else if (page === 'lipsync') {
         import('./components/LipSyncStudio.js').then(({ LipSyncStudio }) => {
-            contentArea.appendChild(LipSyncStudio());
+            if (token === navToken) contentArea.appendChild(LipSyncStudio());
+        });
+
+    } else if (['services', 'faq', 'about', 'contact', 'cookies'].includes(page)) {
+        import('./components/InfoPage.js').then(({ InfoPage }) => {
+            if (token === navToken) contentArea.appendChild(InfoPage(page));
         });
 
     } else if (page === 'library') {
@@ -55,6 +78,9 @@ function navigate(page) {
             <p class="text-white/50">Cursos avanzados para empresas y creadores. Disponible próximamente.</p>
         `;
         contentArea.appendChild(academyDiv);
+
+    } else {
+        contentArea.appendChild(LandingPage(navigate));
     }
 }
 
@@ -74,7 +100,6 @@ if (cookieBanner) document.body.appendChild(cookieBanner);
 
 navigate('home');
 
-// Cola global de generaciones — carga lazy para no bloquear el resto
 import('./components/GenerationCenter.js').then(({ GenerationCenter }) => {
     if (!document.querySelector('#generation-center-root')) {
         const gc = GenerationCenter();
@@ -88,6 +113,8 @@ window.addEventListener('navigate', (e) => {
         import('./components/SettingsModal.js').then(({ SettingsModal }) => {
             document.body.appendChild(SettingsModal());
         });
+    } else if (e.detail.page === 'admin') {
+        openAdminPanel();
     } else {
         navigate(e.detail.page);
     }
