@@ -75,7 +75,6 @@ function injectLandingStyles() {
         '.lp-btn:hover{transform:translateY(-1px)}',
         '.lp-btn-primary{background:#f59e0b;border-color:#f59e0b;color:#000}',
         '.lp-btn-secondary{background:rgba(255,255,255,.06);color:#fff}',
-        '.lp-btn-secondary:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.32)}',
         '.lp-video-strip{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:44px;max-width:900px}',
         '.lp-video-thumb{position:relative;height:150px;border-radius:8px;overflow:hidden;background:#111;border:1px solid rgba(255,255,255,.12);cursor:pointer;opacity:.74;transition:opacity .18s ease,border-color .18s ease,transform .18s ease;padding:0;text-align:left}',
         '.lp-video-thumb:hover,.lp-video-thumb.is-active{opacity:1;border-color:#f59e0b;transform:translateY(-2px)}',
@@ -88,9 +87,9 @@ function injectLandingStyles() {
         '.lp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin-top:30px}',
         '.lp-studio-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:28px}',
         '.lp-pricing{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:28px}',
-        '.lp-studio-card,.lp-price{background:#101010;border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:22px}',
-        '.lp-studio-card h3{margin:0 0 10px;font-size:18px;font-weight:900}',
-        '.lp-studio-card p{margin:0 0 18px;font-size:13px}',
+        '.lp-card{background:#101010;border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:22px}',
+        '.lp-card h3{margin:0 0 10px;font-size:18px;font-weight:900}',
+        '.lp-card p{margin:0 0 18px;font-size:13px}',
         '.lp-price strong{display:block;color:#f59e0b;font-size:18px;margin-top:6px}',
         '@media(max-width:860px){.lp-shell{padding:0 16px}.lp-hero{min-height:92vh}.lp-copy{font-size:15px}.lp-video-strip,.lp-studio-grid,.lp-pricing{grid-template-columns:1fr}.lp-video-thumb{height:120px}}',
     ].join('\n');
@@ -98,7 +97,7 @@ function injectLandingStyles() {
     document.head.appendChild(style);
 }
 
-function createVideo(url, className) {
+function makeVideo(url, className) {
     const video = document.createElement('video');
     video.src = url;
     video.autoplay = true;
@@ -109,20 +108,43 @@ function createVideo(url, className) {
     return video;
 }
 
-function createButton(text, className, onClick) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = className;
-    btn.textContent = text;
-    btn.addEventListener('click', onClick);
-    return btn;
+function makeButton(text, className, onClick) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = className;
+    button.textContent = text;
+    button.addEventListener('click', onClick);
+    return button;
 }
 
-function createShowcaseVideoCard(item) {
+function makeSectionIntro(kicker, title, description, kickerColor) {
+    const wrap = document.createElement('div');
+    wrap.className = 'lp-shell';
+
+    const k = document.createElement('p');
+    k.className = 'lp-kicker';
+    k.textContent = kicker;
+    if (kickerColor) k.style.color = kickerColor;
+
+    const h = document.createElement('h2');
+    h.textContent = title;
+
+    const p = document.createElement('p');
+    p.style.cssText = 'max-width:680px;margin:16px 0 0';
+    p.textContent = description;
+
+    wrap.appendChild(k);
+    wrap.appendChild(h);
+    wrap.appendChild(p);
+
+    return wrap;
+}
+
+function makeVideoShowcaseCard(item) {
     const card = document.createElement('article');
     card.style.cssText = 'position:relative;min-height:360px;border-radius:8px;overflow:hidden;background:#111;border:1px solid rgba(255,255,255,.12)';
 
-    const video = createVideo(item.url);
+    const video = makeVideo(item.url);
     video.style.cssText = 'width:100%;height:100%;object-fit:cover;position:absolute;inset:0';
 
     const shade = document.createElement('div');
@@ -130,14 +152,22 @@ function createShowcaseVideoCard(item) {
 
     const info = document.createElement('div');
     info.style.cssText = 'position:absolute;left:18px;right:18px;bottom:18px';
-    info.innerHTML =
-        '<p style="color:#f59e0b;font-size:11px;font-weight:900;margin:0 0 8px">KreateVideo</p>' +
-        '<h3 style="color:#fff;font-size:20px;line-height:1.12;font-weight:950;margin:0 0 10px"></h3>' +
-        '<p style="color:rgba(255,255,255,.68);font-size:13px;line-height:1.5;margin:0"></p>';
 
-    info.querySelector('h3').textContent = item.title;
-    info.querySelectorAll('p')[1].textContent = item.description;
+    const label = document.createElement('p');
+    label.style.cssText = 'color:#f59e0b;font-size:11px;font-weight:900;margin:0 0 8px';
+    label.textContent = 'KreateVideo';
 
+    const title = document.createElement('h3');
+    title.style.cssText = 'color:#fff;font-size:20px;line-height:1.12;font-weight:950;margin:0 0 10px';
+    title.textContent = item.title;
+
+    const desc = document.createElement('p');
+    desc.style.cssText = 'color:rgba(255,255,255,.68);font-size:13px;line-height:1.5;margin:0';
+    desc.textContent = item.description;
+
+    info.appendChild(label);
+    info.appendChild(title);
+    info.appendChild(desc);
     card.appendChild(video);
     card.appendChild(shade);
     card.appendChild(info);
@@ -145,13 +175,13 @@ function createShowcaseVideoCard(item) {
     return card;
 }
 
-function createPhotoCard(item) {
+function makePhotoCard(item) {
     const card = document.createElement('article');
     card.style.cssText = 'position:relative;min-height:420px;border-radius:8px;overflow:hidden;background:#111;border:1px solid rgba(255,255,255,.12)';
 
     let media;
     if (item.type === 'video') {
-        media = createVideo(item.url);
+        media = makeVideo(item.url);
     } else {
         media = document.createElement('img');
         media.src = item.url;
@@ -165,15 +195,22 @@ function createPhotoCard(item) {
 
     const info = document.createElement('div');
     info.style.cssText = 'position:absolute;left:18px;right:18px;bottom:18px';
-    info.innerHTML =
-        '<p style="color:#3b82f6;font-size:11px;font-weight:900;margin:0 0 8px"></p>' +
-        '<h3 style="color:#fff;font-size:20px;line-height:1.12;font-weight:950;margin:0 0 10px"></h3>' +
-        '<p style="color:rgba(255,255,255,.68);font-size:13px;line-height:1.5;margin:0"></p>';
 
-    info.querySelectorAll('p')[0].textContent = item.label;
-    info.querySelector('h3').textContent = item.title;
-    info.querySelectorAll('p')[1].textContent = item.description;
+    const label = document.createElement('p');
+    label.style.cssText = 'color:#3b82f6;font-size:11px;font-weight:900;margin:0 0 8px';
+    label.textContent = item.label;
 
+    const title = document.createElement('h3');
+    title.style.cssText = 'color:#fff;font-size:20px;line-height:1.12;font-weight:950;margin:0 0 10px';
+    title.textContent = item.title;
+
+    const desc = document.createElement('p');
+    desc.style.cssText = 'color:rgba(255,255,255,.68);font-size:13px;line-height:1.5;margin:0';
+    desc.textContent = item.description;
+
+    info.appendChild(label);
+    info.appendChild(title);
+    info.appendChild(desc);
     card.appendChild(media);
     card.appendChild(shade);
     card.appendChild(info);
@@ -187,14 +224,10 @@ export function LandingPage(navigate) {
     const root = document.createElement('div');
     root.id = 'landing-root';
 
-    const first = LANDING_VIDEOS[0];
-
     const hero = document.createElement('section');
     hero.className = 'lp-hero';
 
-    const heroVideo = createVideo(first.url, 'lp-hero-video');
-    heroVideo.id = 'lp-hero-video';
-
+    const heroVideo = makeVideo(LANDING_VIDEOS[0].url, 'lp-hero-video');
     const heroShade = document.createElement('div');
     heroShade.className = 'lp-hero-shade';
 
@@ -214,13 +247,12 @@ export function LandingPage(navigate) {
 
     const copy = document.createElement('p');
     copy.className = 'lp-copy';
-    copy.id = 'lp-hero-copy';
-    copy.textContent = first.description;
+    copy.textContent = LANDING_VIDEOS[0].description;
 
     const actions = document.createElement('div');
     actions.className = 'lp-actions';
-    actions.appendChild(createButton('Entrar al estudio', 'lp-btn lp-btn-primary', () => navigate('image')));
-    actions.appendChild(createButton('Ver ejemplos generados', 'lp-btn lp-btn-secondary', () => {
+    actions.appendChild(makeButton('Entrar al estudio', 'lp-btn lp-btn-primary', () => navigate('image')));
+    actions.appendChild(makeButton('Ver ejemplos generados', 'lp-btn lp-btn-secondary', () => {
         root.querySelector('#lp-videos')?.scrollIntoView({ behavior: 'smooth' });
     }));
 
@@ -231,17 +263,21 @@ export function LandingPage(navigate) {
         const thumb = document.createElement('button');
         thumb.type = 'button';
         thumb.className = index === 0 ? 'lp-video-thumb is-active' : 'lp-video-thumb';
-        thumb.dataset.video = String(index);
 
-        const smallVideo = createVideo(item.url);
+        const smallVideo = makeVideo(item.url);
         const text = document.createElement('div');
         text.className = 'lp-thumb-text';
-        text.innerHTML =
-            '<p style="color:#f59e0b;font-size:10px;font-weight:900;margin:0 0 4px"></p>' +
-            '<p style="color:#fff;font-size:13px;font-weight:850;margin:0"></p>';
-        text.querySelectorAll('p')[0].textContent = item.mode;
-        text.querySelectorAll('p')[1].textContent = item.title;
 
+        const mode = document.createElement('p');
+        mode.style.cssText = 'color:#f59e0b;font-size:10px;font-weight:900;margin:0 0 4px';
+        mode.textContent = item.mode;
+
+        const thumbTitle = document.createElement('p');
+        thumbTitle.style.cssText = 'color:#fff;font-size:13px;font-weight:850;margin:0';
+        thumbTitle.textContent = item.title;
+
+        text.appendChild(mode);
+        text.appendChild(thumbTitle);
         thumb.appendChild(smallVideo);
         thumb.appendChild(text);
 
@@ -261,6 +297,7 @@ export function LandingPage(navigate) {
     shell.appendChild(copy);
     shell.appendChild(actions);
     shell.appendChild(strip);
+
     heroContent.appendChild(shell);
     hero.appendChild(heroVideo);
     hero.appendChild(heroShade);
@@ -270,46 +307,54 @@ export function LandingPage(navigate) {
     const videosSection = document.createElement('section');
     videosSection.className = 'lp-section';
     videosSection.id = 'lp-videos';
-    videosSection.innerHTML =
-        '<div class="lp-shell">' +
-        '<p class="lp-kicker">Showcase real</p>' +
-        '<h2>Vídeos generados con nuestras herramientas</h2>' +
-        '<p style="max-width:680px;margin:16px 0 0">Estos clips muestran el tipo de resultado que puedes crear en KreateVideo: escenas con movimiento, estilo visual y acabado listo para contenido digital, campañas o piezas creativas.</p>' +
-        '<div class="lp-grid" id="lp-generated-video-grid"></div>' +
-        '</div>';
 
-    const videoGrid = videosSection.querySelector('#lp-generated-video-grid');
-    GENERATED_VIDEO_SHOWCASE.forEach(item => videoGrid.appendChild(createShowcaseVideoCard(item)));
+    const videosShell = makeSectionIntro(
+        'Showcase real',
+        'Vídeos generados con nuestras herramientas',
+        'Estos clips muestran el tipo de resultado que puedes crear en KreateVideo: escenas con movimiento, estilo visual y acabado listo para contenido digital, campañas o piezas creativas.'
+    );
+
+    const videoGrid = document.createElement('div');
+    videoGrid.className = 'lp-grid';
+    GENERATED_VIDEO_SHOWCASE.forEach(item => videoGrid.appendChild(makeVideoShowcaseCard(item)));
+    videosShell.appendChild(videoGrid);
+    videosSection.appendChild(videosShell);
     root.appendChild(videosSection);
 
     const photoSection = document.createElement('section');
     photoSection.className = 'lp-section';
     photoSection.style.background = '#050505';
-    photoSection.innerHTML =
-        '<div class="lp-shell">' +
-        '<p class="lp-kicker" style="color:#3b82f6">KreateImage</p>' +
-        '<h2>Fotografía para redes y producto</h2>' +
-        '<p style="max-width:680px;margin:16px 0 0">Genera imágenes y piezas visuales para productos, marcas personales, redes sociales, campañas y contenido comercial.</p>' +
-        '<div class="lp-grid" id="lp-photo-grid"></div>' +
-        '</div>';
 
-    const photoGrid = photoSection.querySelector('#lp-photo-grid');
-    PHOTO_SHOWCASE.forEach(item => photoGrid.appendChild(createPhotoCard(item)));
+    const photoShell = makeSectionIntro(
+        'KreateImage',
+        'Fotografía para redes y producto',
+        'Genera imágenes y piezas visuales para productos, marcas personales, redes sociales, campañas y contenido comercial.',
+        '#3b82f6'
+    );
+
+    const photoGrid = document.createElement('div');
+    photoGrid.className = 'lp-grid';
+    PHOTO_SHOWCASE.forEach(item => photoGrid.appendChild(makePhotoCard(item)));
+    photoShell.appendChild(photoGrid);
+    photoSection.appendChild(photoShell);
     root.appendChild(photoSection);
 
     const studios = document.createElement('section');
     studios.className = 'lp-section';
     studios.style.background = '#080808';
-    studios.innerHTML =
-        '<div class="lp-shell">' +
+
+    const studioShell = document.createElement('div');
+    studioShell.className = 'lp-shell';
+    studioShell.innerHTML =
         '<p class="lp-kicker">Estudios creativos</p>' +
         '<h2>Todo en un solo entorno</h2>' +
         '<div class="lp-studio-grid">' +
-        '<article class="lp-studio-card"><h3>KreateImage</h3><p>Genera imágenes desde texto o edita referencias con diferentes formatos y resoluciones.</p><button class="lp-btn lp-btn-secondary" data-go="image">Abrir KreateImage</button></article>' +
-        '<article class="lp-studio-card"><h3>KreateVideo</h3><p>Crea clips desde texto, imagen o vídeo, ajustando duración, formato, movimiento y calidad.</p><button class="lp-btn lp-btn-secondary" data-go="video">Abrir KreateVideo</button></article>' +
-        '<article class="lp-studio-card"><h3>KreateMusic</h3><p>Crea artistas IA, canciones, letras, sonidos, voces, remixes y extensiones musicales.</p><button class="lp-btn lp-btn-secondary" data-go="music">Abrir KreateMusic</button></article>' +
-        '</div>' +
+        '<article class="lp-card"><h3>KreateImage</h3><p>Genera imágenes desde texto o edita referencias con diferentes formatos y resoluciones.</p><button class="lp-btn lp-btn-secondary" data-go="image">Abrir KreateImage</button></article>' +
+        '<article class="lp-card"><h3>KreateVideo</h3><p>Crea clips desde texto, imagen o vídeo, ajustando duración, formato, movimiento y calidad.</p><button class="lp-btn lp-btn-secondary" data-go="video">Abrir KreateVideo</button></article>' +
+        '<article class="lp-card"><h3>KreateMusic</h3><p>Crea artistas IA, canciones, letras, sonidos, voces, remixes y extensiones musicales.</p><button class="lp-btn lp-btn-secondary" data-go="music">Abrir KreateMusic</button></article>' +
         '</div>';
+
+    studios.appendChild(studioShell);
     root.appendChild(studios);
 
     const academy = document.createElement('section');
@@ -328,13 +373,14 @@ export function LandingPage(navigate) {
         '<button class="lp-btn lp-btn-secondary" data-go="video">Crear un vídeo</button>' +
         '</div>' +
         '</div>' +
-        '<div style="background:#101010;border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:22px">' +
+        '<div class="lp-card">' +
         '<p style="color:#f59e0b;font-size:12px;font-weight:900;margin:0 0 16px">Contenido semanal</p>' +
-        '<div style="display:grid;gap:12px">' +
-        '<div style="border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:12px"><strong style="display:block;color:#fff;font-size:14px;margin-bottom:5px">Prompts para imagen y vídeo</strong><span style="color:#777;font-size:12px">Cómo escribir mejores instrucciones para obtener resultados más precisos.</span></div>' +
-        '<div style="border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:12px"><strong style="display:block;color:#fff;font-size:14px;margin-bottom:5px">Contenido para redes sociales</strong><span style="color:#777;font-size:12px">Ideas y procesos para crear piezas visuales listas para publicar.</span></div>' +
-        '<div><strong style="display:block;color:#fff;font-size:14px;margin-bottom:5px">Música, artistas IA y marca</strong><span style="color:#777;font-size:12px">Cómo combinar imagen, voz, canciones y estilo en proyectos creativos.</span></div>' +
-        '</div>' +
+        '<p style="margin:0 0 12px;color:#fff;font-weight:800">Prompts para imagen y vídeo</p>' +
+        '<p style="margin:0 0 18px;color:#777;font-size:12px">Cómo escribir mejores instrucciones para obtener resultados más precisos.</p>' +
+        '<p style="margin:0 0 12px;color:#fff;font-weight:800">Contenido para redes sociales</p>' +
+        '<p style="margin:0 0 18px;color:#777;font-size:12px">Ideas y procesos para crear piezas visuales listas para publicar.</p>' +
+        '<p style="margin:0 0 12px;color:#fff;font-weight:800">Música, artistas IA y marca</p>' +
+        '<p style="margin:0;color:#777;font-size:12px">Cómo combinar imagen, voz, canciones y estilo en proyectos creativos.</p>' +
         '</div>' +
         '</div>' +
         '</div>';
@@ -348,10 +394,10 @@ export function LandingPage(navigate) {
         '<h2>Antes de generar, ves el coste</h2>' +
         '<p style="max-width:650px;margin:16px 0 0">KreateIA funciona con créditos. El precio cambia según el tipo de creación, la resolución, la duración y la calidad elegida.</p>' +
         '<div class="lp-pricing">' +
-        '<div class="lp-price"><span>Imagen</span><strong>desde 16 créditos</strong></div>' +
-        '<div class="lp-price"><span>Vídeo</span><strong>según duración</strong></div>' +
-        '<div class="lp-price"><span>Música</span><strong>según generación</strong></div>' +
-        '<div class="lp-price"><span>Artistas IA</span><strong>perfil visual y voz</strong></div>' +
+        '<div class="lp-card lp-price"><span>Imagen</span><strong>desde 16 créditos</strong></div>' +
+        '<div class="lp-card lp-price"><span>Vídeo</span><strong>según duración</strong></div>' +
+        '<div class="lp-card lp-price"><span>Música</span><strong>según generación</strong></div>' +
+        '<div class="lp-card lp-price"><span>Artistas IA</span><strong>perfil visual y voz</strong></div>' +
         '</div>' +
         '</div>';
     root.appendChild(credits);
