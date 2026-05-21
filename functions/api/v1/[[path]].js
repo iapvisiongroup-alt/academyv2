@@ -257,15 +257,7 @@ async function wrapMediaUrls(value, env, request) {
     return value;
 }
 
-function extFromContentType(type = '') {
-    if (type.includes('image/jpeg'))  return 'jpg';
-    if (type.includes('image/png'))   return 'png';
-    if (type.includes('image/webp'))  return 'webp';
-    if (type.includes('video/mp4'))   return 'mp4';
-    if (type.includes('audio/mpeg'))  return 'mp3';
-    if (type.includes('audio/wav'))   return 'wav';
-    return 'bin';
-}
+
 
 async function handleMediaProxy(route, request, env) {
     if (!env.MEDIA_SECRET) return jsonError('MEDIA_SECRET no configurado', 500);
@@ -281,28 +273,21 @@ async function handleMediaProxy(route, request, env) {
     const headers = new Headers();
     const range   = request.headers.get('Range');
     if (range) headers.set('Range', range);
+    // Algunas CDNs de MuAPI no requieren auth, pero por si acaso
+    if (env.MUAPI_KEY && payload.url.includes('muapi')) {
+        headers.set('x-api-key', env.MUAPI_KEY);
+    }
 
-    const upstream = await fetch(payload.url, { headers });
-    if (!upstream.ok && upstream.status !== 206) return jsonError('No se pudo cargar el archivo', upstream.status);
-
-    const contentType = upstream.headers.get('content-type') || 'application/octet-stream';
-    const ext         = extFromContentType(contentType);
-    const safeName    = publicName.startsWith('kreateia-') ? publicName : `kreateia-${payload.code || randomCode()}`;
-
-    const resHeaders = new Headers();
-    resHeaders.set('Content-Type',        contentType);
-    resHeaders.set('Content-Disposition', `inline; filename="${safeName}.${ext}"`);
-    resHeaders.set('Cache-Control',       'public, max-age=86400');
-    resHeaders.set('Access-Control-Allow-Origin', '*');
-
-    const contentRange  = upstream.headers.get('content-range');
-    const acceptRanges  = upstream.headers.get('accept-ranges');
-    const contentLength = upstream.headers.get('content-length');
-    if (contentRange)  resHeaders.set('Content-Range',  contentRange);
-    if (acceptRanges)  resHeaders.set('Accept-Ranges',  acceptRanges);
-    if (contentLength) resHeaders.set('Content-Length', contentLength);
-
-    return new Response(upstream.body, { status: upstream.status, headers: resHeaders });
+    // Redirigir al archivo original — el navegador ve kreateia.com en la barra
+    // pero el archivo se sirve directamente desde el CDN
+    return new Response(null, {
+        status: 302,
+        headers: {
+            'Location':                      payload.url,
+            'Cache-Control':                 'public, max-age=86400',
+            'Access-Control-Allow-Origin':   '*',
+        },
+    });
 }
 
 // ─── Handler principal ────────────────────────────────────────────────────────
