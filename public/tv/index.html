@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>KreateIA TV</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            background: #030303;
+            overflow: hidden;
+            font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            color: #fff;
+        }
+
+        body {
+            cursor: none;
+        }
+
+        .tv-screen {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background: #030303;
+        }
+
+        .main-video {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scale(1.04);
+            filter: saturate(1.18) contrast(1.08);
+            background: #000;
+        }
+
+        .shade {
+            position: absolute;
+            inset: 0;
+            background:
+                linear-gradient(to right, rgba(0,0,0,.94), rgba(0,0,0,.48) 46%, rgba(0,0,0,.82)),
+                linear-gradient(to top, rgba(0,0,0,.92), rgba(0,0,0,.08) 42%, rgba(0,0,0,.55));
+            z-index: 2;
+        }
+
+        .grain {
+            position: absolute;
+            inset: 0;
+            z-index: 3;
+            opacity: .09;
+            pointer-events: none;
+            background-image:
+                linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px);
+            background-size: 64px 64px;
+            mask-image: linear-gradient(to bottom, transparent, #000 18%, #000 82%, transparent);
+        }
+
+        .brand {
+            position: absolute;
+            top: 64px;
+            left: 74px;
+            z-index: 5;
+            display: flex;
+            align-items: center;
+            gap: 18px;
+        }
+
+        .logo-mark {
+            width: 64px;
+            height: 64px;
+            border-radius: 18px;
+            border: 2px solid rgba(255,255,255,.16);
+            background:
+                radial-gradient(circle at 35% 35%, #3b82f6, transparent 28%),
+                radial-gradient(circle at 70% 68%, #f59e0b, transparent 30%),
+                #080808;
+            box-shadow: 0 0 46px rgba(245,158,11,.26);
+        }
+
+        .brand-text {
+            display: flex;
+            flex-direction: column;
+            line-height: 1;
+        }
+
+        .brand-name {
+            font-size: 42px;
+            font-weight: 950;
+            letter-spacing: 0;
+        }
+
+        .brand-url {
+            margin-top: 9px;
+            color: rgba(255,255,255,.62);
+            font-size: 22px;
+            font-weight: 750;
+        }
+
+        .hero-copy {
+            position: absolute;
+            left: 74px;
+            bottom: 162px;
+            z-index: 5;
+            max-width: 1040px;
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 20px;
+            border-radius: 999px;
+            border: 1px solid rgba(245,158,11,.42);
+            background: rgba(245,158,11,.12);
+            color: #f59e0b;
+            font-size: 22px;
+            font-weight: 950;
+            text-transform: uppercase;
+            margin-bottom: 30px;
+        }
+
+        .live-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 999px;
+            background: #f59e0b;
+            box-shadow: 0 0 28px #f59e0b;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        h1 {
+            margin: 0;
+            max-width: 1120px;
+            font-size: clamp(86px, 8vw, 158px);
+            line-height: .88;
+            font-weight: 1000;
+            letter-spacing: 0;
+            text-transform: uppercase;
+        }
+
+        h1 span {
+            color: #f59e0b;
+            text-shadow: 0 0 42px rgba(245,158,11,.38);
+        }
+
+        .subtitle {
+            margin: 32px 0 0;
+            max-width: 920px;
+            font-size: clamp(34px, 2.5vw, 52px);
+            line-height: 1.12;
+            font-weight: 850;
+            color: rgba(255,255,255,.92);
+        }
+
+        .details {
+            margin-top: 34px;
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .tag {
+            padding: 13px 20px;
+            border-radius: 999px;
+            background: rgba(255,255,255,.1);
+            border: 1px solid rgba(255,255,255,.16);
+            color: rgba(255,255,255,.82);
+            font-size: 21px;
+            font-weight: 850;
+        }
+
+        .side-rail {
+            position: absolute;
+            right: 54px;
+            top: 120px;
+            bottom: 128px;
+            z-index: 5;
+            width: 340px;
+            display: grid;
+            gap: 18px;
+        }
+
+        .mini-card {
+            position: relative;
+            overflow: hidden;
+            border-radius: 22px;
+            border: 1px solid rgba(255,255,255,.16);
+            background: #111;
+            box-shadow: 0 24px 70px rgba(0,0,0,.48);
+        }
+
+        .mini-card video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .mini-card::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to top, rgba(0,0,0,.78), transparent 55%);
+        }
+
+        .mini-card p {
+            position: absolute;
+            left: 16px;
+            right: 16px;
+            bottom: 14px;
+            z-index: 2;
+            margin: 0;
+            font-size: 17px;
+            font-weight: 900;
+        }
+
+        .countdown {
+            position: absolute;
+            left: 74px;
+            right: 430px;
+            bottom: 54px;
+            z-index: 6;
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 12px;
+            max-width: 760px;
+        }
+
+        .time-box {
+            background: rgba(255,255,255,.08);
+            border: 1px solid rgba(255,255,255,.14);
+            border-radius: 18px;
+            padding: 15px 18px;
+            backdrop-filter: blur(10px);
+        }
+
+        .time-box strong {
+            display: block;
+            font-size: 42px;
+            line-height: 1;
+            color: #fff;
+        }
+
+        .time-box span {
+            display: block;
+            margin-top: 6px;
+            font-size: 14px;
+            font-weight: 850;
+            color: rgba(255,255,255,.48);
+            text-transform: uppercase;
+        }
+
+        .ticker {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 8;
+            height: 46px;
+            overflow: hidden;
+            background: #f59e0b;
+            color: #000;
+            display: flex;
+            align-items: center;
+            font-size: 22px;
+            font-weight: 950;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .ticker-track {
+            display: flex;
+            width: max-content;
+            animation: ticker 28s linear infinite;
+        }
+
+        .ticker-track span {
+            padding: 0 36px;
+        }
+
+        @keyframes ticker {
+            from { transform: translateX(0); }
+            to { transform: translateX(-50%); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: .45; transform: scale(.82); }
+            50% { opacity: 1; transform: scale(1.08); }
+        }
+
+        @media (max-width: 1400px) {
+            .side-rail {
+                width: 280px;
+                right: 34px;
+            }
+
+            .hero-copy {
+                max-width: 820px;
+            }
+
+            .countdown {
+                right: 340px;
+            }
+        }
+
+        @media (max-width: 900px) {
+            .brand {
+                top: 28px;
+                left: 24px;
+            }
+
+            .brand-name {
+                font-size: 30px;
+            }
+
+            .brand-url {
+                font-size: 15px;
+            }
+
+            .hero-copy {
+                left: 24px;
+                right: 24px;
+                bottom: 190px;
+            }
+
+            h1 {
+                font-size: 58px;
+            }
+
+            .subtitle {
+                font-size: 25px;
+            }
+
+            .side-rail {
+                display: none;
+            }
+
+            .countdown {
+                left: 24px;
+                right: 24px;
+                grid-template-columns: repeat(4, 1fr);
+            }
+
+            .time-box strong {
+                font-size: 28px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main class="tv-screen">
+        <video id="mainVideo" class="main-video" autoplay muted loop playsinline></video>
+        <div class="shade"></div>
+        <div class="grain"></div>
+
+        <header class="brand">
+            <div class="logo-mark"></div>
+            <div class="brand-text">
+                <div class="brand-name">KREATEIA</div>
+                <div class="brand-url">www.kreateia.com</div>
+            </div>
+        </header>
+
+        <section class="hero-copy">
+            <div class="eyebrow">
+                <span class="live-dot"></span>
+                Apertura oficial
+            </div>
+
+            <h1>
+                Lunes 25<br>
+                <span>10:00H</span>
+            </h1>
+
+            <p class="subtitle">
+                Precios y descuentos especiales por inauguración.
+            </p>
+
+            <div class="details">
+                <div class="tag">Imagen IA</div>
+                <div class="tag">Vídeo IA</div>
+                <div class="tag">Música IA</div>
+                <div class="tag">Academia IA</div>
+            </div>
+        </section>
+
+        <aside class="side-rail">
+            <div class="mini-card">
+                <video id="sideVideo1" autoplay muted loop playsinline></video>
+                <p>KreateVideo</p>
+            </div>
+            <div class="mini-card">
+                <video id="sideVideo2" autoplay muted loop playsinline></video>
+                <p>KreateImage</p>
+            </div>
+            <div class="mini-card">
+                <video id="sideVideo3" autoplay muted loop playsinline></video>
+                <p>KreateMusic</p>
+            </div>
+        </aside>
+
+        <section class="countdown">
+            <div class="time-box">
+                <strong id="days">00</strong>
+                <span>Días</span>
+            </div>
+            <div class="time-box">
+                <strong id="hours">00</strong>
+                <span>Horas</span>
+            </div>
+            <div class="time-box">
+                <strong id="minutes">00</strong>
+                <span>Min</span>
+            </div>
+            <div class="time-box">
+                <strong id="seconds">00</strong>
+                <span>Seg</span>
+            </div>
+        </section>
+
+        <footer class="ticker">
+            <div class="ticker-track">
+                <span>KREATEIA abre el lunes 25 a las 10:00H</span>
+                <span>Precios especiales por inauguración</span>
+                <span>Imagen IA · Vídeo IA · Música IA · Academia IA</span>
+                <span>www.kreateia.com</span>
+                <span>KREATEIA abre el lunes 25 a las 10:00H</span>
+                <span>Precios especiales por inauguración</span>
+                <span>Imagen IA · Vídeo IA · Música IA · Academia IA</span>
+                <span>www.kreateia.com</span>
+            </div>
+        </footer>
+    </main>
+
+    <script>
+        const videos = [
+            'https://cdn.higgsfield.ai/user_3AvFCf0aoS6DTSHhwoX3QgsDzIR/hf_20260409_094557_c0e3952b-1ecf-4621-9b06-eb86a7fe29e8_min.mp4',
+            'https://cdn.higgsfield.ai/user_3AvFCf0aoS6DTSHhwoX3QgsDzIR/hf_20260409_094505_e898193e-ec14-4ecc-92ed-be976174fc88_min.mp4',
+            'https://cdn.higgsfield.ai/user_3AvFCf0aoS6DTSHhwoX3QgsDzIR/hf_20260409_094612_2b122af8-b47a-4518-9d91-9675dd8e3f41_min.mp4',
+            'https://cdn.higgsfield.ai/superhero-gen-preset/b3e830c6-9927-4c6d-8960-8753889adbc9.mp4',
+            'https://cdn.higgsfield.ai/superhero-gen-preset/0305a4a8-5674-4650-8976-031af3231207.mp4',
+            'https://cdn.higgsfield.ai/superhero-gen-preset/6b1f33ae-23c3-4ee7-a419-ebe6af659b0d.mp4'
+        ];
+
+        const mainVideo = document.getElementById('mainVideo');
+        const sideVideo1 = document.getElementById('sideVideo1');
+        const sideVideo2 = document.getElementById('sideVideo2');
+        const sideVideo3 = document.getElementById('sideVideo3');
+
+        let current = 0;
+
+        function playVideo(el, url) {
+            el.src = url;
+            el.muted = true;
+            el.loop = true;
+            el.playsInline = true;
+            el.play().catch(() => {});
+        }
+
+        function setScene(index) {
+            current = index % videos.length;
+            playVideo(mainVideo, videos[current]);
+            playVideo(sideVideo1, videos[(current + 1) % videos.length]);
+            playVideo(sideVideo2, videos[(current + 2) % videos.length]);
+            playVideo(sideVideo3, videos[(current + 3) % videos.length]);
+        }
+
+        setScene(0);
+
+        setInterval(() => {
+            setScene(current + 1);
+        }, 9000);
+
+        const targetDate = new Date('2026-05-25T10:00:00+02:00');
+
+        function pad(value) {
+            return String(value).padStart(2, '0');
+        }
+
+        function updateCountdown() {
+            const now = new Date();
+            const diff = targetDate.getTime() - now.getTime();
+
+            if (diff <= 0) {
+                document.getElementById('days').textContent = '00';
+                document.getElementById('hours').textContent = '00';
+                document.getElementById('minutes').textContent = '00';
+                document.getElementById('seconds').textContent = '00';
+                return;
+            }
+
+            const totalSeconds = Math.floor(diff / 1000);
+            const days = Math.floor(totalSeconds / 86400);
+            const hours = Math.floor((totalSeconds % 86400) / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+
+            document.getElementById('days').textContent = pad(days);
+            document.getElementById('hours').textContent = pad(hours);
+            document.getElementById('minutes').textContent = pad(minutes);
+            document.getElementById('seconds').textContent = pad(seconds);
+        }
+
+        updateCountdown();
+        setInterval(updateCountdown, 1000);
+    </script>
+</body>
+</html>
