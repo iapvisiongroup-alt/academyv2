@@ -27,7 +27,7 @@ const PAGES = {
     empresas: {
         title: 'Servicios a Empresas',
         content: `
-            <p>En <strong style="color:#fff">IAP Vision Group</strong> ayudamos a empresas de todos los sectores a crecer digitalmente combinando estrategia, creatividad e inteligencia artificial. Estos son nuestros servicios:</p>
+            <p>En <strong style="color:#fff">KreateIA</strong> ayudamos a empresas de todos los sectores a crecer digitalmente combinando estrategia, creatividad e inteligencia artificial. Estos son nuestros servicios:</p>
 
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:20px 0">
                 <div style="padding:16px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:12px">
@@ -74,7 +74,7 @@ const PAGES = {
 
             <div style="margin-top:8px;padding:20px;background:#f59e0b11;border:1px solid #f59e0b33;border-radius:14px">
                 <p style="margin:0;color:#f59e0b;font-weight:700">¿Hablamos?</p>
-                <p style="margin:6px 0 0">Solicita una consulta gratuita en <a href="mailto:info@iapvision.com" style="color:#f59e0b">info@iapvision.com</a> y te preparamos una propuesta personalizada sin compromiso.</p>
+                <p style="margin:6px 0 0">Solicita una consulta gratuita en <a href="mailto:info@kreateia.com" style="color:#f59e0b">info@kreateia.com</a> y te preparamos una propuesta personalizada sin compromiso.</p>
             </div>
         `
     },
@@ -102,7 +102,7 @@ const PAGES = {
     about: {
         title: 'Quiénes Somos',
         content: `
-            <p>KreateIA Studio es una plataforma de creación con inteligencia artificial desarrollada por <strong style="color:#fff">IAP Vision Group</strong>, empresa española especializada en soluciones de IA aplicada para empresas y creadores.</p>
+            <p>KreateIA Studio es una plataforma de creación con inteligencia artificial desarrollada por <strong style="color:#fff">KreateIA</strong>, empresa española especializada en soluciones de IA aplicada para empresas y creadores.</p>
             <p>Nuestro objetivo es democratizar el acceso a las herramientas de IA generativa más avanzadas del mundo, empaquetándolas en una interfaz simple, potente y accesible para cualquier persona o empresa.</p>
             <h3 style="color:#fff;margin:20px 0 8px">Nuestra misión</h3>
             <p>Que cualquier persona, independientemente de sus conocimientos técnicos, pueda crear imágenes, vídeos y música de calidad profesional en segundos, y que las empresas puedan aprovechar el poder de la IA para crecer digitalmente.</p>
@@ -112,13 +112,13 @@ const PAGES = {
             <div style="padding:16px 20px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:12px;display:flex;gap:12px;align-items:flex-start">
                 <span style="font-size:20px">📍</span>
                 <div>
-                    <p style="color:#fff;font-weight:700;margin:0">IAP Vision Group</p>
+                    <p style="color:#fff;font-weight:700;margin:0">KreateIA</p>
                     <p style="color:#999;margin:4px 0 0">C/ Lino León Martínez, 6 BJ<br>Torre-Pacheco, Murcia 30700<br>España</p>
                 </div>
             </div>
             <div style="margin-top:20px;padding:20px;background:#3b82f611;border:1px solid #3b82f633;border-radius:14px">
                 <p style="margin:0;color:#60a5fa;font-weight:700">Contacto corporativo</p>
-                <p style="margin:6px 0 0"><a href="mailto:info@iapvision.com" style="color:#60a5fa">info@iapvision.com</a></p>
+                <p style="margin:6px 0 0"><a href="mailto:info@kreateia.com" style="color:#60a5fa">info@kreateia.com</a></p>
             </div>
         `
     },
@@ -129,15 +129,15 @@ const PAGES = {
             <div style="display:flex;flex-direction:column;gap:12px;margin-top:16px">
                 <div style="padding:16px 20px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:12px">
                     <p style="color:#fff;font-weight:700;margin:0 0 4px">✉️ Email general</p>
-                    <a href="mailto:info@iapvision.com" style="color:#f59e0b">info@iapvision.com</a>
+                    <a href="mailto:info@kreateia.com" style="color:#f59e0b">info@kreateia.com</a>
                 </div>
                 <div style="padding:16px 20px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:12px">
                     <p style="color:#fff;font-weight:700;margin:0 0 4px">🏢 Soporte técnico</p>
-                    <a href="mailto:soporte@iapvision.com" style="color:#f59e0b">soporte@iapvision.com</a>
+                    <a href="mailto:soporte@kreateia.com" style="color:#f59e0b">soporte@kreateia.com</a>
                 </div>
                 <div style="padding:16px 20px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:12px">
                     <p style="color:#fff;font-weight:700;margin:0 0 4px">💼 Empresas y partnerships</p>
-                    <a href="mailto:empresas@iapvision.com" style="color:#f59e0b">empresas@iapvision.com</a>
+                    <a href="mailto:empresas@kreateia.com" style="color:#f59e0b">empresas@kreateia.com</a>
                 </div>
             </div>
             <p style="margin-top:20px;color:#666;font-size:12px">Respondemos en un plazo máximo de 24–48 horas laborables.</p>
@@ -153,9 +153,9 @@ const PAGES = {
 
             <h3 style="color:#fff;margin:20px 0 8px">2. Responsable del tratamiento</h3>
             <div style="padding:14px 18px;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;font-size:13px;color:#999">
-                <p style="margin:0"><strong style="color:#fff">IAP Vision Group</strong><br>
+                <p style="margin:0"><strong style="color:#fff">KreateIA</strong><br>
                 C/ Lino León Martínez, 6 BJ — Torre-Pacheco, Murcia 30700, España<br>
-                Email: <a href="mailto:info@iapvision.com" style="color:#f59e0b">info@iapvision.com</a></p>
+                Email: <a href="mailto:info@kreateia.com" style="color:#f59e0b">info@kreateia.com</a></p>
             </div>
 
             <h3 style="color:#fff;margin:20px 0 8px">3. Tipos de cookies utilizadas</h3>
@@ -180,7 +180,7 @@ const PAGES = {
             <p style="font-size:13px">Las cookies de sesión se eliminan al cerrar el navegador. Las cookies persistentes de autenticación tienen un plazo máximo de 30 días, renovándose con cada inicio de sesión.</p>
 
             <h3 style="color:#fff;margin:20px 0 8px">5. Tus derechos</h3>
-            <p style="font-size:13px">De acuerdo con el RGPD, tienes derecho a <strong style="color:#ccc">acceder, rectificar, suprimir, oponerte y portar</strong> tus datos personales. Puedes ejercer estos derechos escribiendo a <a href="mailto:info@iapvision.com" style="color:#f59e0b">info@iapvision.com</a>. También puedes presentar una reclamación ante la <a href="https://www.aepd.es" target="_blank" style="color:#f59e0b">Agencia Española de Protección de Datos (AEPD)</a>.</p>
+            <p style="font-size:13px">De acuerdo con el RGPD, tienes derecho a <strong style="color:#ccc">acceder, rectificar, suprimir, oponerte y portar</strong> tus datos personales. Puedes ejercer estos derechos escribiendo a <a href="mailto:info@kreateia.com" style="color:#f59e0b">info@kreateia.com</a>. También puedes presentar una reclamación ante la <a href="https://www.aepd.es" target="_blank" style="color:#f59e0b">Agencia Española de Protección de Datos (AEPD)</a>.</p>
 
             <h3 style="color:#fff;margin:20px 0 8px">6. Cómo gestionar las cookies</h3>
             <p style="font-size:13px">Puedes configurar tu navegador para bloquear o eliminar cookies. Ten en cuenta que desactivar cookies esenciales impedirá el uso de la plataforma:</p>
