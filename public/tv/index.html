@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="refresh" content="300" />
     <title>KreateIA TV</title>
 
     <style>
@@ -200,29 +201,38 @@
             box-shadow: 0 24px 70px rgba(0,0,0,.48);
         }
 
-        .mini-card video {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: block;
+        .text-card {
+            padding: 28px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            background:
+                radial-gradient(circle at 20% 20%, rgba(245,158,11,.26), transparent 34%),
+                radial-gradient(circle at 80% 80%, rgba(59,130,246,.22), transparent 34%),
+                linear-gradient(145deg, #161616, #070707);
+            animation: cardGlow 5s ease-in-out infinite;
         }
 
-        .mini-card::after {
-            content: "";
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(to top, rgba(0,0,0,.78), transparent 55%);
+        .text-card:nth-child(2) {
+            animation-delay: 1.2s;
         }
 
-        .mini-card p {
-            position: absolute;
-            left: 16px;
-            right: 16px;
-            bottom: 14px;
-            z-index: 2;
-            margin: 0;
-            font-size: 17px;
-            font-weight: 900;
+        .text-card:nth-child(3) {
+            animation-delay: 2.4s;
+        }
+
+        .text-card strong {
+            color: #fff;
+            font-size: 30px;
+            font-weight: 1000;
+            margin-bottom: 12px;
+        }
+
+        .text-card span {
+            color: rgba(255,255,255,.66);
+            font-size: 18px;
+            line-height: 1.35;
+            font-weight: 700;
         }
 
         .countdown {
@@ -295,8 +305,29 @@
         }
 
         @keyframes pulse {
-            0%, 100% { opacity: .45; transform: scale(.82); }
-            50% { opacity: 1; transform: scale(1.08); }
+            0%, 100% {
+                opacity: .45;
+                transform: scale(.82);
+            }
+
+            50% {
+                opacity: 1;
+                transform: scale(1.08);
+            }
+        }
+
+        @keyframes cardGlow {
+            0%, 100% {
+                transform: translateY(0);
+                border-color: rgba(255,255,255,.14);
+                box-shadow: 0 24px 70px rgba(0,0,0,.48);
+            }
+
+            50% {
+                transform: translateY(-6px);
+                border-color: rgba(245,158,11,.45);
+                box-shadow: 0 28px 90px rgba(245,158,11,.16);
+            }
         }
 
         @media (max-width: 1400px) {
@@ -362,6 +393,7 @@
 <body>
     <main class="tv-screen">
         <video id="mainVideo" class="main-video" autoplay muted loop playsinline></video>
+
         <div class="shade"></div>
         <div class="grain"></div>
 
@@ -397,17 +429,19 @@
         </section>
 
         <aside class="side-rail">
-            <div class="mini-card">
-                <video id="sideVideo1" autoplay muted loop playsinline></video>
-                <p>KreateVideo</p>
+            <div class="mini-card text-card">
+                <strong>KreateVideo</strong>
+                <span>Vídeos con IA para campañas, redes y contenido visual.</span>
             </div>
-            <div class="mini-card">
-                <video id="sideVideo2" autoplay muted loop playsinline></video>
-                <p>KreateImage</p>
+
+            <div class="mini-card text-card">
+                <strong>KreateImage</strong>
+                <span>Fotografía para producto, marca personal y redes sociales.</span>
             </div>
-            <div class="mini-card">
-                <video id="sideVideo3" autoplay muted loop playsinline></video>
-                <p>KreateMusic</p>
+
+            <div class="mini-card text-card">
+                <strong>KreateMusic</strong>
+                <span>Canciones, artistas IA, voces y sonido creativo.</span>
             </div>
         </aside>
 
@@ -455,31 +489,30 @@
         ];
 
         const mainVideo = document.getElementById('mainVideo');
-        const sideVideo1 = document.getElementById('sideVideo1');
-        const sideVideo2 = document.getElementById('sideVideo2');
-        const sideVideo3 = document.getElementById('sideVideo3');
 
         let current = 0;
 
-        function playVideo(el, url) {
-            el.src = url;
-            el.muted = true;
-            el.loop = true;
-            el.playsInline = true;
-            el.play().catch(() => {});
+        function playVideo(url) {
+            mainVideo.pause();
+            mainVideo.removeAttribute('src');
+            mainVideo.load();
+
+            mainVideo.src = url;
+            mainVideo.muted = true;
+            mainVideo.loop = true;
+            mainVideo.playsInline = true;
+
+            mainVideo.play().catch(function () {});
         }
 
         function setScene(index) {
             current = index % videos.length;
-            playVideo(mainVideo, videos[current]);
-            playVideo(sideVideo1, videos[(current + 1) % videos.length]);
-            playVideo(sideVideo2, videos[(current + 2) % videos.length]);
-            playVideo(sideVideo3, videos[(current + 3) % videos.length]);
+            playVideo(videos[current]);
         }
 
         setScene(0);
 
-        setInterval(() => {
+        setInterval(function () {
             setScene(current + 1);
         }, 9000);
 
@@ -515,6 +548,10 @@
 
         updateCountdown();
         setInterval(updateCountdown, 1000);
+
+        setTimeout(function () {
+            window.location.reload();
+        }, 5 * 60 * 1000);
     </script>
 </body>
 </html>
