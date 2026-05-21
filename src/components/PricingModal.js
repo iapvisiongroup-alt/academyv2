@@ -12,9 +12,10 @@ const CREDIT_PLANS = {
         featured: false,
         stripeUrl: 'https://buy.stripe.com/5kQdRbdff73IfNI7wr2B203',
         highlights: [
-            '1.000 créditos añadidos a tu cuenta',
-            'Válidos para imagen, vídeo y música',
-            'El coste se muestra antes de generar',
+            '~62 imágenes en 720p',
+            '~9 vídeos de 5s en calidad básica',
+            '~50 canciones de 1 minuto',
+            'Válidos para todas las herramientas',
             'Sin suscripción mensual',
         ],
     },
@@ -29,10 +30,11 @@ const CREDIT_PLANS = {
         featured: true,
         stripeUrl: 'https://buy.stripe.com/fZu14p2AB0Fkato8Av2B204',
         highlights: [
-            '3.000 créditos añadidos a tu cuenta',
-            'Mejor equilibrio para crear contenido frecuente',
-            'Úsalos en KreateImage, KreateVideo y KreateMusic',
-            'El consumo depende de calidad, duración y resolución',
+            '~187 imágenes en 720p',
+            '~29 vídeos de 5s en calidad básica',
+            '~150 canciones de 1 minuto',
+            '~93 fotos de artista IA en 2K',
+            'El triple de valor que Iniciación',
         ],
     },
     max: {
@@ -46,28 +48,22 @@ const CREDIT_PLANS = {
         featured: false,
         stripeUrl: 'https://buy.stripe.com/3cI8wR7UV9bQ7hc4kf2B205',
         highlights: [
-            '10.000 créditos añadidos a tu cuenta',
-            'Pensado para uso intensivo',
-            'Ideal para generar varias piezas y variaciones',
-            'Sin límites artificiales por tipo de herramienta',
+            '~625 imágenes en 720p',
+            '~98 vídeos de 5s en calidad básica',
+            '~500 canciones de 1 minuto',
+            'Ideal para agencias y uso intensivo',
+            'Mejor precio por crédito',
         ],
     },
 };
 
 function buildCheckoutUrl(plan, user) {
     const url = new URL(plan.stripeUrl);
-
-    if (user.email) {
-        url.searchParams.set('prefilled_email', user.email);
-    }
-
-    // Mantengo plan___uid por compatibilidad con tu webhook actual.
-    // En backend valida siempre el plan usando el Payment Link real, no solo este texto.
+    if (user.email) url.searchParams.set('prefilled_email', user.email);
     url.searchParams.set('client_reference_id', `${plan.id}___${user.uid}`);
     url.searchParams.set('utm_source', 'kreateia');
     url.searchParams.set('utm_medium', 'credits_modal');
     url.searchParams.set('utm_content', plan.id);
-
     return url.toString();
 }
 
@@ -81,8 +77,8 @@ export function PricingModal() {
     const planCards = Object.values(CREDIT_PLANS).map(plan => {
         const isPro = plan.featured;
         const border = isPro ? 'border-2 border-[#FFB000]' : 'border border-white/10';
-        const bg = isPro ? 'bg-gradient-to-b from-[#FFB000]/20 to-transparent' : 'bg-white/5';
-        const lift = isPro ? 'relative transform md:-translate-y-4 shadow-[0_0_30px_rgba(255,176,0,0.15)]' : '';
+        const bg     = isPro ? 'bg-gradient-to-b from-[#FFB000]/20 to-transparent' : 'bg-white/5';
+        const lift   = isPro ? 'relative transform md:-translate-y-4 shadow-[0_0_30px_rgba(255,176,0,0.15)]' : '';
         const btnClass = isPro
             ? 'bg-[#FFB000] text-black hover:scale-105 shadow-[0_0_20px_rgba(255,176,0,0.4)]'
             : 'bg-white/10 text-white hover:bg-white hover:text-black';
@@ -103,10 +99,6 @@ export function PricingModal() {
                     <span>🪙</span>
                     <span class="text-white font-bold">${plan.shortCredits}</span>
                 </div>
-
-                <p class="text-white/45 text-xs leading-relaxed mb-6">
-                    Los créditos se añaden a tu saldo y se consumen según la herramienta, resolución, duración y calidad elegida.
-                </p>
 
                 <ul class="space-y-3 text-sm ${isPro ? 'text-white/80' : 'text-white/60'} mb-8 flex-grow">
                     ${plan.highlights.map(item => `
@@ -138,9 +130,8 @@ export function PricingModal() {
                     Créditos
                 </span>
             </h2>
-
             <p class="text-white/50 text-sm md:text-base max-w-xl mx-auto leading-relaxed">
-                Compra créditos para usar en KreateImage, KreateVideo y KreateMusic. Antes de cada generación verás el coste exacto.
+                Sin suscripciones mensuales. Paga solo por lo que usas. Los créditos nunca caducan y sirven para todas nuestras herramientas de IA.
             </p>
         </div>
 
@@ -149,10 +140,11 @@ export function PricingModal() {
         </div>
 
         <div class="max-w-4xl mx-auto mt-8 rounded-2xl border border-white/10 bg-white/[0.03] p-4 md:p-5">
-            <p class="text-white/70 text-xs md:text-sm leading-relaxed m-0">
-                <strong class="text-white">Información importante:</strong>
-                los ejemplos de consumo no se calculan aquí porque cada herramienta tiene costes distintos.
-                Una imagen, un vídeo o una canción pueden consumir más o menos créditos según resolución, duración, calidad y modo seleccionado.
+            <p class="text-white/60 text-xs md:text-sm leading-relaxed m-0">
+                <strong class="text-white">ℹ️ Sobre los créditos:</strong>
+                1 crédito = $0.01. Los ejemplos de consumo son orientativos en calidad básica y 720p.
+                El coste real depende de resolución, duración y calidad — siempre visible antes de generar.
+                Los créditos no caducan nunca.
             </p>
         </div>
 
@@ -164,24 +156,29 @@ export function PricingModal() {
         </div>
     `;
 
-    modal.querySelector('#close-pricing-btn').onclick = () => {
-        document.body.removeChild(overlay);
-    };
+    modal.querySelector('#close-pricing-btn').onclick = () => overlay.remove();
 
     modal.querySelectorAll('.buy-btn').forEach(btn => {
-        btn.onclick = () => {
-            const planId = btn.getAttribute('data-plan');
-            const plan = CREDIT_PLANS[planId];
-            const user = auth.currentUser;
+        btn.onclick = async () => {
+            const plan = CREDIT_PLANS[btn.getAttribute('data-plan')];
+            if (!plan) { alert('Plan no válido.'); return; }
+
+            // Esperar a que Firebase confirme el usuario
+            let user = auth.currentUser;
+            if (!user) {
+                await new Promise(resolve => {
+                    const unsub = onAuthStateChanged(auth, u => {
+                        unsub();
+                        user = u;
+                        resolve();
+                    });
+                    setTimeout(resolve, 3000); // timeout 3s
+                });
+            }
 
             if (!user) {
                 alert('Debes iniciar sesión primero para comprar créditos.');
-                document.body.removeChild(overlay);
-                return;
-            }
-
-            if (!plan) {
-                alert('Plan no válido.');
+                overlay.remove();
                 return;
             }
 
@@ -189,10 +186,7 @@ export function PricingModal() {
         };
     });
 
-    overlay.onclick = (e) => {
-        if (e.target === overlay) document.body.removeChild(overlay);
-    };
-
+    overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
     overlay.appendChild(modal);
     return overlay;
 }
