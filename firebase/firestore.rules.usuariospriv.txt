@@ -1,0 +1,46 @@
+// AÑADE este bloque a tus reglas actuales de Firestore.
+// No borres las reglas que ya usa tu SaaS para usuarios, créditos y generaciones.
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function hasEmail() {
+      return signedIn() && request.auth.token.email is string;
+    }
+
+    function isPrivateAllowed() {
+      return hasEmail()
+        && exists(/databases/$(database)/documents/private_allowed_users/$(request.auth.token.email))
+        && get(/databases/$(database)/documents/private_allowed_users/$(request.auth.token.email)).data.active == true;
+    }
+
+    // Cada usuario interno solo puede comprobar su propio permiso.
+    // Crea documentos con ID exacto del email en minúsculas:
+    // private_allowed_users/empresas@kreateia.com
+    match /private_allowed_users/{email} {
+      allow get: if hasEmail() && email == request.auth.token.email;
+      allow list, create, update, delete: if false;
+    }
+
+    // Lectura para personal autorizado.
+    // Escritura cerrada: las facturas y clientes los crea Cloudflare Function.
+    match /private_clients/{clientId} {
+      allow read: if isPrivateAllowed();
+      allow create, update, delete: if false;
+    }
+
+    match /private_invoices/{invoiceId} {
+      allow read: if isPrivateAllowed();
+      allow create, update, delete: if false;
+    }
+
+    // El contador de facturas nunca debe tocarse desde frontend.
+    match /private_counters/{counterId} {
+      allow read, write: if false;
+    }
+  }
+}
