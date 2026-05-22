@@ -7,31 +7,26 @@
     <title>KreateIA TV</title>
 
     <style>
-        * {
-            box-sizing: border-box;
-        }
+        * { box-sizing: border-box; }
 
-        html,
-        body {
+        html, body {
             margin: 0;
             width: 100%;
             height: 100%;
-            background: #030303;
+            background: #020202;
             overflow: hidden;
             font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
             color: #fff;
         }
 
-        body {
-            cursor: none;
-        }
+        body { cursor: none; }
 
         .tv-screen {
             position: relative;
             width: 100vw;
             height: 100vh;
             overflow: hidden;
-            background: #030303;
+            background: #020202;
         }
 
         .main-video {
@@ -40,224 +35,274 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
-            transform: scale(1.04);
-            filter: saturate(1.18) contrast(1.08);
+            transform: scale(1.05);
+            filter: saturate(1.35) contrast(1.15) brightness(.92);
             background: #000;
         }
 
         .shade {
             position: absolute;
             inset: 0;
-            background:
-                linear-gradient(to right, rgba(0,0,0,.94), rgba(0,0,0,.48) 46%, rgba(0,0,0,.82)),
-                linear-gradient(to top, rgba(0,0,0,.92), rgba(0,0,0,.08) 42%, rgba(0,0,0,.55));
             z-index: 2;
+            background:
+                linear-gradient(to right, rgba(0,0,0,.92), rgba(0,0,0,.42) 44%, rgba(0,0,0,.84)),
+                radial-gradient(circle at 18% 28%, rgba(59,130,246,.42), transparent 34%),
+                radial-gradient(circle at 74% 18%, rgba(245,158,11,.34), transparent 32%),
+                radial-gradient(circle at 82% 82%, rgba(236,72,153,.32), transparent 38%),
+                linear-gradient(to top, rgba(0,0,0,.96), rgba(0,0,0,.12) 48%, rgba(0,0,0,.55));
         }
 
-        .grain {
+        .scan {
             position: absolute;
             inset: 0;
             z-index: 3;
-            opacity: .09;
             pointer-events: none;
-            background-image:
-                linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px);
-            background-size: 64px 64px;
-            mask-image: linear-gradient(to bottom, transparent, #000 18%, #000 82%, transparent);
+            opacity: .18;
+            background:
+                linear-gradient(rgba(255,255,255,.07) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px);
+            background-size: 72px 72px;
+            animation: gridMove 12s linear infinite;
         }
 
         .brand {
             position: absolute;
-            top: 64px;
-            left: 74px;
+            top: 58px;
+            left: 72px;
             z-index: 5;
             display: flex;
             align-items: center;
-            gap: 18px;
+            gap: 20px;
         }
 
         .logo-mark {
-            width: 64px;
-            height: 64px;
-            border-radius: 18px;
-            border: 2px solid rgba(255,255,255,.16);
+            width: 72px;
+            height: 72px;
+            border-radius: 22px;
+            border: 2px solid rgba(255,255,255,.24);
             background:
-                radial-gradient(circle at 35% 35%, #3b82f6, transparent 28%),
-                radial-gradient(circle at 70% 68%, #f59e0b, transparent 30%),
-                #080808;
-            box-shadow: 0 0 46px rgba(245,158,11,.26);
-        }
-
-        .brand-text {
-            display: flex;
-            flex-direction: column;
-            line-height: 1;
+                radial-gradient(circle at 34% 32%, #38bdf8 0%, transparent 30%),
+                radial-gradient(circle at 70% 68%, #f59e0b 0%, transparent 32%),
+                radial-gradient(circle at 52% 50%, #ec4899 0%, transparent 26%),
+                #050505;
+            box-shadow:
+                0 0 42px rgba(56,189,248,.34),
+                0 0 72px rgba(245,158,11,.26);
         }
 
         .brand-name {
-            font-size: 42px;
-            font-weight: 950;
-            letter-spacing: 0;
+            font-size: 48px;
+            line-height: 1;
+            font-weight: 1000;
+            letter-spacing: .01em;
         }
 
         .brand-url {
-            margin-top: 9px;
-            color: rgba(255,255,255,.62);
-            font-size: 22px;
-            font-weight: 750;
+            margin-top: 8px;
+            color: rgba(255,255,255,.72);
+            font-size: 23px;
+            font-weight: 850;
         }
 
         .hero-copy {
             position: absolute;
-            left: 74px;
-            bottom: 162px;
+            left: 72px;
+            bottom: 166px;
             z-index: 5;
-            max-width: 1040px;
+            max-width: 1160px;
         }
 
         .eyebrow {
             display: inline-flex;
             align-items: center;
-            gap: 12px;
-            padding: 12px 20px;
+            gap: 13px;
+            padding: 13px 22px;
             border-radius: 999px;
-            border: 1px solid rgba(245,158,11,.42);
-            background: rgba(245,158,11,.12);
-            color: #f59e0b;
-            font-size: 22px;
-            font-weight: 950;
+            border: 1px solid rgba(245,158,11,.72);
+            background: rgba(245,158,11,.18);
+            color: #ffd166;
+            font-size: 24px;
+            font-weight: 1000;
             text-transform: uppercase;
-            margin-bottom: 30px;
+            margin-bottom: 28px;
+            box-shadow: 0 0 40px rgba(245,158,11,.18);
         }
 
         .live-dot {
-            width: 12px;
-            height: 12px;
+            width: 14px;
+            height: 14px;
             border-radius: 999px;
-            background: #f59e0b;
-            box-shadow: 0 0 28px #f59e0b;
-            animation: pulse 1.5s ease-in-out infinite;
+            background: #ffcc00;
+            box-shadow: 0 0 34px #ffcc00;
+            animation: pulse 1.25s ease-in-out infinite;
         }
 
         h1 {
             margin: 0;
-            max-width: 1120px;
-            font-size: clamp(86px, 8vw, 158px);
-            line-height: .88;
+            max-width: 1180px;
+            font-size: clamp(88px, 8vw, 164px);
+            line-height: .86;
             font-weight: 1000;
             letter-spacing: 0;
             text-transform: uppercase;
+            text-shadow: 0 10px 46px rgba(0,0,0,.65);
         }
 
         h1 span {
-            color: #f59e0b;
-            text-shadow: 0 0 42px rgba(245,158,11,.38);
+            color: #ffcc00;
+            text-shadow:
+                0 0 34px rgba(255,204,0,.42),
+                0 0 72px rgba(245,158,11,.34);
         }
 
         .subtitle {
-            margin: 32px 0 0;
-            max-width: 920px;
-            font-size: clamp(34px, 2.5vw, 52px);
+            margin: 30px 0 0;
+            max-width: 1040px;
+            font-size: clamp(34px, 2.7vw, 56px);
+            line-height: 1.1;
+            font-weight: 950;
+            color: rgba(255,255,255,.96);
+        }
+
+        .business-line {
+            margin-top: 18px;
+            max-width: 980px;
+            font-size: clamp(25px, 2vw, 40px);
             line-height: 1.12;
-            font-weight: 850;
-            color: rgba(255,255,255,.92);
+            font-weight: 950;
+            color: #7dd3fc;
+            text-shadow: 0 0 32px rgba(56,189,248,.28);
         }
 
         .details {
-            margin-top: 34px;
+            margin-top: 32px;
             display: flex;
-            gap: 16px;
+            gap: 14px;
             flex-wrap: wrap;
         }
 
         .tag {
-            padding: 13px 20px;
+            padding: 14px 22px;
             border-radius: 999px;
-            background: rgba(255,255,255,.1);
-            border: 1px solid rgba(255,255,255,.16);
-            color: rgba(255,255,255,.82);
-            font-size: 21px;
-            font-weight: 850;
+            background: rgba(255,255,255,.13);
+            border: 1px solid rgba(255,255,255,.2);
+            color: rgba(255,255,255,.9);
+            font-size: 22px;
+            font-weight: 950;
+            backdrop-filter: blur(10px);
         }
+
+        .tag.blue { color: #93c5fd; border-color: rgba(59,130,246,.55); background: rgba(59,130,246,.18); }
+        .tag.gold { color: #fde68a; border-color: rgba(245,158,11,.58); background: rgba(245,158,11,.18); }
+        .tag.pink { color: #f9a8d4; border-color: rgba(236,72,153,.55); background: rgba(236,72,153,.18); }
 
         .side-rail {
             position: absolute;
             right: 54px;
-            top: 120px;
+            top: 122px;
             bottom: 128px;
             z-index: 5;
-            width: 340px;
+            width: 375px;
             display: grid;
             gap: 18px;
         }
 
-        .mini-card {
+        .text-card {
             position: relative;
             overflow: hidden;
-            border-radius: 22px;
-            border: 1px solid rgba(255,255,255,.16);
-            background: #111;
-            box-shadow: 0 24px 70px rgba(0,0,0,.48);
-        }
-
-        .text-card {
-            padding: 28px;
+            border-radius: 24px;
+            border: 1px solid rgba(255,255,255,.2);
+            padding: 30px;
             display: flex;
             flex-direction: column;
             justify-content: flex-end;
             background:
-                radial-gradient(circle at 20% 20%, rgba(245,158,11,.26), transparent 34%),
-                radial-gradient(circle at 80% 80%, rgba(59,130,246,.22), transparent 34%),
-                linear-gradient(145deg, #161616, #070707);
-            animation: cardGlow 5s ease-in-out infinite;
+                radial-gradient(circle at 20% 18%, rgba(255,204,0,.36), transparent 34%),
+                radial-gradient(circle at 84% 72%, rgba(59,130,246,.34), transparent 38%),
+                linear-gradient(145deg, rgba(255,255,255,.12), rgba(255,255,255,.035));
+            backdrop-filter: blur(12px);
+            box-shadow: 0 28px 80px rgba(0,0,0,.52);
+            animation: cardGlow 4.8s ease-in-out infinite;
         }
 
         .text-card:nth-child(2) {
-            animation-delay: 1.2s;
+            animation-delay: 1.15s;
+            background:
+                radial-gradient(circle at 20% 18%, rgba(59,130,246,.42), transparent 34%),
+                radial-gradient(circle at 84% 72%, rgba(236,72,153,.32), transparent 38%),
+                linear-gradient(145deg, rgba(255,255,255,.12), rgba(255,255,255,.035));
         }
 
         .text-card:nth-child(3) {
-            animation-delay: 2.4s;
+            animation-delay: 2.3s;
+            background:
+                radial-gradient(circle at 20% 18%, rgba(236,72,153,.38), transparent 34%),
+                radial-gradient(circle at 84% 72%, rgba(245,158,11,.34), transparent 38%),
+                linear-gradient(145deg, rgba(255,255,255,.12), rgba(255,255,255,.035));
         }
 
         .text-card strong {
             color: #fff;
-            font-size: 30px;
+            font-size: 33px;
+            line-height: 1;
             font-weight: 1000;
-            margin-bottom: 12px;
+            margin-bottom: 13px;
         }
 
         .text-card span {
-            color: rgba(255,255,255,.66);
-            font-size: 18px;
-            line-height: 1.35;
-            font-weight: 700;
+            color: rgba(255,255,255,.76);
+            font-size: 19px;
+            line-height: 1.34;
+            font-weight: 800;
+        }
+
+        .enterprise {
+            position: absolute;
+            left: 72px;
+            top: 164px;
+            z-index: 5;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            max-width: 980px;
+        }
+
+        .enterprise-pill {
+            padding: 12px 18px;
+            border-radius: 999px;
+            background: rgba(56,189,248,.18);
+            border: 1px solid rgba(56,189,248,.58);
+            color: #bae6fd;
+            font-size: 19px;
+            font-weight: 1000;
+            text-transform: uppercase;
+            box-shadow: 0 0 42px rgba(56,189,248,.14);
         }
 
         .countdown {
             position: absolute;
-            left: 74px;
-            right: 430px;
+            left: 72px;
+            right: 460px;
             bottom: 54px;
             z-index: 6;
             display: grid;
             grid-template-columns: repeat(4, minmax(0, 1fr));
             gap: 12px;
-            max-width: 760px;
+            max-width: 800px;
         }
 
         .time-box {
-            background: rgba(255,255,255,.08);
-            border: 1px solid rgba(255,255,255,.14);
-            border-radius: 18px;
-            padding: 15px 18px;
-            backdrop-filter: blur(10px);
+            background: rgba(255,255,255,.11);
+            border: 1px solid rgba(255,255,255,.2);
+            border-radius: 20px;
+            padding: 16px 18px;
+            backdrop-filter: blur(12px);
+            box-shadow: 0 20px 58px rgba(0,0,0,.34);
         }
 
         .time-box strong {
             display: block;
-            font-size: 42px;
+            font-size: 46px;
             line-height: 1;
             color: #fff;
         }
@@ -265,9 +310,9 @@
         .time-box span {
             display: block;
             margin-top: 6px;
-            font-size: 14px;
-            font-weight: 850;
-            color: rgba(255,255,255,.48);
+            font-size: 15px;
+            font-weight: 950;
+            color: rgba(255,255,255,.58);
             text-transform: uppercase;
         }
 
@@ -277,14 +322,14 @@
             right: 0;
             bottom: 0;
             z-index: 8;
-            height: 46px;
+            height: 50px;
             overflow: hidden;
-            background: #f59e0b;
+            background: linear-gradient(90deg, #ffcc00, #fb923c, #38bdf8, #ec4899);
             color: #000;
             display: flex;
             align-items: center;
-            font-size: 22px;
-            font-weight: 950;
+            font-size: 23px;
+            font-weight: 1000;
             text-transform: uppercase;
             white-space: nowrap;
         }
@@ -292,12 +337,10 @@
         .ticker-track {
             display: flex;
             width: max-content;
-            animation: ticker 28s linear infinite;
+            animation: ticker 26s linear infinite;
         }
 
-        .ticker-track span {
-            padding: 0 36px;
-        }
+        .ticker-track span { padding: 0 38px; }
 
         @keyframes ticker {
             from { transform: translateX(0); }
@@ -305,87 +348,30 @@
         }
 
         @keyframes pulse {
-            0%, 100% {
-                opacity: .45;
-                transform: scale(.82);
-            }
-
-            50% {
-                opacity: 1;
-                transform: scale(1.08);
-            }
+            0%, 100% { opacity: .45; transform: scale(.82); }
+            50% { opacity: 1; transform: scale(1.12); }
         }
 
         @keyframes cardGlow {
             0%, 100% {
-                transform: translateY(0);
-                border-color: rgba(255,255,255,.14);
-                box-shadow: 0 24px 70px rgba(0,0,0,.48);
+                transform: translateY(0) scale(1);
+                border-color: rgba(255,255,255,.2);
             }
-
             50% {
-                transform: translateY(-6px);
-                border-color: rgba(245,158,11,.45);
-                box-shadow: 0 28px 90px rgba(245,158,11,.16);
+                transform: translateY(-7px) scale(1.015);
+                border-color: rgba(255,204,0,.72);
             }
+        }
+
+        @keyframes gridMove {
+            from { background-position: 0 0; }
+            to { background-position: 72px 72px; }
         }
 
         @media (max-width: 1400px) {
-            .side-rail {
-                width: 280px;
-                right: 34px;
-            }
-
-            .hero-copy {
-                max-width: 820px;
-            }
-
-            .countdown {
-                right: 340px;
-            }
-        }
-
-        @media (max-width: 900px) {
-            .brand {
-                top: 28px;
-                left: 24px;
-            }
-
-            .brand-name {
-                font-size: 30px;
-            }
-
-            .brand-url {
-                font-size: 15px;
-            }
-
-            .hero-copy {
-                left: 24px;
-                right: 24px;
-                bottom: 190px;
-            }
-
-            h1 {
-                font-size: 58px;
-            }
-
-            .subtitle {
-                font-size: 25px;
-            }
-
-            .side-rail {
-                display: none;
-            }
-
-            .countdown {
-                left: 24px;
-                right: 24px;
-                grid-template-columns: repeat(4, 1fr);
-            }
-
-            .time-box strong {
-                font-size: 28px;
-            }
+            .side-rail { width: 300px; right: 34px; }
+            .hero-copy { max-width: 820px; }
+            .countdown { right: 350px; }
         }
     </style>
 </head>
@@ -395,15 +381,21 @@
         <video id="mainVideo" class="main-video" autoplay muted loop playsinline></video>
 
         <div class="shade"></div>
-        <div class="grain"></div>
+        <div class="scan"></div>
 
         <header class="brand">
             <div class="logo-mark"></div>
-            <div class="brand-text">
+            <div>
                 <div class="brand-name">KREATEIA</div>
                 <div class="brand-url">www.kreateia.com</div>
             </div>
         </header>
+
+        <div class="enterprise">
+            <div class="enterprise-pill">Servicios para empresas</div>
+            <div class="enterprise-pill">Formación IA</div>
+            <div class="enterprise-pill">Contenido para marcas</div>
+        </div>
 
         <section class="hero-copy">
             <div class="eyebrow">
@@ -420,28 +412,32 @@
                 Precios y descuentos especiales por inauguración.
             </p>
 
+            <p class="business-line">
+                También creamos soluciones de IA para empresas, campañas, formación y contenido profesional.
+            </p>
+
             <div class="details">
-                <div class="tag">Imagen IA</div>
-                <div class="tag">Vídeo IA</div>
-                <div class="tag">Música IA</div>
+                <div class="tag blue">Imagen IA</div>
+                <div class="tag gold">Vídeo IA</div>
+                <div class="tag pink">Música IA</div>
                 <div class="tag">Academia IA</div>
             </div>
         </section>
 
         <aside class="side-rail">
-            <div class="mini-card text-card">
-                <strong>KreateVideo</strong>
-                <span>Vídeos con IA para campañas, redes y contenido visual.</span>
+            <div class="text-card">
+                <strong>Empresas</strong>
+                <span>Automatización creativa, campañas visuales y contenido para equipos.</span>
             </div>
 
-            <div class="mini-card text-card">
-                <strong>KreateImage</strong>
-                <span>Fotografía para producto, marca personal y redes sociales.</span>
+            <div class="text-card">
+                <strong>Formación IA</strong>
+                <span>Aprende a usar imagen, vídeo y música IA en flujos reales de trabajo.</span>
             </div>
 
-            <div class="mini-card text-card">
-                <strong>KreateMusic</strong>
-                <span>Canciones, artistas IA, voces y sonido creativo.</span>
+            <div class="text-card">
+                <strong>Creadores</strong>
+                <span>Genera piezas para redes, anuncios, artistas, producto y marca personal.</span>
             </div>
         </aside>
 
@@ -467,11 +463,13 @@
         <footer class="ticker">
             <div class="ticker-track">
                 <span>KREATEIA abre el lunes 25 a las 10:00H</span>
-                <span>Precios especiales por inauguración</span>
+                <span>Precios y descuentos especiales por inauguración</span>
+                <span>Servicios para empresas · Formación IA · Contenido para marcas</span>
                 <span>Imagen IA · Vídeo IA · Música IA · Academia IA</span>
                 <span>www.kreateia.com</span>
                 <span>KREATEIA abre el lunes 25 a las 10:00H</span>
-                <span>Precios especiales por inauguración</span>
+                <span>Precios y descuentos especiales por inauguración</span>
+                <span>Servicios para empresas · Formación IA · Contenido para marcas</span>
                 <span>Imagen IA · Vídeo IA · Música IA · Academia IA</span>
                 <span>www.kreateia.com</span>
             </div>
@@ -489,7 +487,6 @@
         ];
 
         const mainVideo = document.getElementById('mainVideo');
-
         let current = 0;
 
         function playVideo(url) {
@@ -501,6 +498,7 @@
             mainVideo.muted = true;
             mainVideo.loop = true;
             mainVideo.playsInline = true;
+            mainVideo.setAttribute('playsinline', '');
 
             mainVideo.play().catch(function () {});
         }
