@@ -60,6 +60,9 @@
     .format p,.agenda-card p{margin:0 0 18px;color:rgba(255,255,255,.64);line-height:1.55}
     .format strong{display:block;color:#f6b21a;font-size:30px}
     .format small{display:block;margin-top:8px;color:rgba(255,255,255,.42);line-height:1.45}
+    .annual-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(320px,.9fr);gap:18px;align-items:stretch}
+    .annual-price{font-size:58px;line-height:1;font-weight:1000;color:#f6b21a;margin-top:8px}
+    .old-price{color:rgba(255,255,255,.45);font-size:15px;text-decoration:line-through;font-weight:800}
     .agenda{grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr)}
     .steps{display:grid;gap:10px}
     .step{display:grid;grid-template-columns:44px 1fr;gap:12px;padding:14px;border:1px solid rgba(255,255,255,.1);border-radius:16px;background:rgba(0,0,0,.22)}
@@ -70,7 +73,7 @@
     .cta-box h2{margin:0;font-size:clamp(32px,4vw,56px);line-height:1.02}
     .cta-box p{margin:16px auto 26px;max-width:620px;color:rgba(255,255,255,.64);line-height:1.65}
     .note{margin-top:18px;color:rgba(255,255,255,.44);font-size:12px;line-height:1.55}
-    @media(max-width:980px){.hero-grid,.agenda,.course-grid,.format-grid{grid-template-columns:1fr}.section-head{align-items:start;flex-direction:column}.nav{display:none}}
+    @media(max-width:980px){.hero-grid,.annual-grid,.agenda,.course-grid,.format-grid{grid-template-columns:1fr}.section-head{align-items:start;flex-direction:column}.nav{display:none}}
   </style>
 </head>
 
@@ -85,10 +88,10 @@
         </div>
       </a>
       <nav class="nav">
+        <a href="#anual">Programa anual</a>
         <a href="#cursos">Cursos</a>
         <a href="#precios">Precios</a>
-        <a href="#metodo">Método</a>
-        <a href="#reservar">Reservar plaza</a>
+        <a href="#reservar">Reservar</a>
       </nav>
     </div>
   </header>
@@ -99,23 +102,141 @@
         <div>
           <p class="kicker">Academia presencial de inteligencia artificial</p>
           <h1>Cursos de IA para aprender haciendo.</h1>
-          <p class="lead">Formación práctica en grupos reducidos para personas, negocios locales, creadores y empresas. Cada curso termina con un entregable real.</p>
+          <p class="lead">Formación práctica en grupos reducidos para personas, negocios locales, creadores y empresas. Cursos sueltos y programa anual con portátil nuevo incluido.</p>
           <div class="actions">
-            <a class="btn primary" href="#cursos">Ver cursos y precios</a>
-            <a class="btn blue" href="#reservar">Solicitar plaza</a>
+            <a class="btn primary" href="#anual">Ver programa anual</a>
+            <a class="btn blue" href="#cursos">Ver cursos sueltos</a>
           </div>
         </div>
 
         <aside class="hero-card">
-          <h2>Formación pensada para el negocio presencial</h2>
-          <p>El alumno no viene a escuchar teoría. Viene a salir con algo hecho, entendible y aplicable desde el mismo día.</p>
+          <h2>Oferta especial de inauguración</h2>
+          <p>Programa anual IA Profesional por 890€ con portátil nuevo incluido. Sin sorteos: incluido con la matrícula anual.</p>
           <div class="stat-grid">
-            <div class="stat"><strong>10</strong><span>cursos presenciales</span></div>
-            <div class="stat"><strong>3-6h</strong><span>por taller</span></div>
-            <div class="stat"><strong>8-12</strong><span>plazas recomendadas</span></div>
-            <div class="stat"><strong>100%</strong><span>práctico y guiado</span></div>
+            <div class="stat"><strong>2</strong><span>clases por semana</span></div>
+            <div class="stat"><strong>+100h</strong><span>formación práctica</span></div>
+            <div class="stat"><strong>12</strong><span>bloques formativos</span></div>
+            <div class="stat"><strong>1</strong><span>portátil incluido</span></div>
           </div>
         </aside>
+      </div>
+    </section>
+
+    <section class="section" id="anual">
+      <div class="shell">
+        <div class="section-head">
+          <div>
+            <p class="kicker">Programa estrella</p>
+            <h2 class="section-title">Curso Anual IA Profesional</h2>
+          </div>
+          <p class="section-copy">Formación presencial completa durante todo el año, con dos clases por semana y portátil nuevo incluido.</p>
+        </div>
+
+        <div class="annual-grid">
+          <article class="format featured" style="padding:30px">
+            <h3 style="font-size:30px">IA Profesional 2026/2027</h3>
+            <p>Programa anual para aprender inteligencia artificial desde cero hasta un nivel práctico y profesional. El alumno trabaja productividad, imagen, vídeo, música, redes sociales, automatización, agentes IA, webs, marca personal y creación de servicios digitales.</p>
+
+            <div class="stat-grid" style="margin:22px 0">
+              <div class="stat"><strong>2</strong><span>clases por semana</span></div>
+              <div class="stat"><strong>+100h</strong><span>formación práctica</span></div>
+              <div class="stat"><strong>12</strong><span>bloques formativos</span></div>
+              <div class="stat"><strong>1</strong><span>portátil nuevo incluido</span></div>
+            </div>
+
+            <p>Cada bloque termina con ejercicios y proyectos reales: calendario de contenido, vídeos, imágenes, automatizaciones, asistentes IA, landing pages, ofertas comerciales y portfolio final.</p>
+          </article>
+
+          <aside class="format" style="padding:30px;border-color:rgba(246,178,26,.5)">
+            <p class="kicker">Precio especial inauguración</p>
+            <div style="margin:10px 0 18px">
+              <div class="old-price">Precio normal 1.490€</div>
+              <div class="annual-price">890€</div>
+              <div style="color:#fff;font-size:18px;font-weight:900;margin-top:8px">Incluye portátil nuevo</div>
+            </div>
+
+            <p>Oferta limitada por inauguración. Sin sorteos: cada alumno inscrito en el programa anual recibe un portátil nuevo para poder seguir las clases y realizar sus proyectos.</p>
+
+            <a class="btn primary" href="mailto:contacto@kreateia.com?subject=Programa%20Anual%20IA%20Profesional">Reservar plaza anual</a>
+
+            <small style="display:block;margin-top:14px;color:rgba(255,255,255,.45);line-height:1.45">El portátil incluido será un equipo nuevo de gama formativa/ofimática, con sistema Windows o equivalente, preparado para el uso habitual del curso. El modelo concreto puede variar según disponibilidad. No se especifica marca.</small>
+          </aside>
+        </div>
+
+        <div class="format-grid" style="margin-top:18px">
+          <article class="format">
+            <h3>Por qué merece la pena</h3>
+            <p>Comprar los cursos sueltos, uno por uno, tendría un coste muy superior. El programa anual agrupa formación, práctica, seguimiento, proyectos y portátil incluido.</p>
+          </article>
+          <article class="format">
+            <h3>Qué incluye</h3>
+            <p>Clases presenciales, material de prompts, ejercicios guiados, proyectos mensuales, revisión en clase y portfolio final del alumno.</p>
+          </article>
+          <article class="format">
+            <h3>Para quién es</h3>
+            <p>Personas que quieren aprender IA desde cero, jóvenes, emprendedores, negocios locales, creadores y futuros profesionales digitales.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="valor-anual">
+      <div class="shell">
+        <div class="section-head">
+          <div>
+            <p class="kicker">Comparativa</p>
+            <h2 class="section-title">El programa anual sale mucho mejor que cursos sueltos</h2>
+          </div>
+          <p class="section-copy">Pensado para quien quiere continuidad, práctica y acompañamiento durante todo el año.</p>
+        </div>
+
+        <div class="format-grid">
+          <article class="format">
+            <h3>Cursos sueltos</h3>
+            <p>Si el alumno compra varios talleres por separado, el coste acumulado sube rápidamente.</p>
+            <strong>+1.800€</strong>
+            <small>Estimación sumando los cursos presenciales principales del catálogo.</small>
+          </article>
+          <article class="format featured">
+            <h3>Programa anual</h3>
+            <p>Todo el recorrido formativo en un solo programa, con seguimiento y proyectos durante el año.</p>
+            <strong>890€</strong>
+            <small>Precio especial de inauguración con portátil nuevo incluido.</small>
+          </article>
+          <article class="format">
+            <h3>Valor añadido</h3>
+            <p>Además de la formación, el alumno recibe un equipo nuevo para poder practicar desde el primer día.</p>
+            <strong>Portátil incluido</strong>
+            <small>Modelo según disponibilidad, sin especificar marca.</small>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="temario-anual">
+      <div class="shell">
+        <div class="section-head">
+          <div>
+            <p class="kicker">Temario anual</p>
+            <h2 class="section-title">Todo lo que se trabaja durante el año</h2>
+          </div>
+          <p class="section-copy">El curso combina fundamentos, creatividad, negocio, automatización y proyectos reales.</p>
+        </div>
+
+        <div class="course-grid">
+          <article class="course" style="--accent:rgba(57,167,255,.24)"><div class="course-top"><span class="course-number">1</span><span class="badge">Inicio</span></div><h3>IA desde cero y productividad</h3><p>ChatGPT, Gemini, Claude, prompts, organización personal, escritura, resúmenes y tareas del día a día.</p></article>
+          <article class="course" style="--accent:rgba(246,178,26,.24)"><div class="course-top"><span class="course-number">2</span><span class="badge">Negocio</span></div><h3>IA para negocios locales</h3><p>Ofertas, Google Business, WhatsApp, redes sociales, atención al cliente y captación de clientes.</p></article>
+          <article class="course" style="--accent:rgba(255,79,163,.22)"><div class="course-top"><span class="course-number">3</span><span class="badge">Marketing</span></div><h3>Marketing y contenido para 30 días</h3><p>Calendarios, posts, reels, historias, textos que venden, llamadas a la acción y planificación mensual.</p></article>
+          <article class="course" style="--accent:rgba(57,167,255,.22)"><div class="course-top"><span class="course-number">4</span><span class="badge">Imagen</span></div><h3>Imagen IA y diseño visual</h3><p>Fotografía de producto, marca personal, imágenes para redes, creatividad visual y prompts avanzados.</p></article>
+          <article class="course" style="--accent:rgba(246,178,26,.26)"><div class="course-top"><span class="course-number">5</span><span class="badge">Vídeo</span></div><h3>Vídeo IA para redes y empresas</h3><p>Guiones, anuncios, clips, reels, imagen a vídeo, voz, música, subtítulos y montaje final.</p></article>
+          <article class="course" style="--accent:rgba(52,211,153,.22)"><div class="course-top"><span class="course-number">6</span><span class="badge">Automatización</span></div><h3>Automatizaciones sin programar</h3><p>Formularios, hojas de cálculo, respuestas automáticas, flujos de trabajo, Make/Zapier y procesos internos.</p></article>
+          <article class="course" style="--accent:rgba(246,178,26,.30)"><div class="course-top"><span class="course-number">7</span><span class="badge">Agentes</span></div><h3>Agentes de IA para empresas</h3><p>Asistentes inteligentes para ventas, soporte, reservas, captación de leads y atención al cliente.</p></article>
+          <article class="course" style="--accent:rgba(255,79,163,.24)"><div class="course-top"><span class="course-number">8</span><span class="badge">Marca</span></div><h3>Marca personal y servicios digitales</h3><p>Propuesta de valor, bio, contenido de autoridad, portfolio, ofertas y venta de servicios con IA.</p></article>
+          <article class="course" style="--accent:rgba(57,167,255,.24)"><div class="course-top"><span class="course-number">9</span><span class="badge">Web</span></div><h3>Webs, landings y ofertas comerciales</h3><p>Estructura de landing, textos, servicios, precios, objeciones, contacto y presentación comercial.</p></article>
+          <article class="course" style="--accent:rgba(246,178,26,.22)"><div class="course-top"><span class="course-number">10</span><span class="badge">Creatividad</span></div><h3>IA creativa y mundos visuales</h3><p>Personajes, historias, pósters, escenas, conceptos visuales, vídeos y proyectos creativos.</p></article>
+          <article class="course" style="--accent:rgba(52,211,153,.22)"><div class="course-top"><span class="course-number">11</span><span class="badge">Dinero</span></div><h3>Cómo ganar dinero con IA</h3><p>Servicios vendibles, packs, precios, muestras, captación de clientes, presupuestos y entrega profesional.</p></article>
+          <article class="course" style="--accent:rgba(255,255,255,.16)"><div class="course-top"><span class="course-number">12</span><span class="badge">Final</span></div><h3>Proyecto final y portfolio</h3><p>Cada alumno presenta su proyecto: marca, contenido, web, agente, automatización o servicio listo para enseñar.</p></article>
+        </div>
       </div>
     </section>
 
@@ -124,9 +245,9 @@
         <div class="section-head">
           <div>
             <p class="kicker">Catálogo presencial</p>
-            <h2 class="section-title">Cursos disponibles</h2>
+            <h2 class="section-title">Cursos sueltos disponibles</h2>
           </div>
-          <p class="section-copy">Precios de lanzamiento para sesiones presenciales, ajustados a duración, dificultad y valor del entregable final.</p>
+          <p class="section-copy">Cursos presenciales independientes para quien quiere aprender un área concreta sin entrar en el programa anual.</p>
         </div>
         <div class="course-grid" id="courseGrid"></div>
       </div>
@@ -184,13 +305,13 @@
       <div class="shell">
         <div class="cta-box">
           <p class="kicker">Plazas presenciales limitadas</p>
-          <h2>Presenta la academia con una oferta clara y fácil de entender.</h2>
-          <p>Puedes usar esta página en una pantalla del negocio, enviarla por WhatsApp o abrirla durante una reunión con futuros alumnos.</p>
+          <h2>No estás pagando solo clases: entras en un año de práctica, proyectos y herramientas.</h2>
+          <p>Reserva plaza para el programa anual o solicita información sobre cursos sueltos y formación para empresas.</p>
           <div class="actions" style="justify-content:center">
-            <a class="btn primary" href="mailto:contacto@kreateia.com?subject=Informacion%20cursos%20presenciales%20KreateIA">Pedir información</a>
-            <a class="btn blue" href="#cursos">Ver catálogo</a>
+            <a class="btn primary" href="mailto:contacto@kreateia.com?subject=Programa%20Anual%20IA%20Profesional">Reservar programa anual</a>
+            <a class="btn blue" href="mailto:contacto@kreateia.com?subject=Informacion%20cursos%20presenciales%20KreateIA">Pedir información</a>
           </div>
-          <div class="note">Precios de lanzamiento. Las condiciones finales pueden variar por convocatoria, número de plazas, material incluido y formación para empresas.</div>
+          <div class="note">Precio de inauguración limitado a primeras plazas. El portátil incluido será nuevo, de gama formativa/ofimática y modelo según disponibilidad.</div>
         </div>
       </div>
     </section>
