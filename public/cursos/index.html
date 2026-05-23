@@ -3,361 +3,854 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>KreateIA Cursos Presenciales</title>
+  <title>KreateIA · Cursos Presenciales de IA</title>
+
   <style>
-    *{box-sizing:border-box}
-    body{margin:0;background:#050505;color:#fff;font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-    .shell{width:min(1180px,100%);margin:0 auto;padding:0 22px}
-    .topbar{position:sticky;top:0;z-index:20;background:rgba(5,5,5,.86);border-bottom:1px solid rgba(255,255,255,.1);backdrop-filter:blur(16px)}
-    .topbar-inner{height:72px;display:flex;align-items:center;justify-content:space-between;gap:20px}
-    .brand{display:flex;align-items:center;gap:12px;text-decoration:none;color:#fff}
-    .logo{width:42px;height:42px;border-radius:14px;background:radial-gradient(circle at 35% 35%,#39a7ff,transparent 30%),radial-gradient(circle at 72% 70%,#f6b21a,transparent 31%),#070707;border:1px solid rgba(255,255,255,.2)}
-    .brand strong{display:block;font-size:18px;font-weight:950}
-    .brand span{display:block;margin-top:4px;color:rgba(255,255,255,.48);font-size:12px;font-weight:700}
-    .nav{display:flex;gap:8px;flex-wrap:wrap}
-    .nav a{padding:9px 12px;border-radius:999px;color:rgba(255,255,255,.65);font-size:12px;font-weight:800;text-decoration:none}
-    .nav a:hover{background:rgba(255,255,255,.08);color:#fff}
-    .hero{padding:78px 0 66px;background:radial-gradient(circle at 15% 8%,rgba(57,167,255,.24),transparent 30%),radial-gradient(circle at 82% 10%,rgba(246,178,26,.2),transparent 28%)}
-    .hero-grid{display:grid;grid-template-columns:minmax(0,1.04fr) minmax(320px,.86fr);gap:38px;align-items:center}
-    .kicker{display:inline-flex;align-items:center;gap:10px;padding:8px 13px;border:1px solid rgba(246,178,26,.35);border-radius:999px;background:rgba(246,178,26,.11);color:#ffd36a;font-size:12px;font-weight:950;text-transform:uppercase;margin:0 0 20px}
-    .kicker:before{content:"";width:8px;height:8px;border-radius:50%;background:#f6b21a;box-shadow:0 0 22px #f6b21a}
-    h1{margin:0;max-width:780px;font-size:clamp(44px,7vw,92px);line-height:.94;font-weight:1000}
-    .lead{margin:24px 0 0;max-width:680px;color:rgba(255,255,255,.66);font-size:18px;line-height:1.65}
-    .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:30px}
-    .btn{display:inline-flex;align-items:center;justify-content:center;min-height:46px;padding:12px 18px;border-radius:999px;border:1px solid rgba(255,255,255,.13);background:rgba(255,255,255,.06);color:#fff;font-size:13px;font-weight:900;text-decoration:none}
-    .btn.primary{border-color:#f6b21a;background:#f6b21a;color:#080808}
-    .btn.blue{border-color:rgba(57,167,255,.42);background:rgba(57,167,255,.16);color:#c9ecff}
-    .hero-card{border:1px solid rgba(255,255,255,.12);border-radius:24px;padding:24px;background:radial-gradient(circle at 18% 16%,rgba(57,167,255,.24),transparent 34%),radial-gradient(circle at 84% 72%,rgba(246,178,26,.22),transparent 34%),rgba(255,255,255,.055)}
-    .hero-card h2{margin:0 0 14px;font-size:24px;line-height:1.08}
-    .hero-card p{margin:0;color:rgba(255,255,255,.64);line-height:1.6}
-    .stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-top:22px}
-    .stat{padding:16px;border-radius:16px;border:1px solid rgba(255,255,255,.1);background:rgba(0,0,0,.22)}
-    .stat strong{display:block;font-size:27px}
-    .stat span{display:block;margin-top:5px;color:rgba(255,255,255,.45);font-size:12px;font-weight:800}
-    .section{padding:70px 0;border-top:1px solid rgba(255,255,255,.08)}
-    .section-head{display:flex;align-items:end;justify-content:space-between;gap:20px;margin-bottom:28px}
-    .section-title{margin:0;font-size:clamp(30px,4vw,52px);line-height:1.02;font-weight:1000}
-    .section-copy{margin:0;max-width:460px;color:rgba(255,255,255,.64);line-height:1.6}
-    .course-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-    .course{position:relative;display:flex;flex-direction:column;gap:16px;min-height:360px;padding:22px;border:1px solid rgba(255,255,255,.12);border-radius:18px;background:linear-gradient(150deg,rgba(255,255,255,.08),rgba(255,255,255,.035));overflow:hidden}
-    .course:before{content:"";position:absolute;inset:0;background:radial-gradient(circle at 15% 0%,var(--accent),transparent 34%),radial-gradient(circle at 85% 110%,rgba(57,167,255,.12),transparent 38%);pointer-events:none}
-    .course>*{position:relative;z-index:1}
-    .course-top{display:flex;justify-content:space-between;gap:12px}
-    .course-number{width:38px;height:38px;display:inline-flex;align-items:center;justify-content:center;border-radius:12px;background:rgba(255,255,255,.1);font-weight:1000}
-    .badge{height:fit-content;padding:7px 10px;border-radius:999px;background:rgba(0,0,0,.25);color:rgba(255,255,255,.76);font-size:11px;font-weight:900;border:1px solid rgba(255,255,255,.12)}
-    .course h3{margin:0;font-size:21px;line-height:1.12}
-    .course p{margin:0;color:rgba(255,255,255,.64);font-size:14px;line-height:1.55}
-    .course ul{margin:0;padding:0;list-style:none;display:grid;gap:7px}
-    .course li{color:rgba(255,255,255,.72);font-size:13px;line-height:1.35}
-    .course li:before{content:"✓";color:#34d399;margin-right:7px;font-weight:1000}
-    .price-row{margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:16px;border-top:1px solid rgba(255,255,255,.1)}
-    .price span{display:block;color:rgba(255,255,255,.42);font-size:11px;font-weight:900;text-transform:uppercase}
-    .price strong{display:block;margin-top:2px;font-size:28px;line-height:1}
-    .format-grid,.agenda{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-    .format,.agenda-card,.cta-box{border:1px solid rgba(255,255,255,.12);border-radius:22px;padding:26px;background:rgba(255,255,255,.055)}
-    .format.featured{border-color:rgba(246,178,26,.45);background:radial-gradient(circle at 20% 0%,rgba(246,178,26,.18),transparent 32%),rgba(255,255,255,.055)}
-    .format h3,.agenda-card h3{margin:0 0 10px;font-size:22px}
-    .format p,.agenda-card p{margin:0 0 18px;color:rgba(255,255,255,.64);line-height:1.55}
-    .format strong{display:block;color:#f6b21a;font-size:30px}
-    .format small{display:block;margin-top:8px;color:rgba(255,255,255,.42);line-height:1.45}
-    .annual-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(320px,.9fr);gap:18px;align-items:stretch}
-    .annual-price{font-size:58px;line-height:1;font-weight:1000;color:#f6b21a;margin-top:8px}
-    .old-price{color:rgba(255,255,255,.45);font-size:15px;text-decoration:line-through;font-weight:800}
-    .agenda{grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr)}
-    .steps{display:grid;gap:10px}
-    .step{display:grid;grid-template-columns:44px 1fr;gap:12px;padding:14px;border:1px solid rgba(255,255,255,.1);border-radius:16px;background:rgba(0,0,0,.22)}
-    .step strong:first-child{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:12px;background:rgba(246,178,26,.16);color:#f6b21a}
-    .step p{margin:5px 0 0;color:rgba(255,255,255,.64);line-height:1.5}
-    .cta{padding:72px 0 90px;text-align:center}
-    .cta-box{width:min(900px,100%);margin:0 auto;border-color:rgba(246,178,26,.28);background:radial-gradient(circle at 22% 0%,rgba(246,178,26,.2),transparent 34%),radial-gradient(circle at 82% 100%,rgba(57,167,255,.16),transparent 34%),rgba(255,255,255,.055)}
-    .cta-box h2{margin:0;font-size:clamp(32px,4vw,56px);line-height:1.02}
-    .cta-box p{margin:16px auto 26px;max-width:620px;color:rgba(255,255,255,.64);line-height:1.65}
-    .note{margin-top:18px;color:rgba(255,255,255,.44);font-size:12px;line-height:1.55}
-    @media(max-width:980px){.hero-grid,.annual-grid,.agenda,.course-grid,.format-grid{grid-template-columns:1fr}.section-head{align-items:start;flex-direction:column}.nav{display:none}}
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: #f4f6fb;
+      color: #111827;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .page {
+      width: min(1120px, 100%);
+      margin: 0 auto;
+      padding: 32px 20px 56px;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 24px;
+      padding: 24px 0 32px;
+      border-bottom: 1px solid #d9e0ea;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .logo {
+      width: 48px;
+      height: 48px;
+      border-radius: 16px;
+      background:
+        radial-gradient(circle at 35% 35%, #ffffff 0 8%, transparent 9%),
+        conic-gradient(from 220deg, #2563eb, #f59e0b, #2563eb);
+      box-shadow: 0 14px 30px rgba(37, 99, 235, .18);
+    }
+
+    .brand-title {
+      margin: 0;
+      font-size: 26px;
+      line-height: 1;
+      font-weight: 950;
+      letter-spacing: -.04em;
+    }
+
+    .brand-title span:first-child {
+      color: #1d4ed8;
+    }
+
+    .brand-title span:last-child {
+      color: #ea580c;
+    }
+
+    .brand-subtitle {
+      margin: 5px 0 0;
+      color: #64748b;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .contact {
+      text-align: right;
+      color: #475569;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .contact strong {
+      display: block;
+      color: #111827;
+      font-size: 15px;
+    }
+
+    .hero {
+      padding: 42px 0 34px;
+      display: grid;
+      grid-template-columns: 1.15fr .85fr;
+      gap: 28px;
+      align-items: stretch;
+    }
+
+    .hero-main,
+    .hero-side,
+    .card,
+    .course-card,
+    .note-box {
+      background: #ffffff;
+      border: 1px solid #dce3ee;
+      border-radius: 22px;
+      box-shadow: 0 18px 50px rgba(15, 23, 42, .06);
+    }
+
+    .hero-main {
+      padding: 34px;
+    }
+
+    .label {
+      display: inline-flex;
+      width: fit-content;
+      padding: 7px 11px;
+      border-radius: 999px;
+      background: #eff6ff;
+      color: #1d4ed8;
+      font-size: 12px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      margin: 0;
+      max-width: 760px;
+      font-size: clamp(38px, 6vw, 68px);
+      line-height: .96;
+      letter-spacing: -.055em;
+    }
+
+    .lead {
+      margin: 22px 0 0;
+      max-width: 720px;
+      color: #475569;
+      font-size: 18px;
+      line-height: 1.6;
+    }
+
+    .hero-side {
+      padding: 28px;
+      background: #111827;
+      color: #ffffff;
+    }
+
+    .hero-side h2 {
+      margin: 0 0 14px;
+      font-size: 26px;
+      line-height: 1.05;
+    }
+
+    .hero-side p {
+      margin: 0;
+      color: #cbd5e1;
+      line-height: 1.6;
+    }
+
+    .big-price {
+      margin: 24px 0 8px;
+      font-size: 58px;
+      line-height: 1;
+      font-weight: 950;
+      color: #f59e0b;
+      letter-spacing: -.04em;
+    }
+
+    .old-price {
+      color: #94a3b8;
+      text-decoration: line-through;
+      font-weight: 800;
+    }
+
+    .included {
+      margin-top: 18px;
+      padding: 14px;
+      border-radius: 16px;
+      background: rgba(245, 158, 11, .12);
+      border: 1px solid rgba(245, 158, 11, .35);
+      color: #fde68a;
+      font-weight: 800;
+      line-height: 1.45;
+    }
+
+    .section {
+      padding: 28px 0;
+    }
+
+    .section-title {
+      margin: 0 0 16px;
+      font-size: clamp(28px, 4vw, 42px);
+      line-height: 1.05;
+      letter-spacing: -.04em;
+    }
+
+    .section-copy {
+      margin: -6px 0 22px;
+      color: #64748b;
+      font-size: 16px;
+      line-height: 1.6;
+      max-width: 760px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+    }
+
+    .card {
+      padding: 22px;
+    }
+
+    .card h3 {
+      margin: 0 0 10px;
+      font-size: 20px;
+      line-height: 1.15;
+    }
+
+    .card p {
+      margin: 0;
+      color: #475569;
+      line-height: 1.55;
+      font-size: 15px;
+    }
+
+    .course-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+    }
+
+    .course-card {
+      padding: 22px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .course-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 14px;
+    }
+
+    .course-number {
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      background: #eff6ff;
+      color: #1d4ed8;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 950;
+      flex: 0 0 auto;
+    }
+
+    .course-card h3 {
+      margin: 0;
+      font-size: 22px;
+      line-height: 1.12;
+      letter-spacing: -.025em;
+    }
+
+    .duration {
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      color: #64748b;
+      font-size: 12px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .course-block {
+      display: grid;
+      gap: 5px;
+    }
+
+    .course-block strong {
+      color: #111827;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+
+    .course-block span {
+      color: #475569;
+      line-height: 1.5;
+      font-size: 15px;
+    }
+
+    .course-bottom {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      align-items: end;
+      padding-top: 14px;
+      border-top: 1px solid #e2e8f0;
+    }
+
+    .price-label {
+      display: block;
+      color: #64748b;
+      font-size: 12px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+
+    .price {
+      display: block;
+      margin-top: 3px;
+      font-size: 30px;
+      line-height: 1;
+      font-weight: 950;
+      color: #0f172a;
+    }
+
+    .level {
+      color: #1d4ed8;
+      font-size: 13px;
+      font-weight: 900;
+      text-align: right;
+    }
+
+    .program {
+      background: #ffffff;
+      border: 2px solid #f59e0b;
+      border-radius: 24px;
+      padding: 28px;
+      box-shadow: 0 24px 70px rgba(245, 158, 11, .13);
+    }
+
+    .program h3 {
+      margin: 0;
+      font-size: 30px;
+      line-height: 1.08;
+      letter-spacing: -.035em;
+    }
+
+    .program p {
+      color: #475569;
+      line-height: 1.6;
+      font-size: 16px;
+    }
+
+    .program-list {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .program-item {
+      padding: 14px;
+      border-radius: 16px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+    }
+
+    .program-item strong {
+      display: block;
+      font-size: 18px;
+      color: #111827;
+      margin-bottom: 4px;
+    }
+
+    .program-item span {
+      display: block;
+      color: #64748b;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    .note-box {
+      padding: 24px;
+      background: #111827;
+      color: #ffffff;
+    }
+
+    .note-box h2 {
+      margin: 0 0 12px;
+      font-size: 28px;
+      line-height: 1.08;
+    }
+
+    .note-box p {
+      margin: 0;
+      color: #cbd5e1;
+      line-height: 1.65;
+    }
+
+    .footer {
+      margin-top: 24px;
+      padding: 28px 0 0;
+      border-top: 1px solid #d9e0ea;
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      color: #64748b;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .footer strong {
+      color: #111827;
+    }
+
+    @media (max-width: 900px) {
+      .header,
+      .footer {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .contact {
+        text-align: left;
+      }
+
+      .hero,
+      .grid-2,
+      .grid-3,
+      .course-grid,
+      .program-list {
+        grid-template-columns: 1fr;
+      }
+
+      .hero-main,
+      .hero-side,
+      .program {
+        padding: 24px;
+      }
+    }
+
+    @media print {
+      body {
+        background: #ffffff;
+      }
+
+      .page {
+        width: 100%;
+        padding: 18mm;
+      }
+
+      .hero-main,
+      .hero-side,
+      .card,
+      .course-card,
+      .program,
+      .note-box {
+        box-shadow: none;
+      }
+    }
   </style>
 </head>
 
 <body>
-  <header class="topbar">
-    <div class="shell topbar-inner">
-      <a class="brand" href="#inicio">
+  <div class="page">
+    <header class="header">
+      <div class="brand">
         <div class="logo"></div>
         <div>
-          <strong>KreateIA Cursos</strong>
-          <span>Formación presencial con IA</span>
+          <p class="brand-title"><span>Kreate</span><span>IA</span></p>
+          <p class="brand-subtitle">Cursos presenciales de inteligencia artificial</p>
         </div>
-      </a>
-      <nav class="nav">
-        <a href="#anual">Programa anual</a>
-        <a href="#cursos">Cursos</a>
-        <a href="#precios">Precios</a>
-        <a href="#reservar">Reservar</a>
-      </nav>
-    </div>
-  </header>
+      </div>
 
-  <main id="inicio">
+      <div class="contact">
+        <strong>Más información</strong>
+        info@kreateia.com<br>
+        Formación presencial en el local
+      </div>
+    </header>
+
     <section class="hero">
-      <div class="shell hero-grid">
-        <div>
-          <p class="kicker">Academia presencial de inteligencia artificial</p>
-          <h1>Cursos de IA para aprender haciendo.</h1>
-          <p class="lead">Formación práctica en grupos reducidos para personas, negocios locales, creadores y empresas. Cursos sueltos y programa anual con portátil nuevo incluido.</p>
-          <div class="actions">
-            <a class="btn primary" href="#anual">Ver programa anual</a>
-            <a class="btn blue" href="#cursos">Ver cursos sueltos</a>
+      <div class="hero-main">
+        <div class="label">Academia presencial</div>
+        <h1>Aprende inteligencia artificial de forma práctica y sencilla.</h1>
+        <p class="lead">
+          Cursos pensados para personas, negocios locales, emprendedores, creadores y empresas que quieren usar la IA en tareas reales: contenido, ventas, redes sociales, automatización, imagen, vídeo y productividad.
+        </p>
+      </div>
+
+      <aside class="hero-side">
+        <h2>Oferta especial de inauguración</h2>
+        <p>Programa anual de IA Profesional con dos clases por semana y portátil nuevo incluido para cada alumno.</p>
+
+        <div class="big-price">890€</div>
+        <div class="old-price">Precio normal estimado: 1.490€</div>
+
+        <div class="included">
+          Incluye portátil nuevo. Sin sorteos. El equipo se entrega al alumno inscrito en el programa anual.
+        </div>
+      </aside>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">Programa Anual IA Profesional</h2>
+      <p class="section-copy">
+        Es la opción más completa para quien quiere aprender durante todo el año, practicar cada semana y terminar con proyectos reales.
+      </p>
+
+      <div class="program">
+        <h3>Curso anual completo de inteligencia artificial</h3>
+        <p>
+          Formación presencial durante todo el año con dos clases semanales. El alumno aprende desde cero y va avanzando por bloques: productividad, prompts, imagen, vídeo, marketing, automatización, agentes IA, webs, marca personal, servicios digitales y proyecto final.
+        </p>
+
+        <div class="program-list">
+          <div class="program-item">
+            <strong>2 clases por semana</strong>
+            <span>Ritmo continuo para aprender, practicar y resolver dudas en persona.</span>
+          </div>
+
+          <div class="program-item">
+            <strong>Portátil nuevo incluido</strong>
+            <span>Equipo nuevo de gama formativa/ofimática. Modelo según disponibilidad. No se especifica marca.</span>
+          </div>
+
+          <div class="program-item">
+            <strong>Proyectos reales</strong>
+            <span>Contenido para redes, imágenes, vídeos, automatizaciones, asistentes y propuestas comerciales.</span>
+          </div>
+
+          <div class="program-item">
+            <strong>Precio inauguración: 890€</strong>
+            <span>Oferta especial de apertura para las primeras plazas.</span>
           </div>
         </div>
-
-        <aside class="hero-card">
-          <h2>Oferta especial de inauguración</h2>
-          <p>Programa anual IA Profesional por 890€ con portátil nuevo incluido. Sin sorteos: incluido con la matrícula anual.</p>
-          <div class="stat-grid">
-            <div class="stat"><strong>2</strong><span>clases por semana</span></div>
-            <div class="stat"><strong>+100h</strong><span>formación práctica</span></div>
-            <div class="stat"><strong>12</strong><span>bloques formativos</span></div>
-            <div class="stat"><strong>1</strong><span>portátil incluido</span></div>
-          </div>
-        </aside>
       </div>
     </section>
 
-    <section class="section" id="anual">
-      <div class="shell">
-        <div class="section-head">
-          <div>
-            <p class="kicker">Programa estrella</p>
-            <h2 class="section-title">Curso Anual IA Profesional</h2>
-          </div>
-          <p class="section-copy">Formación presencial completa durante todo el año, con dos clases por semana y portátil nuevo incluido.</p>
+    <section class="section">
+      <h2 class="section-title">Qué se aprende en el programa anual</h2>
+      <p class="section-copy">
+        Un recorrido completo para entender la IA y aplicarla en la vida real, en negocios y en proyectos personales.
+      </p>
+
+      <div class="grid-3">
+        <div class="card">
+          <h3>Productividad con IA</h3>
+          <p>ChatGPT, Gemini, Claude, prompts, organización, resúmenes, escritura, ideas y tareas diarias.</p>
         </div>
 
-        <div class="annual-grid">
-          <article class="format featured" style="padding:30px">
-            <h3 style="font-size:30px">IA Profesional 2026/2027</h3>
-            <p>Programa anual para aprender inteligencia artificial desde cero hasta un nivel práctico y profesional. El alumno trabaja productividad, imagen, vídeo, música, redes sociales, automatización, agentes IA, webs, marca personal y creación de servicios digitales.</p>
+        <div class="card">
+          <h3>Marketing y redes sociales</h3>
+          <p>Calendarios de contenido, textos, publicaciones, reels, anuncios y estrategia para negocios locales.</p>
+        </div>
 
-            <div class="stat-grid" style="margin:22px 0">
-              <div class="stat"><strong>2</strong><span>clases por semana</span></div>
-              <div class="stat"><strong>+100h</strong><span>formación práctica</span></div>
-              <div class="stat"><strong>12</strong><span>bloques formativos</span></div>
-              <div class="stat"><strong>1</strong><span>portátil nuevo incluido</span></div>
+        <div class="card">
+          <h3>Imagen y vídeo con IA</h3>
+          <p>Creación de imágenes, fotografía de producto, vídeos cortos, anuncios, guiones y piezas para redes.</p>
+        </div>
+
+        <div class="card">
+          <h3>Automatización</h3>
+          <p>Procesos repetitivos, formularios, hojas de cálculo, respuestas automáticas y flujos sin programar.</p>
+        </div>
+
+        <div class="card">
+          <h3>Agentes IA</h3>
+          <p>Asistentes para atención al cliente, ventas, reservas, soporte, captación de leads y empresas.</p>
+        </div>
+
+        <div class="card">
+          <h3>Proyecto final</h3>
+          <p>Cada alumno termina con un proyecto presentable: web, contenido, agente, automatización o servicio digital.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">Cursos sueltos presenciales</h2>
+      <p class="section-copy">
+        Para alumnos que prefieren empezar por un tema concreto. Cada curso incluye explicación, demostración y práctica guiada.
+      </p>
+
+      <div class="course-grid">
+        <article class="course-card">
+          <div class="course-top">
+            <div>
+              <span class="course-number">1</span>
+              <h3 style="margin-top:12px">IA desde Cero</h3>
             </div>
+            <span class="duration">3-4 horas</span>
+          </div>
 
-            <p>Cada bloque termina con ejercicios y proyectos reales: calendario de contenido, vídeos, imágenes, automatizaciones, asistentes IA, landing pages, ofertas comerciales y portfolio final.</p>
-          </article>
+          <div class="course-block">
+            <strong>Para quién</strong>
+            <span>Principiantes, adultos, autónomos y personas que quieren empezar sin conocimientos previos.</span>
+          </div>
 
-          <aside class="format" style="padding:30px;border-color:rgba(246,178,26,.5)">
-            <p class="kicker">Precio especial inauguración</p>
-            <div style="margin:10px 0 18px">
-              <div class="old-price">Precio normal 1.490€</div>
-              <div class="annual-price">890€</div>
-              <div style="color:#fff;font-size:18px;font-weight:900;margin-top:8px">Incluye portátil nuevo</div>
+          <div class="course-block">
+            <strong>Qué se consigue</strong>
+            <span>Aprender a usar la IA para escribir, resumir, organizar tareas, crear ideas y resolver dudas.</span>
+          </div>
+
+          <div class="course-bottom">
+            <div>
+              <span class="price-label">Precio</span>
+              <span class="price">69€</span>
             </div>
-
-            <p>Oferta limitada por inauguración. Sin sorteos: cada alumno inscrito en el programa anual recibe un portátil nuevo para poder seguir las clases y realizar sus proyectos.</p>
-
-            <a class="btn primary" href="mailto:contacto@kreateia.com?subject=Programa%20Anual%20IA%20Profesional">Reservar plaza anual</a>
-
-            <small style="display:block;margin-top:14px;color:rgba(255,255,255,.45);line-height:1.45">El portátil incluido será un equipo nuevo de gama formativa/ofimática, con sistema Windows o equivalente, preparado para el uso habitual del curso. El modelo concreto puede variar según disponibilidad. No se especifica marca.</small>
-          </aside>
-        </div>
-
-        <div class="format-grid" style="margin-top:18px">
-          <article class="format">
-            <h3>Por qué merece la pena</h3>
-            <p>Comprar los cursos sueltos, uno por uno, tendría un coste muy superior. El programa anual agrupa formación, práctica, seguimiento, proyectos y portátil incluido.</p>
-          </article>
-          <article class="format">
-            <h3>Qué incluye</h3>
-            <p>Clases presenciales, material de prompts, ejercicios guiados, proyectos mensuales, revisión en clase y portfolio final del alumno.</p>
-          </article>
-          <article class="format">
-            <h3>Para quién es</h3>
-            <p>Personas que quieren aprender IA desde cero, jóvenes, emprendedores, negocios locales, creadores y futuros profesionales digitales.</p>
-          </article>
-        </div>
-      </div>
-    </section>
-
-    <section class="section" id="valor-anual">
-      <div class="shell">
-        <div class="section-head">
-          <div>
-            <p class="kicker">Comparativa</p>
-            <h2 class="section-title">El programa anual sale mucho mejor que cursos sueltos</h2>
+            <div class="level">Nivel inicial</div>
           </div>
-          <p class="section-copy">Pensado para quien quiere continuidad, práctica y acompañamiento durante todo el año.</p>
-        </div>
-
-        <div class="format-grid">
-          <article class="format">
-            <h3>Cursos sueltos</h3>
-            <p>Si el alumno compra varios talleres por separado, el coste acumulado sube rápidamente.</p>
-            <strong>+1.800€</strong>
-            <small>Estimación sumando los cursos presenciales principales del catálogo.</small>
-          </article>
-          <article class="format featured">
-            <h3>Programa anual</h3>
-            <p>Todo el recorrido formativo en un solo programa, con seguimiento y proyectos durante el año.</p>
-            <strong>890€</strong>
-            <small>Precio especial de inauguración con portátil nuevo incluido.</small>
-          </article>
-          <article class="format">
-            <h3>Valor añadido</h3>
-            <p>Además de la formación, el alumno recibe un equipo nuevo para poder practicar desde el primer día.</p>
-            <strong>Portátil incluido</strong>
-            <small>Modelo según disponibilidad, sin especificar marca.</small>
-          </article>
-        </div>
-      </div>
-    </section>
-
-    <section class="section" id="temario-anual">
-      <div class="shell">
-        <div class="section-head">
-          <div>
-            <p class="kicker">Temario anual</p>
-            <h2 class="section-title">Todo lo que se trabaja durante el año</h2>
-          </div>
-          <p class="section-copy">El curso combina fundamentos, creatividad, negocio, automatización y proyectos reales.</p>
-        </div>
-
-        <div class="course-grid">
-          <article class="course" style="--accent:rgba(57,167,255,.24)"><div class="course-top"><span class="course-number">1</span><span class="badge">Inicio</span></div><h3>IA desde cero y productividad</h3><p>ChatGPT, Gemini, Claude, prompts, organización personal, escritura, resúmenes y tareas del día a día.</p></article>
-          <article class="course" style="--accent:rgba(246,178,26,.24)"><div class="course-top"><span class="course-number">2</span><span class="badge">Negocio</span></div><h3>IA para negocios locales</h3><p>Ofertas, Google Business, WhatsApp, redes sociales, atención al cliente y captación de clientes.</p></article>
-          <article class="course" style="--accent:rgba(255,79,163,.22)"><div class="course-top"><span class="course-number">3</span><span class="badge">Marketing</span></div><h3>Marketing y contenido para 30 días</h3><p>Calendarios, posts, reels, historias, textos que venden, llamadas a la acción y planificación mensual.</p></article>
-          <article class="course" style="--accent:rgba(57,167,255,.22)"><div class="course-top"><span class="course-number">4</span><span class="badge">Imagen</span></div><h3>Imagen IA y diseño visual</h3><p>Fotografía de producto, marca personal, imágenes para redes, creatividad visual y prompts avanzados.</p></article>
-          <article class="course" style="--accent:rgba(246,178,26,.26)"><div class="course-top"><span class="course-number">5</span><span class="badge">Vídeo</span></div><h3>Vídeo IA para redes y empresas</h3><p>Guiones, anuncios, clips, reels, imagen a vídeo, voz, música, subtítulos y montaje final.</p></article>
-          <article class="course" style="--accent:rgba(52,211,153,.22)"><div class="course-top"><span class="course-number">6</span><span class="badge">Automatización</span></div><h3>Automatizaciones sin programar</h3><p>Formularios, hojas de cálculo, respuestas automáticas, flujos de trabajo, Make/Zapier y procesos internos.</p></article>
-          <article class="course" style="--accent:rgba(246,178,26,.30)"><div class="course-top"><span class="course-number">7</span><span class="badge">Agentes</span></div><h3>Agentes de IA para empresas</h3><p>Asistentes inteligentes para ventas, soporte, reservas, captación de leads y atención al cliente.</p></article>
-          <article class="course" style="--accent:rgba(255,79,163,.24)"><div class="course-top"><span class="course-number">8</span><span class="badge">Marca</span></div><h3>Marca personal y servicios digitales</h3><p>Propuesta de valor, bio, contenido de autoridad, portfolio, ofertas y venta de servicios con IA.</p></article>
-          <article class="course" style="--accent:rgba(57,167,255,.24)"><div class="course-top"><span class="course-number">9</span><span class="badge">Web</span></div><h3>Webs, landings y ofertas comerciales</h3><p>Estructura de landing, textos, servicios, precios, objeciones, contacto y presentación comercial.</p></article>
-          <article class="course" style="--accent:rgba(246,178,26,.22)"><div class="course-top"><span class="course-number">10</span><span class="badge">Creatividad</span></div><h3>IA creativa y mundos visuales</h3><p>Personajes, historias, pósters, escenas, conceptos visuales, vídeos y proyectos creativos.</p></article>
-          <article class="course" style="--accent:rgba(52,211,153,.22)"><div class="course-top"><span class="course-number">11</span><span class="badge">Dinero</span></div><h3>Cómo ganar dinero con IA</h3><p>Servicios vendibles, packs, precios, muestras, captación de clientes, presupuestos y entrega profesional.</p></article>
-          <article class="course" style="--accent:rgba(255,255,255,.16)"><div class="course-top"><span class="course-number">12</span><span class="badge">Final</span></div><h3>Proyecto final y portfolio</h3><p>Cada alumno presenta su proyecto: marca, contenido, web, agente, automatización o servicio listo para enseñar.</p></article>
-        </div>
-      </div>
-    </section>
-
-    <section class="section" id="cursos">
-      <div class="shell">
-        <div class="section-head">
-          <div>
-            <p class="kicker">Catálogo presencial</p>
-            <h2 class="section-title">Cursos sueltos disponibles</h2>
-          </div>
-          <p class="section-copy">Cursos presenciales independientes para quien quiere aprender un área concreta sin entrar en el programa anual.</p>
-        </div>
-        <div class="course-grid" id="courseGrid"></div>
-      </div>
-    </section>
-
-    <section class="section" id="precios">
-      <div class="shell">
-        <div class="section-head">
-          <div>
-            <p class="kicker">Formatos de venta</p>
-            <h2 class="section-title">Precios claros para alumnos y empresas</h2>
-          </div>
-          <p class="section-copy">Además de cursos sueltos, puedes vender bonos y formación privada para negocios.</p>
-        </div>
-        <div class="format-grid">
-          <article class="format">
-            <h3>Curso individual</h3>
-            <p>Una sesión presencial de 3 a 6 horas con ejercicios, plantilla y material de prompts.</p>
-            <strong>desde 69€</strong>
-            <small>Ideal para público general y alumnos que quieren probar una primera clase.</small>
-          </article>
-          <article class="format featured">
-            <h3>Bono 3 cursos</h3>
-            <p>Pack recomendado para alumnos que quieren avanzar por niveles: base, negocio y aplicación práctica.</p>
-            <strong>-15%</strong>
-            <small>Descuento aplicado sobre la suma de los cursos elegidos.</small>
-          </article>
-          <article class="format">
-            <h3>Empresa privada</h3>
-            <p>Formación cerrada para equipos, adaptada a su sector, herramientas y necesidades reales.</p>
-            <strong>desde 690€</strong>
-            <small>Media jornada presencial hasta 8 asistentes. Programas completos desde 1.190€.</small>
-          </article>
-        </div>
-      </div>
-    </section>
-
-    <section class="section" id="metodo">
-      <div class="shell agenda">
-        <article class="agenda-card">
-          <p class="kicker">Método KreateIA</p>
-          <h3>Clase presencial, práctica y con resultado</h3>
-          <p>La estructura viene del manual: explicar poco, demostrar rápido y practicar mucho. Cada alumno sale con material aprovechable.</p>
         </article>
-        <div class="steps">
-          <div class="step"><strong>1</strong><div><strong>Concepto claro</strong><p>Qué es, para qué sirve y cómo se aplica en una situación real.</p></div></div>
-          <div class="step"><strong>2</strong><div><strong>Demostración en pantalla</strong><p>El profesor muestra prompts, herramientas y resultados con ejemplos del curso.</p></div></div>
-          <div class="step"><strong>3</strong><div><strong>Práctica guiada</strong><p>Los alumnos trabajan sobre su negocio, marca, proyecto o necesidad personal.</p></div></div>
-          <div class="step"><strong>4</strong><div><strong>Proyecto final</strong><p>Entregable concreto: calendario, vídeo, oferta, agente, automatización, web o kit creativo.</p></div></div>
+
+        <article class="course-card">
+          <div class="course-top">
+            <div>
+              <span class="course-number">2</span>
+              <h3 style="margin-top:12px">IA para Negocios Locales</h3>
+            </div>
+            <span class="duration">4 horas</span>
+          </div>
+
+          <div class="course-block">
+            <strong>Para quién</strong>
+            <span>Comercios, peluquerías, clínicas, academias, restaurantes, autónomos y pequeños negocios.</span>
+          </div>
+
+          <div class="course-block">
+            <strong>Qué se consigue</strong>
+            <span>Crear ofertas, publicaciones, respuestas para clientes, ideas de promoción y contenido para redes.</span>
+          </div>
+
+          <div class="course-bottom">
+            <div>
+              <span class="price-label">Precio</span>
+              <span class="price">129€</span>
+            </div>
+            <div class="level">Negocios</div>
+          </div>
+        </article>
+
+        <article class="course-card">
+          <div class="course-top">
+            <div>
+              <span class="course-number">3</span>
+              <h3 style="margin-top:12px">Marketing y Redes con IA</h3>
+            </div>
+            <span class="duration">3-4 horas</span>
+          </div>
+
+          <div class="course-block">
+            <strong>Para quién</strong>
+            <span>Creadores, negocios, marcas personales y personas que necesitan publicar mejor y con más frecuencia.</span>
+          </div>
+
+          <div class="course-block">
+            <strong>Qué se consigue</strong>
+            <span>Calendario de contenido, ideas para 30 días, textos, guiones para reels y publicaciones.</span>
+          </div>
+
+          <div class="course-bottom">
+            <div>
+              <span class="price-label">Precio</span>
+              <span class="price">129€</span>
+            </div>
+            <div class="level">Contenido</div>
+          </div>
+        </article>
+
+        <article class="course-card">
+          <div class="course-top">
+            <div>
+              <span class="course-number">4</span>
+              <h3 style="margin-top:12px">Imagen IA y Fotografía para Redes</h3>
+            </div>
+            <span class="duration">4-6 horas</span>
+          </div>
+
+          <div class="course-block">
+            <strong>Para quién</strong>
+            <span>Negocios, creadores, artistas, tiendas online, marcas personales y personas creativas.</span>
+          </div>
+
+          <div class="course-block">
+            <strong>Qué se consigue</strong>
+            <span>Crear imágenes para redes, producto, campañas, retratos, estilos visuales y prompts profesionales.</span>
+          </div>
+
+          <div class="course-bottom">
+            <div>
+              <span class="price-label">Precio</span>
+              <span class="price">169€</span>
+            </div>
+            <div class="level">Visual</div>
+          </div>
+        </article>
+
+        <article class="course-card">
+          <div class="course-top">
+            <div>
+              <span class="course-number">5</span>
+              <h3 style="margin-top:12px">Vídeo con IA para Redes y Empresas</h3>
+            </div>
+            <span class="duration">6 horas</span>
+          </div>
+
+          <div class="course-block">
+            <strong>Para quién</strong>
+            <span>Negocios, creadores, agencias, community managers y marcas que quieren vídeos llamativos.</span>
+          </div>
+
+          <div class="course-block">
+            <strong>Qué se consigue</strong>
+            <span>Guiones, anuncios, clips para redes, vídeos cortos, subtítulos, música y estructura de campaña.</span>
+          </div>
+
+          <div class="course-bottom">
+            <div>
+              <span class="price-label">Precio</span>
+              <span class="price">189€</span>
+            </div>
+            <div class="level">Vídeo</div>
+          </div>
+        </article>
+
+        <article class="course-card">
+          <div class="course-top">
+            <div>
+              <span class="course-number">6</span>
+              <h3 style="margin-top:12px">Automatiza tu Negocio con IA</h3>
+            </div>
+            <span class="duration">4-5 horas</span>
+          </div>
+
+          <div class="course-block">
+            <strong>Para quién</strong>
+            <span>Pymes, autónomos, oficinas, gestores, academias y negocios con tareas repetitivas.</span>
+          </div>
+
+          <div class="course-block">
+            <strong>Qué se consigue</strong>
+            <span>Detectar procesos repetitivos y crear flujos sencillos con formularios, hojas y respuestas automáticas.</span>
+          </div>
+
+          <div class="course-bottom">
+            <div>
+              <span class="price-label">Precio</span>
+              <span class="price">249€</span>
+            </div>
+            <div class="level">Automatización</div>
+          </div>
+        </article>
+
+        <article class="course-card">
+          <div class="course-top">
+            <div>
+              <span class="course-number">7</span>
+              <h3 style="margin-top:12px">Agentes de IA para Empresas</h3>
+            </div>
+            <span class="duration">5-6 horas</span>
+          </div>
+
+          <div class="course-block">
+            <strong>Para quién</strong>
+            <span>Empresarios, consultores, agencias, negocios avanzados y equipos comerciales.</span>
+          </div>
+
+          <div class="course-block">
+            <strong>Qué se consigue</strong>
+            <span>Diseñar un asistente IA para atención, ventas, reservas, soporte o captación de clientes.</span>
+          </div>
+
+          <div class="course-bottom">
+            <div>
+              <span class="price-label">Precio</span>
+              <span class="price">299€</span>
+            </div>
+            <div class="level">Avanzado</div>
+          </div>
+        </article>
+
+        <article class="course-card">
+          <div class="course-top">
+            <div>
+              <span class="course-number">8</span>
+              <h3 style="margin-top:12px">Gana Dinero con IA</h3>
+            </div>
+            <span class="duration">4-6 horas</span>
+          </div>
+
+          <div class="course-block">
+            <strong>Para quién</strong>
+            <span>Emprendedores, freelancers y personas que quieren crear servicios digitales con IA.</span>
+          </div>
+
+          <div class="course-block">
+            <strong>Qué se consigue</strong>
+            <span>Ideas de servicios, packs, precios, mensajes de captación, ejemplo de presupuesto y primera oferta.</span>
+          </div>
+
+          <div class="course-bottom">
+            <div>
+              <span class="price-label">Precio</span>
+              <span class="price">159€</span>
+            </div>
+            <div class="level">Emprender</div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2 class="section-title">Formación para empresas</h2>
+      <p class="section-copy">
+        También se pueden preparar formaciones privadas para equipos, adaptadas al sector, herramientas y necesidades reales de cada negocio.
+      </p>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3>Media jornada para empresas</h3>
+          <p>Formación presencial práctica para equipos pequeños. Ideal para entender cómo aplicar IA en ventas, atención al cliente, contenido, administración y procesos internos.</p>
+          <p style="margin-top:16px"><strong>Desde 690€</strong></p>
+        </div>
+
+        <div class="card">
+          <h3>Programa completo para empresa</h3>
+          <p>Formación más amplia, dividida en varias sesiones, con ejercicios aplicados al negocio y documentación para el equipo.</p>
+          <p style="margin-top:16px"><strong>Desde 1.190€</strong></p>
         </div>
       </div>
     </section>
 
-    <section class="cta" id="reservar">
-      <div class="shell">
-        <div class="cta-box">
-          <p class="kicker">Plazas presenciales limitadas</p>
-          <h2>No estás pagando solo clases: entras en un año de práctica, proyectos y herramientas.</h2>
-          <p>Reserva plaza para el programa anual o solicita información sobre cursos sueltos y formación para empresas.</p>
-          <div class="actions" style="justify-content:center">
-            <a class="btn primary" href="mailto:contacto@kreateia.com?subject=Programa%20Anual%20IA%20Profesional">Reservar programa anual</a>
-            <a class="btn blue" href="mailto:contacto@kreateia.com?subject=Informacion%20cursos%20presenciales%20KreateIA">Pedir información</a>
-          </div>
-          <div class="note">Precio de inauguración limitado a primeras plazas. El portátil incluido será nuevo, de gama formativa/ofimática y modelo según disponibilidad.</div>
-        </div>
+    <section class="section">
+      <div class="note-box">
+        <h2>Información y plazas</h2>
+        <p>
+          Para consultar horarios, disponibilidad, próximas fechas o resolver dudas sobre el programa anual, escribe a <strong>info@kreateia.com</strong>.
+        </p>
       </div>
     </section>
-  </main>
 
-  <script>
-    const courses = [
-      {n:'01',title:'IA desde Cero',duration:'3-4 horas',audience:'Principiantes, adultos, autónomos y curiosos',goal:'Perder el miedo a la IA y aprender a usarla en tareas del día a día.',deliverables:['Prompts básicos','Asistente personal','Resumen y ejercicios'],price:'69€',accent:'rgba(57,167,255,.24)'},
-      {n:'02',title:'IA para Negocios Locales',duration:'4 horas',audience:'Comercios, clínicas, academias y pequeños negocios',goal:'Captar clientes, crear ofertas, mejorar Google, WhatsApp y redes.',deliverables:['3 ofertas','7 posts','10 respuestas WhatsApp'],price:'129€',accent:'rgba(246,178,26,.24)'},
-      {n:'03',title:'Gana Dinero con IA',duration:'4-6 horas',audience:'Emprendedores, freelancers y personas que buscan ingresos extra',goal:'Crear servicios vendibles con IA y una primera oferta comercial.',deliverables:['Pack de servicios','Mensaje de captación','Presupuesto base'],price:'159€',accent:'rgba(255,79,163,.22)'},
-      {n:'04',title:'Vídeos con IA para Redes y Empresas',duration:'6 horas',audience:'Creadores, negocios, agencias y community managers',goal:'Crear anuncios, reels y piezas comerciales con IA de principio a fin.',deliverables:['Guion 15s','Imagen base','Clip y montaje final'],price:'189€',accent:'rgba(246,178,26,.26)'},
-      {n:'05',title:'Automatiza tu Negocio con IA',duration:'4-5 horas',audience:'Pymes, autónomos, oficinas, gestores y comercios',goal:'Detectar tareas repetitivas y crear flujos simples sin programar.',deliverables:['Mapa de proceso','Formulario','Flujo básico'],price:'249€',accent:'rgba(52,211,153,.22)'},
-      {n:'06',title:'Marketing y Redes con IA',duration:'3-4 horas',audience:'Negocios, marcas personales y community managers',goal:'Crear contenido para 30 días con calendario, textos y guiones.',deliverables:['Calendario 30 días','5 textos','3 guiones de reels'],price:'129€',accent:'rgba(57,167,255,.22)'},
-      {n:'07',title:'Agentes de IA para Empresas',duration:'5-6 horas',audience:'Empresarios, consultores, agencias y negocios avanzados',goal:'Diseñar un asistente para atención, ventas, soporte o captación.',deliverables:['Objetivo del agente','Instrucciones','Base de conocimiento'],price:'299€',accent:'rgba(246,178,26,.30)'},
-      {n:'08',title:'Marca Personal con IA',duration:'4 horas',audience:'Profesionales, coaches, artistas, asesores y freelancers',goal:'Construir mensaje, bio, propuesta de valor, estilo y contenido.',deliverables:['Propuesta de valor','Bio','Ideas de contenido'],price:'129€',accent:'rgba(255,79,163,.24)'},
-      {n:'09',title:'Webs, Landings y Ofertas Comerciales',duration:'5 horas',audience:'Emprendedores, negocios y alumnos de servicios digitales',goal:'Crear estructura, textos y oferta de una landing que venda.',deliverables:['Estructura web','Textos','3 paquetes de oferta'],price:'199€',accent:'rgba(57,167,255,.24)'},
-      {n:'10',title:'IA Creativa: Imágenes y Mundos Visuales',duration:'4-6 horas',audience:'Creativos, jóvenes, artistas, profesores y aficionados visuales',goal:'Crear personajes, historias, prompts visuales, póster y escena final.',deliverables:['Personaje','3 imágenes','Prompt de vídeo y póster'],price:'169€',accent:'rgba(246,178,26,.22)'}
-    ];
+    <footer class="footer">
+      <div>
+        <strong>KreateIA Cursos Presenciales</strong><br>
+        Formación práctica en inteligencia artificial para alumnos, creadores, negocios y empresas.
+      </div>
 
-    const grid = document.getElementById('courseGrid');
-
-    courses.forEach(course => {
-      const card = document.createElement('article');
-      card.className = 'course';
-      card.style.setProperty('--accent', course.accent);
-      card.innerHTML = `
-        <div class="course-top">
-          <span class="course-number">${course.n}</span>
-          <span class="badge">${course.duration}</span>
-        </div>
-        <div>
-          <h3>${course.title}</h3>
-          <p style="margin-top:10px">${course.goal}</p>
-        </div>
-        <p><strong style="color:#fff">Para:</strong> ${course.audience}</p>
-        <ul>${course.deliverables.map(item => `<li>${item}</li>`).join('')}</ul>
-        <div class="price-row">
-          <div class="price">
-            <span>Precio presencial</span>
-            <strong>${course.price}</strong>
-          </div>
-          <a class="btn" href="mailto:contacto@kreateia.com?subject=Curso%20${encodeURIComponent(course.title)}">Reservar</a>
-        </div>
-      `;
-      grid.appendChild(card);
-    });
-  </script>
+      <div>
+        <strong>Contacto</strong><br>
+        info@kreateia.com
+      </div>
+    </footer>
+  </div>
 </body>
 </html>
