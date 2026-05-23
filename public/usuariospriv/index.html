@@ -4,147 +4,915 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>KreateIA · Gestión privada</title>
+
   <style>
-    :root{--blue:#2563eb;--amber:#f59e0b;--ink:#0f172a;--muted:#64748b;--line:#e2e8f0;--soft:#f8fafc;--ok:#059669;--danger:#dc2626}
-    *{box-sizing:border-box}
-    body{margin:0;min-height:100vh;color:var(--ink);background:#eef2f7;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-    button,input,textarea,select{font:inherit}button{-webkit-tap-highlight-color:transparent}.hidden{display:none!important}
-    .brand{display:flex;align-items:center;gap:12px;font-weight:900;letter-spacing:-.04em}
-    .brand-mark{width:42px;height:42px;border-radius:14px;background:radial-gradient(circle at 35% 35%,#fff 0 8%,transparent 9%),conic-gradient(from 220deg,#2563eb,#f59e0b,#2563eb);box-shadow:0 12px 28px rgba(37,99,235,.22)}
-    .brand span:first-of-type{color:#1d4ed8}.brand span:last-of-type{color:#ea580c;font-weight:700}
-    .login-wrap{min-height:100vh;display:grid;place-items:center;padding:24px;background:radial-gradient(circle at top left,rgba(37,99,235,.18),transparent 36%),radial-gradient(circle at bottom right,rgba(245,158,11,.18),transparent 34%),#f8fafc}
-    .login-card,.card{background:rgba(255,255,255,.94);border:1px solid rgba(226,232,240,.9);border-radius:24px;box-shadow:0 28px 90px rgba(15,23,42,.12)}
-    .login-card{width:min(460px,100%);padding:30px}.login-card h1{margin:22px 0 8px;font-size:30px;letter-spacing:-.04em}.login-card p{margin:0 0 24px;color:var(--muted);line-height:1.55}
-    .app{min-height:100vh;display:flex;flex-direction:column}
-    header{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 18px;background:rgba(255,255,255,.9);border-bottom:1px solid var(--line);backdrop-filter:blur(18px)}
-    main{width:min(1440px,100%);margin:0 auto;padding:22px;display:grid;grid-template-columns:minmax(360px,470px) 1fr;gap:22px;align-items:start}
-    .card{padding:22px}.card h2{margin:0 0 6px;font-size:20px;letter-spacing:-.03em}.hint{margin:0 0 18px;color:var(--muted);font-size:14px;line-height:1.5}
-    label{display:block;margin:0 0 7px;color:#334155;font-size:13px;font-weight:800}
-    input,textarea,select{width:100%;border:1px solid var(--line);border-radius:13px;background:#fff;color:var(--ink);padding:12px 13px;outline:none;transition:border-color .15s,box-shadow .15s}
-    input:focus,textarea:focus,select:focus{border-color:rgba(37,99,235,.65);box-shadow:0 0 0 4px rgba(37,99,235,.10)}
-    textarea{resize:vertical;min-height:82px}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field{margin-bottom:13px}
-    .choice-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
-    .choice{border:1px solid var(--line);background:#fff;border-radius:16px;padding:13px;cursor:pointer;min-height:74px;text-align:left}
-    .choice strong{display:block;font-size:14px}.choice span{color:var(--muted);font-size:12px}
-    .choice.active{border-color:var(--blue);background:#eff6ff;box-shadow:inset 0 0 0 1px rgba(37,99,235,.18)}
-    .choice.active[data-type="Servicios IA"]{border-color:var(--amber);background:#fffbeb;box-shadow:inset 0 0 0 1px rgba(245,158,11,.24)}
-    .summary{border:1px solid var(--line);border-radius:18px;padding:14px;background:var(--soft);display:grid;gap:8px;margin:10px 0 14px}
-    .sum-line{display:flex;justify-content:space-between;gap:18px;color:#475569;font-size:14px}.sum-line.total{font-size:18px;font-weight:900;color:var(--ink);padding-top:8px;border-top:1px solid var(--line)}
-    .pill{display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:999px;padding:7px 11px;font-size:12px;font-weight:900;background:#e0f2fe;color:#0369a1}.pill.warn{background:#fff7ed;color:#c2410c}
-    .btn{border:0;border-radius:14px;padding:12px 16px;cursor:pointer;font-weight:900;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:transform .12s,opacity .12s,background .12s}
-    .btn:active{transform:translateY(1px) scale(.99)}.btn.primary{background:var(--blue);color:#fff;box-shadow:0 14px 28px rgba(37,99,235,.22)}.btn.ghost{background:#f1f5f9;color:#334155}.btn.danger{background:#fee2e2;color:var(--danger)}.btn:disabled{opacity:.55;cursor:not-allowed}
-    .form-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
-    .legal{display:flex;align-items:flex-start;gap:10px;padding:13px;border-radius:16px;background:#fff7ed;border:1px solid #fed7aa;color:#7c2d12;font-size:12px;line-height:1.45;margin:12px 0}.legal input{width:20px;height:20px;margin-top:1px;flex:0 0 auto}
-    .sig-preview{display:flex;align-items:center;gap:10px;border:1px dashed #cbd5e1;background:#fff;border-radius:14px;padding:10px;min-height:72px}.sig-preview img{max-height:48px;max-width:180px;object-fit:contain}
-    .table-card{overflow:hidden;padding:0}
-    .panel-head{padding:18px 20px 16px;display:grid;gap:16px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#fff,#f8fafc)}
-    .panel-top{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
-    .panel-title-block h2{margin:0;font-size:24px;letter-spacing:-.04em}.panel-title-block p{margin:5px 0 0;color:var(--muted);font-size:13px;line-height:1.45;max-width:620px}
-    .view-tabs{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:8px}
-    .tab{border:1px solid var(--line);border-radius:16px;padding:11px 12px;cursor:pointer;background:#fff;color:#334155;text-align:left;min-height:66px;transition:background .15s,border-color .15s,color .15s,transform .15s}
-    .tab strong{display:block;font-size:13px;font-weight:950;line-height:1.15}.tab span{display:block;margin-top:4px;color:#64748b;font-size:11px;line-height:1.2}
-    .tab.active{background:#0f172a;border-color:#0f172a;color:#fff;box-shadow:0 12px 28px rgba(15,23,42,.18)}.tab.active span{color:#cbd5e1}
-    .panel-help{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border:1px solid #dbeafe;border-radius:16px;background:#eff6ff;color:#1e3a8a}
-    .panel-help strong{display:block;font-size:13px}.panel-help span{display:block;margin-top:3px;font-size:12px;line-height:1.35}
-    .table-scroll{overflow:auto;max-height:calc(100vh - 250px)}
-    table{width:100%;border-collapse:collapse;min-width:920px}
-    th,td{padding:12px 14px;border-bottom:1px solid #eef2f7;text-align:left;font-size:13px;vertical-align:top}
-    th{position:sticky;top:0;z-index:2;background:#f8fafc;color:#475569;font-size:11px;text-transform:uppercase;letter-spacing:.06em}
-    td strong{color:var(--ink)}.right{text-align:right}.status{color:var(--ok);font-weight:900}.muted{color:var(--muted)}.mini{font-size:12px;color:var(--muted)}
-    .modal{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(15,23,42,.58);backdrop-filter:blur(10px)}
-    .modal-card{width:min(780px,100%);background:#fff;border-radius:24px;overflow:hidden;box-shadow:0 30px 100px rgba(0,0,0,.28)}
-    .modal-head,.modal-foot{padding:16px 18px;background:#f8fafc;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px}.modal-foot{border-top:1px solid var(--line);border-bottom:0}
-    .modal-body{padding:18px;display:grid;gap:14px;max-height:72vh;overflow:auto}
-    .agreement-box{border:1px solid var(--line);border-radius:16px;padding:14px;background:#f8fafc;color:#475569;font-size:13px;line-height:1.55}
-    .signature-card{min-height:92px;border:1px dashed #cbd5e1;border-radius:16px;display:flex;align-items:center;justify-content:center;padding:12px;background:#fff}.signature-card img{max-width:100%;max-height:120px;object-fit:contain}
-    canvas{width:100%;height:300px;display:block;background:#fff;touch-action:none}.canvas-wrap{margin:18px;border:2px dashed #cbd5e1;border-radius:18px;overflow:hidden;background:#fff}
-    .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#0f172a;color:#fff;padding:12px 16px;border-radius:999px;box-shadow:0 20px 50px rgba(15,23,42,.25);z-index:200;font-weight:800;font-size:13px}
-    .invoice-sheet{background:#fff;color:#111827;border:1px solid #e5e7eb;border-radius:18px;padding:28px;box-shadow:0 18px 60px rgba(15,23,42,.12)}
-    .invoice-top{display:flex;justify-content:space-between;gap:24px;border-bottom:2px solid #111827;padding-bottom:18px;margin-bottom:22px}.invoice-title{font-size:30px;font-weight:900;letter-spacing:.08em;margin:0}.invoice-number{font-size:17px;font-weight:900;color:#2563eb;margin-top:8px}
-    .invoice-boxes{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px}.invoice-box{border:1px solid #e5e7eb;border-radius:14px;padding:14px;background:#f9fafb;min-height:126px}.invoice-box h3{margin:0 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:#6b7280}.invoice-box p{margin:3px 0;font-size:13px;line-height:1.45}
-    .invoice-table{width:100%;min-width:0;border-collapse:collapse;margin-top:10px}.invoice-table th{position:static;background:#111827;color:#fff;padding:11px;font-size:11px;text-transform:uppercase;letter-spacing:.06em}.invoice-table td{padding:12px 11px;border-bottom:1px solid #e5e7eb;font-size:13px}
-    .invoice-totals{width:min(360px,100%);margin:18px 0 0 auto;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden}.invoice-total-line{display:flex;justify-content:space-between;padding:11px 14px;border-bottom:1px solid #e5e7eb}.invoice-total-line:last-child{border-bottom:0;background:#111827;color:#fff;font-size:18px;font-weight:900}.invoice-note{margin-top:18px;color:#4b5563;font-size:12px;line-height:1.55}
-    @media(max-width:1120px){main{grid-template-columns:1fr}.table-scroll{max-height:none}.view-tabs{grid-template-columns:repeat(2,1fr)}}
-    @media(max-width:720px){main{padding:12px}header{align-items:flex-start;flex-direction:column}.grid2,.choice-row,.form-actions,.invoice-boxes{grid-template-columns:1fr}.panel-top,.panel-help{align-items:stretch;flex-direction:column}.view-tabs{grid-template-columns:1fr}}
-    @media print{body{background:#fff}header,.form-card,.panel-head button,.no-print{display:none!important}main{display:block;padding:0;width:100%}.table-card{box-shadow:none;border:0}.table-scroll{overflow:visible;max-height:none}table{min-width:0}body.print-invoice *{visibility:hidden}body.print-invoice #invoice-print-area,body.print-invoice #invoice-print-area *{visibility:visible}body.print-invoice #invoice-print-area{position:absolute;left:0;top:0;width:100%}body.print-invoice .invoice-sheet{border:0;border-radius:0;box-shadow:none;padding:22mm 18mm}}
+    :root {
+      --blue: #2563eb;
+      --amber: #f59e0b;
+      --ink: #0f172a;
+      --muted: #64748b;
+      --line: #e2e8f0;
+      --soft: #f8fafc;
+      --ok: #059669;
+      --danger: #dc2626;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background: #eef2f7;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button, input, textarea, select { font: inherit; }
+    button { -webkit-tap-highlight-color: transparent; cursor: pointer; }
+    .hidden { display: none !important; }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 900;
+      letter-spacing: -.04em;
+    }
+
+    .brand-mark {
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      background:
+        radial-gradient(circle at 35% 35%, #fff 0 8%, transparent 9%),
+        conic-gradient(from 220deg, #2563eb, #f59e0b, #2563eb);
+      box-shadow: 0 12px 28px rgba(37, 99, 235, .22);
+    }
+
+    .brand span:first-of-type { color: #1d4ed8; }
+    .brand span:last-of-type { color: #ea580c; font-weight: 700; }
+
+    .login-wrap {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background:
+        radial-gradient(circle at top left, rgba(37, 99, 235, .18), transparent 36%),
+        radial-gradient(circle at bottom right, rgba(245, 158, 11, .18), transparent 34%),
+        #f8fafc;
+    }
+
+    .login-card,
+    .card {
+      background: rgba(255, 255, 255, .96);
+      border: 1px solid rgba(226, 232, 240, .95);
+      border-radius: 24px;
+      box-shadow: 0 28px 90px rgba(15, 23, 42, .12);
+    }
+
+    .login-card {
+      width: min(460px, 100%);
+      padding: 30px;
+    }
+
+    .login-card h1 {
+      margin: 22px 0 8px;
+      font-size: 30px;
+      letter-spacing: -.04em;
+    }
+
+    .login-card p {
+      margin: 0 0 24px;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .app {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 18px;
+      background: rgba(255, 255, 255, .92);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(18px);
+    }
+
+    main {
+      width: min(1480px, 100%);
+      margin: 0 auto;
+      padding: 22px;
+      display: grid;
+      grid-template-columns: minmax(360px, 470px) 1fr;
+      gap: 22px;
+      align-items: start;
+    }
+
+    .card { padding: 22px; }
+    .card h2 { margin: 0 0 6px; font-size: 21px; letter-spacing: -.03em; }
+
+    .hint {
+      margin: 0 0 18px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    label {
+      display: block;
+      margin: 0 0 7px;
+      color: #334155;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    input,
+    textarea,
+    select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: #fff;
+      color: var(--ink);
+      padding: 12px 13px;
+      outline: none;
+      transition: border-color .15s, box-shadow .15s;
+    }
+
+    input:focus,
+    textarea:focus,
+    select:focus {
+      border-color: rgba(37, 99, 235, .65);
+      box-shadow: 0 0 0 4px rgba(37, 99, 235, .10);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 82px;
+    }
+
+    .grid2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .field { margin-bottom: 13px; }
+
+    .choice-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .choice {
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 16px;
+      padding: 13px;
+      min-height: 74px;
+      text-align: left;
+    }
+
+    .choice strong { display: block; font-size: 14px; }
+    .choice span { color: var(--muted); font-size: 12px; }
+
+    .choice.active {
+      border-color: var(--blue);
+      background: #eff6ff;
+      box-shadow: inset 0 0 0 1px rgba(37, 99, 235, .18);
+    }
+
+    .choice.active[data-type="Servicios IA"],
+    .choice.active[data-document-mode="quote"] {
+      border-color: var(--amber);
+      background: #fffbeb;
+      box-shadow: inset 0 0 0 1px rgba(245, 158, 11, .24);
+    }
+
+    .summary {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 14px;
+      background: var(--soft);
+      display: grid;
+      gap: 8px;
+      margin: 10px 0 14px;
+    }
+
+    .sum-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      color: #475569;
+      font-size: 14px;
+    }
+
+    .sum-line.total {
+      font-size: 18px;
+      font-weight: 900;
+      color: var(--ink);
+      padding-top: 8px;
+      border-top: 1px solid var(--line);
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      border-radius: 999px;
+      padding: 7px 11px;
+      font-size: 12px;
+      font-weight: 900;
+      background: #e0f2fe;
+      color: #0369a1;
+      white-space: nowrap;
+    }
+
+    .pill.warn {
+      background: #fff7ed;
+      color: #c2410c;
+    }
+
+    .pill.ok {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    .btn {
+      border: 0;
+      border-radius: 14px;
+      padding: 11px 14px;
+      font-weight: 900;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: transform .12s, opacity .12s, background .12s;
+    }
+
+    .btn:active { transform: translateY(1px) scale(.99); }
+    .btn.primary { background: var(--blue); color: #fff; box-shadow: 0 14px 28px rgba(37, 99, 235, .22); }
+    .btn.amber { background: var(--amber); color: #111827; box-shadow: 0 14px 28px rgba(245, 158, 11, .18); }
+    .btn.ghost { background: #f1f5f9; color: #334155; }
+    .btn.danger { background: #fee2e2; color: var(--danger); }
+    .btn:disabled { opacity: .55; cursor: not-allowed; }
+
+    .form-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .legal {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 13px;
+      border-radius: 16px;
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      color: #7c2d12;
+      font-size: 12px;
+      line-height: 1.45;
+      margin: 12px 0;
+    }
+
+    .legal input {
+      width: 20px;
+      height: 20px;
+      margin-top: 1px;
+      flex: 0 0 auto;
+    }
+
+    .sig-preview {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border: 1px dashed #cbd5e1;
+      background: #fff;
+      border-radius: 14px;
+      padding: 10px;
+      min-height: 72px;
+    }
+
+    .sig-preview img {
+      max-height: 48px;
+      max-width: 180px;
+      object-fit: contain;
+    }
+
+    .table-card {
+      overflow: hidden;
+      padding: 0;
+    }
+
+    .panel-head {
+      padding: 18px 20px 16px;
+      display: grid;
+      gap: 16px;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, #ffffff, #f8fafc);
+    }
+
+    .panel-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+    }
+
+    .panel-title-block h2 {
+      margin: 0;
+      font-size: 24px;
+      letter-spacing: -.04em;
+    }
+
+    .panel-title-block p {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+      max-width: 680px;
+    }
+
+    .view-tabs {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(140px, 1fr));
+      gap: 8px;
+    }
+
+    .tab {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 11px 12px;
+      background: #fff;
+      color: #334155;
+      text-align: left;
+      min-height: 66px;
+    }
+
+    .tab strong {
+      display: block;
+      font-size: 13px;
+      font-weight: 950;
+      line-height: 1.15;
+    }
+
+    .tab span {
+      display: block;
+      margin-top: 4px;
+      color: #64748b;
+      font-size: 11px;
+      line-height: 1.2;
+    }
+
+    .tab.active {
+      background: #0f172a;
+      border-color: #0f172a;
+      color: #fff;
+      box-shadow: 0 12px 28px rgba(15, 23, 42, .18);
+    }
+
+    .tab.active span { color: #cbd5e1; }
+
+    .panel-help {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border: 1px solid #dbeafe;
+      border-radius: 16px;
+      background: #eff6ff;
+      color: #1e3a8a;
+    }
+
+    .panel-help strong {
+      display: block;
+      font-size: 13px;
+    }
+
+    .panel-help span {
+      display: block;
+      margin-top: 3px;
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .table-scroll {
+      overflow: auto;
+      max-height: calc(100vh - 250px);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 980px;
+    }
+
+    th,
+    td {
+      padding: 12px 14px;
+      border-bottom: 1px solid #eef2f7;
+      text-align: left;
+      font-size: 13px;
+      vertical-align: top;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: #f8fafc;
+      color: #475569;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+
+    td strong { color: var(--ink); }
+    .right { text-align: right; }
+    .status { color: var(--ok); font-weight: 900; }
+    .muted { color: var(--muted); }
+    .mini { font-size: 12px; color: var(--muted); line-height: 1.45; }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(15, 23, 42, .58);
+      backdrop-filter: blur(10px);
+    }
+
+    .modal-card {
+      width: min(880px, 100%);
+      background: #fff;
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: 0 30px 100px rgba(0, 0, 0, .28);
+    }
+
+    .modal-head,
+    .modal-foot {
+      padding: 16px 18px;
+      background: #f8fafc;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .modal-foot {
+      border-top: 1px solid var(--line);
+      border-bottom: 0;
+    }
+
+    .modal-body {
+      padding: 18px;
+      display: grid;
+      gap: 14px;
+      max-height: 72vh;
+      overflow: auto;
+    }
+
+    .box {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 14px;
+      background: #f8fafc;
+      color: #475569;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .signature-card {
+      min-height: 92px;
+      border: 1px dashed #cbd5e1;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+      background: #fff;
+    }
+
+    .signature-card img {
+      max-width: 100%;
+      max-height: 120px;
+      object-fit: contain;
+    }
+
+    canvas {
+      width: 100%;
+      height: 300px;
+      display: block;
+      background: #fff;
+      touch-action: none;
+    }
+
+    .canvas-wrap {
+      margin: 18px;
+      border: 2px dashed #cbd5e1;
+      border-radius: 18px;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 22px;
+      transform: translateX(-50%);
+      background: #0f172a;
+      color: #fff;
+      padding: 12px 16px;
+      border-radius: 999px;
+      box-shadow: 0 20px 50px rgba(15, 23, 42, .25);
+      z-index: 200;
+      font-weight: 800;
+      font-size: 13px;
+    }
+
+    .doc-sheet {
+      background: #fff;
+      color: #111827;
+      border: 1px solid #e5e7eb;
+      border-radius: 18px;
+      padding: 28px;
+      box-shadow: 0 18px 60px rgba(15, 23, 42, .12);
+    }
+
+    .doc-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      border-bottom: 2px solid #111827;
+      padding-bottom: 18px;
+      margin-bottom: 22px;
+    }
+
+    .doc-title {
+      font-size: 30px;
+      font-weight: 900;
+      letter-spacing: .08em;
+      margin: 0;
+    }
+
+    .doc-number {
+      font-size: 17px;
+      font-weight: 900;
+      color: #2563eb;
+      margin-top: 8px;
+    }
+
+    .doc-boxes {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .doc-box {
+      border: 1px solid #e5e7eb;
+      border-radius: 14px;
+      padding: 14px;
+      background: #f9fafb;
+      min-height: 120px;
+    }
+
+    .doc-box h3 {
+      margin: 0 0 8px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      color: #6b7280;
+    }
+
+    .doc-box p {
+      margin: 3px 0;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .doc-table {
+      width: 100%;
+      min-width: 0;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    .doc-table th {
+      position: static;
+      background: #111827;
+      color: #fff;
+      padding: 11px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+
+    .doc-table td {
+      padding: 12px 11px;
+      border-bottom: 1px solid #e5e7eb;
+      font-size: 13px;
+    }
+
+    .doc-totals {
+      width: min(360px, 100%);
+      margin: 18px 0 0 auto;
+      border: 1px solid #e5e7eb;
+      border-radius: 14px;
+      overflow: hidden;
+    }
+
+    .doc-total-line {
+      display: flex;
+      justify-content: space-between;
+      padding: 11px 14px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .doc-total-line:last-child {
+      border-bottom: 0;
+      background: #111827;
+      color: #fff;
+      font-size: 18px;
+      font-weight: 900;
+    }
+
+    .doc-note {
+      margin-top: 18px;
+      color: #4b5563;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    @media (max-width: 1180px) {
+      main { grid-template-columns: 1fr; }
+      .table-scroll { max-height: none; }
+      .view-tabs { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 720px) {
+      main { padding: 12px; }
+      header { align-items: flex-start; flex-direction: column; }
+      .grid2,
+      .choice-row,
+      .form-actions,
+      .doc-boxes { grid-template-columns: 1fr; }
+      .panel-top,
+      .panel-help { align-items: stretch; flex-direction: column; }
+      .view-tabs { grid-template-columns: 1fr; }
+    }
+
+    @media print {
+      body { background: #fff; }
+      header,
+      .form-card,
+      .panel-head button,
+      .no-print { display: none !important; }
+      main { display: block; padding: 0; width: 100%; }
+      .table-card { box-shadow: none; border: 0; }
+      .table-scroll { overflow: visible; max-height: none; }
+      table { min-width: 0; }
+      body.print-doc * { visibility: hidden; }
+      body.print-doc #doc-print-area,
+      body.print-doc #doc-print-area * { visibility: visible; }
+      body.print-doc #doc-print-area {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+      }
+      body.print-doc .doc-sheet {
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+        padding: 22mm 18mm;
+      }
+    }
   </style>
 </head>
+
 <body>
   <div id="login" class="login-wrap">
     <section class="login-card">
-      <div class="brand" style="font-size:30px"><div class="brand-mark"></div><div><span>Kreate</span><span>IA</span></div></div>
+      <div class="brand" style="font-size:30px">
+        <div class="brand-mark"></div>
+        <div><span>Kreate</span><span>IA</span></div>
+      </div>
+
       <h1>Acceso privado</h1>
-      <p>Área interna para registrar alumnos, servicios, conformidades firmadas, citas y facturas.</p>
+      <p>Área interna para registrar alumnos, clientes, presupuestos, conformidades firmadas, citas y facturas.</p>
+
       <form id="login-form">
-        <div class="field"><label>Email autorizado</label><input id="login-email" type="email" autocomplete="email" required placeholder="empresas@kreateia.com" /></div>
-        <div class="field"><label>Contraseña</label><input id="login-pass" type="password" autocomplete="current-password" required /></div>
+        <div class="field">
+          <label>Email autorizado</label>
+          <input id="login-email" type="email" autocomplete="email" required placeholder="empresas@kreateia.com" />
+        </div>
+        <div class="field">
+          <label>Contraseña</label>
+          <input id="login-pass" type="password" autocomplete="current-password" required />
+        </div>
         <button class="btn primary" style="width:100%;margin-top:6px" type="submit">Entrar</button>
       </form>
+
       <p id="login-error" class="mini" style="color:#dc2626;margin-top:14px"></p>
     </section>
   </div>
 
   <div id="app" class="app hidden">
     <header>
-      <div class="brand" style="font-size:26px"><div class="brand-mark"></div><div><span>Kreate</span><span>IA</span></div><span class="pill">Gestión privada</span></div>
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span id="user-pill" class="pill warn"></span><button id="logout-btn" class="btn ghost" type="button">Salir</button></div>
+      <div class="brand" style="font-size:26px">
+        <div class="brand-mark"></div>
+        <div><span>Kreate</span><span>IA</span></div>
+        <span class="pill">Gestión privada</span>
+      </div>
+
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <span id="user-pill" class="pill warn"></span>
+        <button id="logout-btn" class="btn ghost" type="button">Salir</button>
+      </div>
     </header>
 
     <main>
       <section class="card form-card">
-        <h2>Nueva ficha y factura</h2>
-        <p class="hint">Primero elige si estás registrando Academia o Servicios IA. Academia queda exenta de IVA y permite añadir cita con recordatorio automático.</p>
+        <h2>Nueva ficha, presupuesto o factura</h2>
+        <p class="hint">
+          Academia genera facturas exentas de IVA y permite cita con recordatorio. Servicios IA permite hacer presupuesto primero y convertirlo después en factura.
+        </p>
 
         <form id="record-form">
           <div class="choice-row">
-            <button class="choice active" data-type="Academia" type="button"><strong>Academia / Cursos</strong><span>Alumnos, clases, citas y facturas exentas de IVA.</span></button>
-            <button class="choice" data-type="Servicios IA" type="button"><strong>Servicios IA</strong><span>Clientes, trabajos a medida y facturas con IVA.</span></button>
+            <button class="choice active" data-type="Academia" type="button">
+              <strong>Academia / Cursos</strong>
+              <span>Alumnos, clases, citas y facturas exentas de IVA.</span>
+            </button>
+            <button class="choice" data-type="Servicios IA" type="button">
+              <strong>Servicios IA</strong>
+              <span>Clientes, trabajos a medida, presupuestos y facturas con IVA.</span>
+            </button>
           </div>
 
-          <div class="field"><label>Nombre completo / Razón social</label><input id="fullName" required placeholder="Nombre del alumno, autónomo o empresa" /></div>
+          <div id="document-mode-section" class="choice-row hidden">
+            <button class="choice active" data-document-mode="invoice" type="button">
+              <strong>Factura de servicio</strong>
+              <span>Para trabajos ya aceptados o pagados.</span>
+            </button>
+            <button class="choice" data-document-mode="quote" type="button">
+              <strong>Presupuesto</strong>
+              <span>Propuesta previa; todavía no es factura.</span>
+            </button>
+          </div>
+
+          <div class="field">
+            <label>Nombre completo / Razón social</label>
+            <input id="fullName" required placeholder="Nombre del alumno, autónomo o empresa" />
+          </div>
 
           <div class="grid2">
-            <div class="field"><label>DNI / NIF / CIF</label><input id="taxId" placeholder="Opcional pero recomendado" /></div>
-            <div class="field"><label>Teléfono</label><input id="phone" type="tel" required placeholder="+34 ..." /></div>
-          </div>
-
-          <div class="field"><label>Email del cliente</label><input id="email" type="email" required placeholder="cliente@email.com" /></div>
-          <div class="field"><label>Dirección fiscal / postal</label><input id="address" required placeholder="Calle, número, ciudad, provincia" /></div>
-          <div class="field"><label id="concept-label">Curso contratado</label><input id="concept" required placeholder="Ej. Programa Anual IA Profesional" /></div>
-          <div class="field"><label>Descripción o notas internas</label><textarea id="notes" placeholder="Horario, forma de pago, observaciones, entrega de portátil, etc."></textarea></div>
-
-          <div class="grid2">
-            <div class="field"><label>Importe base</label><input id="baseAmount" type="number" min="0" step="0.01" required placeholder="890.00" /></div>
-            <div class="field"><label>Fecha de operación</label><input id="issueDate" type="date" required /></div>
-          </div>
-
-          <div id="appointment-section" class="agreement-box" style="margin-bottom:14px">
-            <strong style="display:block;margin-bottom:10px">Cita / clase de Academia</strong>
-            <div class="grid2">
-              <div class="field" style="margin-bottom:0"><label>Fecha de la cita</label><input id="appointmentDate" type="date" /></div>
-              <div class="field" style="margin-bottom:0"><label>Hora</label><input id="appointmentTime" type="time" /></div>
+            <div class="field">
+              <label>DNI / NIF / CIF</label>
+              <input id="taxId" placeholder="Opcional pero recomendado" />
             </div>
-            <div class="field" style="margin:12px 0 0"><label>Notas para el recordatorio</label><input id="appointmentNotes" placeholder="Ej. Primera clase presencial, traer DNI, venir 10 minutos antes..." /></div>
+            <div class="field">
+              <label>Teléfono</label>
+              <input id="phone" type="tel" required placeholder="+34 ..." />
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Email del cliente</label>
+            <input id="email" type="email" required placeholder="cliente@email.com" />
+          </div>
+
+          <div class="field">
+            <label>Dirección fiscal / postal</label>
+            <input id="address" required placeholder="Calle, número, ciudad, provincia" />
+          </div>
+
+          <div class="field">
+            <label id="concept-label">Curso contratado</label>
+            <input id="concept" required placeholder="Ej. Programa Anual IA Profesional" />
+          </div>
+
+          <div class="field">
+            <label>Descripción o notas internas</label>
+            <textarea id="notes" placeholder="Horario, forma de pago, observaciones, alcance del servicio, etc."></textarea>
+          </div>
+
+          <div class="grid2">
+            <div class="field">
+              <label>Importe base</label>
+              <input id="baseAmount" type="number" min="0" step="0.01" required placeholder="890.00" />
+            </div>
+            <div class="field">
+              <label>Fecha de operación</label>
+              <input id="issueDate" type="date" required />
+            </div>
+          </div>
+
+          <div id="quote-section" class="box hidden" style="margin-bottom:14px">
+            <strong style="display:block;margin-bottom:10px">Datos del presupuesto</strong>
+            <div class="grid2">
+              <div class="field" style="margin-bottom:0">
+                <label>Válido hasta</label>
+                <input id="validUntil" type="date" />
+              </div>
+              <div class="field" style="margin-bottom:0">
+                <label>Estado inicial</label>
+                <input value="Pendiente de aceptación" disabled />
+              </div>
+            </div>
+            <div class="mini" style="margin-top:8px">El presupuesto se podrá enviar al cliente y convertir en factura cuando lo acepte.</div>
+          </div>
+
+          <div id="appointment-section" class="box" style="margin-bottom:14px">
+            <strong style="display:block;margin-bottom:10px">Cita / clase de Academia</strong>
+
+            <div class="grid2">
+              <div class="field" style="margin-bottom:0">
+                <label>Fecha de la cita</label>
+                <input id="appointmentDate" type="date" />
+              </div>
+              <div class="field" style="margin-bottom:0">
+                <label>Hora</label>
+                <input id="appointmentTime" type="time" />
+              </div>
+            </div>
+
+            <div class="field" style="margin:12px 0 0">
+              <label>Notas para el recordatorio</label>
+              <input id="appointmentNotes" placeholder="Ej. Primera clase presencial, traer DNI..." />
+            </div>
+
             <div class="mini" style="margin-top:8px">Si rellenas fecha y hora, el sistema enviará un recordatorio automático 24h antes.</div>
           </div>
 
-          <div class="grid2">
-            <div class="field"><label>Forma de pago</label><select id="paymentMethod" required><option value="Efectivo">Efectivo</option><option value="TPV / Tarjeta">TPV / Tarjeta</option><option value="Transferencia">Transferencia</option><option value="Bizum">Bizum</option><option value="Pendiente">Pendiente de pago</option></select></div>
-            <div class="field"><label>Estado del pago</label><select id="paymentStatus" required><option value="Pagado">Pagado</option><option value="Pendiente">Pendiente</option></select></div>
+          <div id="payment-section" class="grid2">
+            <div class="field">
+              <label>Forma de pago</label>
+              <select id="paymentMethod" required>
+                <option value="Efectivo">Efectivo</option>
+                <option value="TPV / Tarjeta">TPV / Tarjeta</option>
+                <option value="Transferencia">Transferencia</option>
+                <option value="Bizum">Bizum</option>
+                <option value="Pendiente">Pendiente de pago</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Estado del pago</label>
+              <select id="paymentStatus" required>
+                <option value="Pagado">Pagado</option>
+                <option value="Pendiente">Pendiente</option>
+              </select>
+            </div>
           </div>
 
           <div class="summary" id="tax-summary"></div>
 
-          <div class="sig-preview">
-            <div style="flex:1"><strong>Firma de conformidad</strong><div class="mini">El cliente acepta el registro, condiciones, tratamiento de datos y emisión de factura.</div></div>
+          <div id="signature-section" class="sig-preview">
+            <div style="flex:1">
+              <strong>Firma de conformidad</strong>
+              <div class="mini">El cliente acepta el registro, condiciones, tratamiento de datos y emisión de factura.</div>
+            </div>
             <img id="signature-preview" class="hidden" alt="Firma del cliente" />
             <button id="open-signature" class="btn ghost" type="button">Firmar</button>
           </div>
 
-          <label class="legal"><input id="legalAccepted" type="checkbox" required /><span>El cliente acepta la política de privacidad, la prestación del servicio indicado y autoriza el tratamiento de sus datos para gestión administrativa, facturación y comunicación relacionada con KreateIA.</span></label>
-          <label class="legal" style="background:#eff6ff;border-color:#bfdbfe;color:#1e3a8a"><input id="sendEmail" type="checkbox" /><span>Enviar automáticamente al cliente un email desde empresas@kreateia.com con el resumen de factura y mensaje de agradecimiento.</span></label>
+          <label id="legal-section" class="legal">
+            <input id="legalAccepted" type="checkbox" required />
+            <span>El cliente acepta la política de privacidad, la prestación del servicio indicado y autoriza el tratamiento de sus datos para gestión administrativa, facturación y comunicación relacionada con KreateIA.</span>
+          </label>
 
-          <div class="form-actions"><button id="submit-btn" class="btn primary" type="submit">Generar factura</button><button id="reset-btn" class="btn ghost" type="button">Limpiar</button></div>
+          <label class="legal" style="background:#eff6ff;border-color:#bfdbfe;color:#1e3a8a">
+            <input id="sendEmail" type="checkbox" />
+            <span id="send-email-label">Enviar automáticamente al cliente un email desde empresas@kreateia.com.</span>
+          </label>
+
+          <div class="form-actions">
+            <button id="submit-btn" class="btn primary" type="submit">Generar factura</button>
+            <button id="reset-btn" class="btn ghost" type="button">Limpiar</button>
+          </div>
         </form>
       </section>
 
@@ -159,29 +927,94 @@
           </div>
 
           <div class="view-tabs">
-            <button id="tab-academy-clients" class="tab active" type="button"><strong>Alumnos Academia</strong><span>Fichas, firmas y citas</span></button>
-            <button id="tab-services-clients" class="tab" type="button"><strong>Clientes Servicios IA</strong><span>Empresas y trabajos IA</span></button>
-            <button id="tab-academy-invoices" class="tab" type="button"><strong>Facturas Academia</strong><span>Cursos exentos de IVA</span></button>
-            <button id="tab-services-invoices" class="tab" type="button"><strong>Facturas Servicios IA</strong><span>Servicios sujetos a IVA</span></button>
+            <button id="tab-academy-clients" class="tab active" type="button">
+              <strong>Alumnos Academia</strong>
+              <span>Fichas, firmas y citas</span>
+            </button>
+            <button id="tab-services-clients" class="tab" type="button">
+              <strong>Clientes Servicios IA</strong>
+              <span>Empresas y trabajos IA</span>
+            </button>
+            <button id="tab-academy-invoices" class="tab" type="button">
+              <strong>Facturas Academia</strong>
+              <span>Cursos exentos de IVA</span>
+            </button>
+            <button id="tab-services-invoices" class="tab" type="button">
+              <strong>Facturas Servicios IA</strong>
+              <span>Servicios sujetos a IVA</span>
+            </button>
+            <button id="tab-services-quotes" class="tab" type="button">
+              <strong>Presupuestos Servicios</strong>
+              <span>Propuestas pendientes</span>
+            </button>
           </div>
 
           <div class="panel-help">
-            <div><strong id="panel-help-title">Estás viendo alumnos de Academia</strong><span id="panel-help-text">Desde aquí puedes abrir una ficha, ver su firma y crear una nueva factura reutilizando los datos del alumno.</span></div>
+            <div>
+              <strong id="panel-help-title">Estás viendo alumnos de Academia</strong>
+              <span id="panel-help-text">Desde aquí puedes abrir una ficha, ver su firma y crear una nueva factura reutilizando los datos del alumno.</span>
+            </div>
             <span id="panel-counter" class="pill">0 registros</span>
           </div>
         </div>
 
         <div id="clients-view" class="table-scroll">
           <table>
-            <thead><tr><th>Cliente</th><th>Contacto</th><th>Tipo</th><th>Última factura</th><th>Firma</th><th>Acciones</th></tr></thead>
-            <tbody id="client-rows"><tr><td colspan="6" class="muted">Cargando clientes...</td></tr></tbody>
+            <thead>
+              <tr>
+                <th>Cliente</th>
+                <th>Contacto</th>
+                <th>Tipo</th>
+                <th>Último documento</th>
+                <th>Firma</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="client-rows">
+              <tr><td colspan="6" class="muted">Cargando clientes...</td></tr>
+            </tbody>
           </table>
         </div>
 
         <div id="invoices-view" class="table-scroll hidden">
           <table>
-            <thead><tr><th>Factura</th><th>Cliente</th><th>Concepto</th><th>Tipo</th><th class="right">Base</th><th class="right">IVA</th><th class="right">Total</th><th>Email</th><th>Acciones</th></tr></thead>
-            <tbody id="invoice-rows"><tr><td colspan="9" class="muted">Cargando...</td></tr></tbody>
+            <thead>
+              <tr>
+                <th>Factura</th>
+                <th>Cliente</th>
+                <th>Concepto</th>
+                <th>Tipo</th>
+                <th class="right">Base</th>
+                <th class="right">IVA</th>
+                <th class="right">Total</th>
+                <th>Email</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="invoice-rows">
+              <tr><td colspan="9" class="muted">Cargando...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div id="quotes-view" class="table-scroll hidden">
+          <table>
+            <thead>
+              <tr>
+                <th>Presupuesto</th>
+                <th>Cliente</th>
+                <th>Concepto</th>
+                <th>Estado</th>
+                <th class="right">Base</th>
+                <th class="right">IVA</th>
+                <th class="right">Total</th>
+                <th>Email</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="quote-rows">
+              <tr><td colspan="9" class="muted">Cargando presupuestos...</td></tr>
+            </tbody>
           </table>
         </div>
       </section>
@@ -190,33 +1023,123 @@
 
   <div id="signature-modal" class="modal hidden">
     <section class="modal-card">
-      <div class="modal-head"><div><strong>Firma del cliente</strong><div class="mini">Firma directamente con el dedo o Apple Pencil.</div></div><button id="close-signature" class="btn ghost" type="button">Cerrar</button></div>
-      <div class="canvas-wrap"><canvas id="signature-canvas" width="1200" height="440"></canvas></div>
-      <div class="modal-foot"><button id="clear-signature" class="btn danger" type="button">Limpiar firma</button><button id="save-signature" class="btn primary" type="button">Guardar firma</button></div>
+      <div class="modal-head">
+        <div>
+          <strong>Firma del cliente</strong>
+          <div class="mini">Firma directamente con el dedo o Apple Pencil.</div>
+        </div>
+        <button id="close-signature" class="btn ghost" type="button">Cerrar</button>
+      </div>
+
+      <div class="canvas-wrap">
+        <canvas id="signature-canvas" width="1200" height="440"></canvas>
+      </div>
+
+      <div class="modal-foot">
+        <button id="clear-signature" class="btn danger" type="button">Limpiar firma</button>
+        <button id="save-signature" class="btn primary" type="button">Guardar firma</button>
+      </div>
     </section>
   </div>
 
   <div id="client-modal" class="modal hidden">
     <section class="modal-card">
-      <div class="modal-head"><div><strong id="client-modal-title">Ficha del cliente</strong><div class="mini" id="client-modal-subtitle">Datos, notas, firma y facturas asociadas.</div></div><button id="close-client-modal" class="btn ghost" type="button">Cerrar</button></div>
-      <div class="modal-body">
-        <div class="grid2"><div class="field"><label>Nombre / Razón social</label><input id="edit-fullName" /></div><div class="field"><label>DNI / NIF / CIF</label><input id="edit-taxId" /></div></div>
-        <div class="grid2"><div class="field"><label>Email</label><input id="edit-email" type="email" /></div><div class="field"><label>Teléfono</label><input id="edit-phone" /></div></div>
-        <div class="field"><label>Dirección</label><input id="edit-address" /></div>
-        <div class="grid2"><div class="field"><label>Tipo principal</label><select id="edit-serviceType"><option value="Academia">Academia / Cursos</option><option value="Servicios IA">Servicios IA</option></select></div><div class="field"><label>Última factura</label><input id="edit-lastInvoice" disabled /></div></div>
-        <div class="field"><label>Notas internas</label><textarea id="edit-internalNotes" placeholder="Seguimiento, pagos, preferencias, horarios, incidencias, etc."></textarea></div>
-        <div class="agreement-box" id="client-agreement"></div>
-        <div class="signature-card" id="client-signature"></div>
-        <div><h2 style="font-size:16px;margin:4px 0 10px">Facturas del cliente</h2><div id="client-invoices" class="agreement-box"></div></div>
+      <div class="modal-head">
+        <div>
+          <strong id="client-modal-title">Ficha del cliente</strong>
+          <div class="mini" id="client-modal-subtitle">Datos, notas, firma, presupuestos y facturas asociadas.</div>
+        </div>
+        <button id="close-client-modal" class="btn ghost" type="button">Cerrar</button>
       </div>
-      <div class="modal-foot"><button id="archive-client-btn" class="btn danger" type="button">Archivar cliente</button><div style="display:flex;gap:8px;flex-wrap:wrap"><button id="invoice-client-btn" class="btn ghost" type="button">Nueva factura</button><button id="save-client-btn" class="btn primary" type="button">Guardar ficha</button></div></div>
+
+      <div class="modal-body">
+        <div class="grid2">
+          <div class="field">
+            <label>Nombre / Razón social</label>
+            <input id="edit-fullName" />
+          </div>
+          <div class="field">
+            <label>DNI / NIF / CIF</label>
+            <input id="edit-taxId" />
+          </div>
+        </div>
+
+        <div class="grid2">
+          <div class="field">
+            <label>Email</label>
+            <input id="edit-email" type="email" />
+          </div>
+          <div class="field">
+            <label>Teléfono</label>
+            <input id="edit-phone" />
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Dirección</label>
+          <input id="edit-address" />
+        </div>
+
+        <div class="grid2">
+          <div class="field">
+            <label>Tipo principal</label>
+            <select id="edit-serviceType">
+              <option value="Academia">Academia / Cursos</option>
+              <option value="Servicios IA">Servicios IA</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Última factura</label>
+            <input id="edit-lastInvoice" disabled />
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Notas internas</label>
+          <textarea id="edit-internalNotes" placeholder="Seguimiento, pagos, preferencias, horarios, incidencias, etc."></textarea>
+        </div>
+
+        <div class="box" id="client-agreement"></div>
+        <div class="signature-card" id="client-signature"></div>
+
+        <div>
+          <h2 style="font-size:16px;margin:4px 0 10px">Presupuestos del cliente</h2>
+          <div id="client-quotes" class="box"></div>
+        </div>
+
+        <div>
+          <h2 style="font-size:16px;margin:4px 0 10px">Facturas del cliente</h2>
+          <div id="client-invoices" class="box"></div>
+        </div>
+      </div>
+
+      <div class="modal-foot">
+        <button id="archive-client-btn" class="btn danger" type="button">Archivar cliente</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button id="quote-client-btn" class="btn ghost" type="button">Nuevo presupuesto</button>
+          <button id="invoice-client-btn" class="btn ghost" type="button">Nueva factura</button>
+          <button id="save-client-btn" class="btn primary" type="button">Guardar ficha</button>
+        </div>
+      </div>
     </section>
   </div>
 
-  <div id="invoice-modal" class="modal hidden">
-    <section class="modal-card" style="width:min(920px,100%)">
-      <div class="modal-head no-print"><div><strong id="invoice-modal-title">Factura</strong><div class="mini">Vista imprimible con datos fiscales y forma de pago.</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button id="print-invoice-btn" class="btn primary" type="button">Imprimir / PDF</button><button id="close-invoice-modal" class="btn ghost" type="button">Cerrar</button></div></div>
-      <div class="modal-body"><div id="invoice-print-area"></div></div>
+  <div id="doc-modal" class="modal hidden">
+    <section class="modal-card" style="width:min(940px,100%)">
+      <div class="modal-head no-print">
+        <div>
+          <strong id="doc-modal-title">Documento</strong>
+          <div class="mini">Vista imprimible con datos fiscales.</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button id="print-doc-btn" class="btn primary" type="button">Imprimir / PDF</button>
+          <button id="close-doc-modal" class="btn ghost" type="button">Cerrar</button>
+        </div>
+      </div>
+
+      <div class="modal-body">
+        <div id="doc-print-area"></div>
+      </div>
     </section>
   </div>
 
@@ -249,14 +1172,16 @@
         helpTitle: "Estás viendo alumnos de Academia",
         helpText: "Desde aquí puedes abrir una ficha, ver su firma y crear una nueva factura reutilizando los datos del alumno.",
         clientView: true,
+        quoteView: false,
         serviceType: "Academia",
       },
       servicesClients: {
         title: "Clientes de Servicios IA",
         description: "Clientes de trabajos a medida, automatizaciones, contenido IA y servicios profesionales sujetos a IVA.",
         helpTitle: "Estás viendo clientes de Servicios IA",
-        helpText: "Aquí se gestionan empresas o particulares que contratan trabajos IA, no cursos de Academia.",
+        helpText: "Aquí puedes crear presupuestos, enviar propuestas y convertirlas en factura cuando se acepten.",
         clientView: true,
+        quoteView: false,
         serviceType: "Servicios IA",
       },
       academyInvoices: {
@@ -265,27 +1190,41 @@
         helpTitle: "Estás viendo facturas de Academia",
         helpText: "Estas facturas pueden incluir cita o clase programada para que el sistema envíe recordatorio 24h antes.",
         clientView: false,
+        quoteView: false,
         serviceType: "Academia",
       },
       servicesInvoices: {
         title: "Facturas de Servicios IA",
         description: "Facturas de servicios profesionales IA. Se emiten con los datos fiscales de Servicios IA y aplican IVA.",
         helpTitle: "Estás viendo facturas de Servicios IA",
-        helpText: "Estas facturas corresponden a trabajos y servicios realizados para clientes, empresas o autónomos.",
+        helpText: "Estas facturas corresponden a trabajos y servicios aceptados por clientes, empresas o autónomos.",
         clientView: false,
+        quoteView: false,
+        serviceType: "Servicios IA",
+      },
+      servicesQuotes: {
+        title: "Presupuestos de Servicios IA",
+        description: "Propuestas económicas enviadas a clientes antes de emitir factura. Al aceptarlas, se convierten en factura con un clic.",
+        helpTitle: "Estás viendo presupuestos de Servicios IA",
+        helpText: "Un presupuesto no es una factura. Úsalo para enviar propuesta, esperar aceptación y facturar después.",
+        clientView: false,
+        quoteView: true,
         serviceType: "Servicios IA",
       },
     };
 
     let currentUser = null;
     let selectedType = "Academia";
+    let documentMode = "invoice";
     let signatureDataUrl = "";
     let selectedClientId = "";
     let currentView = "academyClients";
     let clients = [];
     let invoices = [];
-    let unsubscribeInvoices = null;
+    let quotes = [];
     let unsubscribeClients = null;
+    let unsubscribeInvoices = null;
+    let unsubscribeQuotes = null;
     let openClientId = "";
 
     const money = (cents) => new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format((Number(cents) || 0) / 100);
@@ -307,30 +1246,56 @@
       const taxRate = selectedType === "Academia" ? 0 : 21;
       const tax = Math.round(base * taxRate / 100);
       const total = base + tax;
+      const isQuote = selectedType === "Servicios IA" && documentMode === "quote";
 
       $("concept-label").textContent = selectedType === "Academia" ? "Curso contratado" : "Servicio IA contratado";
+      $("document-mode-section").classList.toggle("hidden", selectedType !== "Servicios IA");
+      $("quote-section").classList.toggle("hidden", !isQuote);
       $("appointment-section").classList.toggle("hidden", selectedType !== "Academia");
+      $("payment-section").classList.toggle("hidden", isQuote);
+      $("signature-section").classList.toggle("hidden", isQuote);
+      $("legal-section").classList.toggle("hidden", isQuote);
+
+      $("legalAccepted").required = !isQuote;
+
+      $("send-email-label").textContent = isQuote
+        ? "Enviar automáticamente al cliente el presupuesto desde empresas@kreateia.com."
+        : "Enviar automáticamente al cliente un email desde empresas@kreateia.com con el resumen del documento.";
+
+      $("submit-btn").textContent = isQuote ? "Crear presupuesto" : "Generar factura";
+      $("submit-btn").className = isQuote ? "btn amber" : "btn primary";
 
       $("tax-summary").innerHTML = `
         <div class="sum-line"><span>Base imponible</span><strong>${money(base)}</strong></div>
         <div class="sum-line"><span>${taxRate === 0 ? "IVA" : "IVA 21%"}</span><strong>${taxRate === 0 ? "Exento" : money(tax)}</strong></div>
+        <div class="sum-line"><span>Documento</span><strong>${isQuote ? "Presupuesto no fiscal" : "Factura"}</strong></div>
         <div class="sum-line"><span>Régimen</span><strong>${taxRate === 0 ? "Formación exenta de IVA" : "Servicio sujeto a IVA"}</strong></div>
-        <div class="sum-line total"><span>Total</span><span>${money(total)}</span></div>
+        <div class="sum-line total"><span>${isQuote ? "Total presupuesto" : "Total"}</span><span>${money(total)}</span></div>
       `;
     }
 
     function resetForm() {
       $("record-form").reset();
       selectedType = "Academia";
+      documentMode = "invoice";
       signatureDataUrl = "";
       selectedClientId = "";
+
       $("issueDate").valueAsDate = new Date();
+
+      const validDate = new Date();
+      validDate.setDate(validDate.getDate() + 15);
+      $("validUntil").valueAsDate = validDate;
+
       $("signature-preview").classList.add("hidden");
-      $("submit-btn").textContent = "Generar factura";
       setupCanvas();
 
-      document.querySelectorAll(".choice").forEach(btn => {
+      document.querySelectorAll("[data-type]").forEach(btn => {
         btn.classList.toggle("active", btn.dataset.type === selectedType);
+      });
+
+      document.querySelectorAll("[data-document-mode]").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.documentMode === documentMode);
       });
 
       updateTaxSummary();
@@ -338,15 +1303,38 @@
 
     document.querySelectorAll(".choice").forEach(btn => {
       btn.addEventListener("click", () => {
-        selectedType = btn.dataset.type;
-        document.querySelectorAll(".choice").forEach(b => b.classList.toggle("active", b === btn));
+        if (btn.dataset.type) {
+          selectedType = btn.dataset.type;
+          if (selectedType === "Academia") documentMode = "invoice";
+
+          document.querySelectorAll("[data-type]").forEach(b => {
+            b.classList.toggle("active", b === btn);
+          });
+
+          document.querySelectorAll("[data-document-mode]").forEach(b => {
+            b.classList.toggle("active", b.dataset.documentMode === documentMode);
+          });
+        }
+
+        if (btn.dataset.documentMode) {
+          documentMode = btn.dataset.documentMode;
+
+          document.querySelectorAll("[data-document-mode]").forEach(b => {
+            b.classList.toggle("active", b === btn);
+          });
+        }
+
         updateTaxSummary();
       });
     });
 
     $("baseAmount").addEventListener("input", updateTaxSummary);
     $("reset-btn").addEventListener("click", resetForm);
+
     $("issueDate").valueAsDate = new Date();
+    const firstValidDate = new Date();
+    firstValidDate.setDate(firstValidDate.getDate() + 15);
+    $("validUntil").valueAsDate = firstValidDate;
     updateTaxSummary();
 
     $("login-form").addEventListener("submit", async (e) => {
@@ -369,8 +1357,10 @@
     }
 
     onAuthStateChanged(auth, async (user) => {
-      if (unsubscribeInvoices) unsubscribeInvoices();
       if (unsubscribeClients) unsubscribeClients();
+      if (unsubscribeInvoices) unsubscribeInvoices();
+      if (unsubscribeQuotes) unsubscribeQuotes();
+
       currentUser = user;
 
       if (!user) {
@@ -401,12 +1391,12 @@
     function subscribeData() {
       const clientQ = query(collection(db, "private_clients"), orderBy("updatedAt", "desc"), limit(300));
       const invoiceQ = query(collection(db, "private_invoices"), orderBy("createdAt", "desc"), limit(300));
+      const quoteQ = query(collection(db, "private_quotes"), orderBy("createdAt", "desc"), limit(300));
 
       unsubscribeClients = onSnapshot(clientQ, snap => {
         clients = [];
         snap.forEach(d => clients.push({ id: d.id, ...d.data() }));
-        renderClients();
-        updatePanelHeader();
+        renderAll();
       }, () => {
         $("client-rows").innerHTML = `<tr><td colspan="6" class="muted">No se pudo cargar clientes. Revisa las reglas de Firestore.</td></tr>`;
       });
@@ -414,12 +1404,29 @@
       unsubscribeInvoices = onSnapshot(invoiceQ, snap => {
         invoices = [];
         snap.forEach(d => invoices.push({ id: d.id, ...d.data() }));
-        renderInvoices();
-        updatePanelHeader();
-        if (!$("client-modal").classList.contains("hidden")) refreshOpenClientModal();
+        renderAll();
       }, () => {
         $("invoice-rows").innerHTML = `<tr><td colspan="9" class="muted">No se pudo cargar facturas. Revisa las reglas de Firestore.</td></tr>`;
       });
+
+      unsubscribeQuotes = onSnapshot(quoteQ, snap => {
+        quotes = [];
+        snap.forEach(d => quotes.push({ id: d.id, ...d.data() }));
+        renderAll();
+      }, () => {
+        $("quote-rows").innerHTML = `<tr><td colspan="9" class="muted">No se pudo cargar presupuestos. Revisa las reglas de Firestore.</td></tr>`;
+      });
+    }
+
+    function renderAll() {
+      renderClients();
+      renderInvoices();
+      renderQuotes();
+      updatePanelHeader();
+
+      if (!$("client-modal").classList.contains("hidden")) {
+        refreshOpenClientModal();
+      }
     }
 
     function filteredClientsForView() {
@@ -432,9 +1439,17 @@
       return invoices.filter(inv => (inv.serviceType || "Academia") === cfg.serviceType);
     }
 
+    function filteredQuotesForView() {
+      return quotes.filter(q => (q.serviceType || "Servicios IA") === "Servicios IA");
+    }
+
     function updatePanelHeader() {
       const cfg = VIEW_CONFIG[currentView];
-      const count = cfg.clientView ? filteredClientsForView().length : filteredInvoicesForView().length;
+      const count = cfg.clientView
+        ? filteredClientsForView().length
+        : cfg.quoteView
+          ? filteredQuotesForView().length
+          : filteredInvoicesForView().length;
 
       $("panel-title").textContent = cfg.title;
       $("panel-description").textContent = cfg.description;
@@ -448,28 +1463,29 @@
       const cfg = VIEW_CONFIG[view];
 
       $("clients-view").classList.toggle("hidden", !cfg.clientView);
-      $("invoices-view").classList.toggle("hidden", cfg.clientView);
+      $("invoices-view").classList.toggle("hidden", cfg.clientView || cfg.quoteView);
+      $("quotes-view").classList.toggle("hidden", !cfg.quoteView);
 
       $("tab-academy-clients").classList.toggle("active", view === "academyClients");
       $("tab-services-clients").classList.toggle("active", view === "servicesClients");
       $("tab-academy-invoices").classList.toggle("active", view === "academyInvoices");
       $("tab-services-invoices").classList.toggle("active", view === "servicesInvoices");
+      $("tab-services-quotes").classList.toggle("active", view === "servicesQuotes");
 
-      renderClients();
-      renderInvoices();
-      updatePanelHeader();
+      renderAll();
     }
 
     $("tab-academy-clients").addEventListener("click", () => setView("academyClients"));
     $("tab-services-clients").addEventListener("click", () => setView("servicesClients"));
     $("tab-academy-invoices").addEventListener("click", () => setView("academyInvoices"));
     $("tab-services-invoices").addEventListener("click", () => setView("servicesInvoices"));
+    $("tab-services-quotes").addEventListener("click", () => setView("servicesQuotes"));
 
     function renderClients() {
       const cfg = VIEW_CONFIG[currentView];
-      const activeClients = filteredClientsForView();
-
       if (!cfg.clientView) return;
+
+      const activeClients = filteredClientsForView();
 
       if (!activeClients.length) {
         $("client-rows").innerHTML = `<tr><td colspan="6" class="muted">Todavía no hay clientes activos en ${cfg.serviceType}.</td></tr>`;
@@ -478,15 +1494,28 @@
 
       $("client-rows").innerHTML = activeClients.map(c => `
         <tr>
-          <td><strong>${escapeHtml(c.fullName)}</strong><div class="mini">${escapeHtml(c.taxId || "Sin NIF/CIF")}</div></td>
-          <td>${escapeHtml(c.email)}<div class="mini">${escapeHtml(c.phone || "")}</div></td>
-          <td><span class="pill ${c.serviceType === "Servicios IA" ? "warn" : ""}">${escapeHtml(c.serviceType || "Academia")}</span></td>
-          <td><strong>${escapeHtml(c.lastInvoiceNumber || "-")}</strong><div class="mini">${escapeHtml(c.lastConcept || "")}</div></td>
+          <td>
+            <strong>${escapeHtml(c.fullName)}</strong>
+            <div class="mini">${escapeHtml(c.taxId || "Sin NIF/CIF")}</div>
+          </td>
+          <td>
+            ${escapeHtml(c.email)}
+            <div class="mini">${escapeHtml(c.phone || "")}</div>
+          </td>
+          <td>
+            <span class="pill ${c.serviceType === "Servicios IA" ? "warn" : ""}">${escapeHtml(c.serviceType || "Academia")}</span>
+          </td>
+          <td>
+            <strong>${escapeHtml(c.lastInvoiceNumber || "-")}</strong>
+            <div class="mini">${escapeHtml(c.lastConcept || "")}</div>
+            ${c.lastQuoteNumber ? `<div class="mini">Presupuesto: ${escapeHtml(c.lastQuoteNumber)}</div>` : ""}
+          </td>
           <td>${c.signatureDataUrl ? `<span class="status">Firmado</span>` : `<span class="muted">Sin firma</span>`}</td>
           <td>
             <div style="display:flex;gap:6px;flex-wrap:wrap">
               <button class="btn ghost" type="button" data-open-client="${escapeHtml(c.id)}">Ficha</button>
               <button class="btn ghost" type="button" data-new-invoice="${escapeHtml(c.id)}">Nueva factura</button>
+              ${c.serviceType === "Servicios IA" ? `<button class="btn ghost" type="button" data-new-quote="${escapeHtml(c.id)}">Presupuesto</button>` : ""}
             </div>
           </td>
         </tr>
@@ -497,7 +1526,11 @@
       });
 
       document.querySelectorAll("[data-new-invoice]").forEach(btn => {
-        btn.addEventListener("click", () => fillFormFromClient(btn.dataset.newInvoice));
+        btn.addEventListener("click", () => fillFormFromClient(btn.dataset.newInvoice, "invoice"));
+      });
+
+      document.querySelectorAll("[data-new-quote]").forEach(btn => {
+        btn.addEventListener("click", () => fillFormFromClient(btn.dataset.newQuote, "quote"));
       });
     }
 
@@ -516,9 +1549,9 @@
 
     function renderInvoices() {
       const cfg = VIEW_CONFIG[currentView];
-      const filteredInvoices = filteredInvoicesForView();
+      if (cfg.clientView || cfg.quoteView) return;
 
-      if (cfg.clientView) return;
+      const filteredInvoices = filteredInvoicesForView();
 
       if (!filteredInvoices.length) {
         $("invoice-rows").innerHTML = `<tr><td colspan="9" class="muted">Todavía no hay facturas de ${cfg.serviceType}.</td></tr>`;
@@ -527,9 +1560,18 @@
 
       $("invoice-rows").innerHTML = filteredInvoices.map(inv => `
         <tr>
-          <td><strong>${escapeHtml(inv.invoiceNumber)}</strong><div class="mini">${escapeHtml(inv.issueDate || "")}</div></td>
-          <td><strong>${escapeHtml(inv.client?.fullName)}</strong><div class="mini">${escapeHtml(inv.client?.email)} · ${escapeHtml(inv.client?.phone)}</div></td>
-          <td>${escapeHtml(inv.concept)}<div class="mini">${escapeHtml(invoiceMiniText(inv))}</div></td>
+          <td>
+            <strong>${escapeHtml(inv.invoiceNumber)}</strong>
+            <div class="mini">${escapeHtml(inv.issueDate || "")}</div>
+          </td>
+          <td>
+            <strong>${escapeHtml(inv.client?.fullName)}</strong>
+            <div class="mini">${escapeHtml(inv.client?.email)} · ${escapeHtml(inv.client?.phone)}</div>
+          </td>
+          <td>
+            ${escapeHtml(inv.concept)}
+            <div class="mini">${escapeHtml(invoiceMiniText(inv))}</div>
+          </td>
           <td><span class="pill ${inv.taxRate === 0 ? "" : "warn"}">${escapeHtml(inv.serviceType)}</span></td>
           <td class="right">${money(inv.baseCents)}</td>
           <td class="right">${inv.taxRate === 0 ? "Exento" : money(inv.taxCents)}</td>
@@ -539,14 +1581,14 @@
             <div style="display:flex;gap:6px;flex-wrap:wrap">
               <button class="btn ghost" type="button" data-open-invoice="${escapeHtml(inv.id)}">Ver factura</button>
               <button class="btn ghost" type="button" data-open-client="${escapeHtml(inv.clientId || "")}">Cliente</button>
-              <button class="btn ghost" type="button" data-send="${escapeHtml(inv.id)}">Enviar</button>
+              <button class="btn ghost" type="button" data-send-invoice="${escapeHtml(inv.id)}">Enviar</button>
             </div>
           </td>
         </tr>
       `).join("");
 
-      document.querySelectorAll("[data-send]").forEach(btn => {
-        btn.addEventListener("click", () => sendInvoice(btn.dataset.send, btn));
+      document.querySelectorAll("[data-send-invoice]").forEach(btn => {
+        btn.addEventListener("click", () => sendInvoice(btn.dataset.sendInvoice, btn));
       });
 
       document.querySelectorAll("[data-open-invoice]").forEach(btn => {
@@ -558,33 +1600,105 @@
       });
     }
 
+    function renderQuotes() {
+      const cfg = VIEW_CONFIG[currentView];
+      if (!cfg.quoteView) return;
+
+      const filteredQuotes = filteredQuotesForView();
+
+      if (!filteredQuotes.length) {
+        $("quote-rows").innerHTML = `<tr><td colspan="9" class="muted">Todavía no hay presupuestos de Servicios IA.</td></tr>`;
+        return;
+      }
+
+      $("quote-rows").innerHTML = filteredQuotes.map(q => `
+        <tr>
+          <td>
+            <strong>${escapeHtml(q.quoteNumber)}</strong>
+            <div class="mini">${escapeHtml(q.issueDate || "")} · válido hasta ${escapeHtml(q.validUntil || "")}</div>
+          </td>
+          <td>
+            <strong>${escapeHtml(q.client?.fullName)}</strong>
+            <div class="mini">${escapeHtml(q.client?.email)} · ${escapeHtml(q.client?.phone)}</div>
+          </td>
+          <td>
+            ${escapeHtml(q.concept)}
+            <div class="mini">${escapeHtml(q.notes || "")}</div>
+          </td>
+          <td>
+            <span class="pill ${q.status === "Aceptado" ? "ok" : "warn"}">${escapeHtml(q.status || "Pendiente")}</span>
+            ${q.convertedInvoiceNumber ? `<div class="mini">Factura: ${escapeHtml(q.convertedInvoiceNumber)}</div>` : ""}
+          </td>
+          <td class="right">${money(q.baseCents)}</td>
+          <td class="right">${money(q.taxCents)}</td>
+          <td class="right"><strong>${money(q.totalCents)}</strong></td>
+          <td>${q.emailSentAt ? `<span class="status">Enviado</span>` : `<span class="muted">Pendiente</span>`}</td>
+          <td>
+            <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <button class="btn ghost" type="button" data-open-quote="${escapeHtml(q.id)}">Ver</button>
+              <button class="btn ghost" type="button" data-send-quote="${escapeHtml(q.id)}">Enviar</button>
+              ${q.convertedInvoiceId
+                ? `<button class="btn ghost" type="button" data-open-invoice="${escapeHtml(q.convertedInvoiceId)}">Factura</button>`
+                : `<button class="btn ghost" type="button" data-convert-quote="${escapeHtml(q.id)}">Facturar</button>`}
+            </div>
+          </td>
+        </tr>
+      `).join("");
+
+      document.querySelectorAll("[data-open-quote]").forEach(btn => {
+        btn.addEventListener("click", () => openQuote(btn.dataset.openQuote));
+      });
+
+      document.querySelectorAll("[data-send-quote]").forEach(btn => {
+        btn.addEventListener("click", () => sendQuote(btn.dataset.sendQuote, btn));
+      });
+
+      document.querySelectorAll("[data-convert-quote]").forEach(btn => {
+        btn.addEventListener("click", () => convertQuoteToInvoice(btn.dataset.convertQuote, btn));
+      });
+
+      document.querySelectorAll("[data-open-invoice]").forEach(btn => {
+        btn.addEventListener("click", () => openInvoice(btn.dataset.openInvoice));
+      });
+    }
+
     function getClient(clientId) {
       return clients.find(c => c.id === clientId) || null;
     }
 
-    function fillFormFromClient(clientId) {
-      const c = getClient(clientId);
+    function getInvoice(invoiceId) {
+      return invoices.find(inv => inv.id === invoiceId) || null;
+    }
 
+    function getQuote(quoteId) {
+      return quotes.find(q => q.id === quoteId) || null;
+    }
+
+    function fillFormFromClient(clientId, mode = "invoice") {
+      const c = getClient(clientId);
       if (!c) return toast("No se encontró el cliente.");
 
       selectedClientId = c.id;
       selectedType = c.serviceType === "Servicios IA" ? "Servicios IA" : "Academia";
+      documentMode = selectedType === "Servicios IA" ? mode : "invoice";
 
       $("fullName").value = c.fullName || "";
       $("taxId").value = c.taxId || "";
       $("phone").value = c.phone || "";
       $("email").value = c.email || "";
       $("address").value = c.address || "";
-      $("concept").value = c.lastConcept || "";
+      $("concept").value = c.lastConcept || c.lastQuoteConcept || "";
       $("appointmentDate").value = "";
       $("appointmentTime").value = "";
       $("appointmentNotes").value = "";
 
-      document.querySelectorAll(".choice").forEach(btn => {
+      document.querySelectorAll("[data-type]").forEach(btn => {
         btn.classList.toggle("active", btn.dataset.type === selectedType);
       });
 
-      $("submit-btn").textContent = `Nueva factura para ${c.fullName || "cliente"}`;
+      document.querySelectorAll("[data-document-mode]").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.documentMode === documentMode);
+      });
 
       updateTaxSummary();
       $("client-modal").classList.add("hidden");
@@ -618,6 +1732,25 @@
         ? `<img src="${c.signatureDataUrl}" alt="Firma del cliente">`
         : `<span class="muted">Este cliente todavía no tiene firma guardada.</span>`;
 
+      const ownQuotes = quotes.filter(q => q.clientId === c.id);
+
+      $("client-quotes").innerHTML = ownQuotes.length
+        ? ownQuotes.map(q => `
+            <div style="display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid #e2e8f0;padding:8px 0">
+              <div>
+                <strong>${escapeHtml(q.quoteNumber)}</strong>
+                <div class="mini">${escapeHtml(q.concept)} · válido hasta ${escapeHtml(q.validUntil || "")}</div>
+              </div>
+              <div style="text-align:right">
+                <strong>${money(q.totalCents)}</strong>
+                <div class="mini">${escapeHtml(q.status || "Pendiente")} · ${q.emailSentAt ? "Email enviado" : "Email pendiente"}</div>
+                <button class="btn ghost" style="margin-top:6px;padding:7px 10px" type="button" data-open-quote="${escapeHtml(q.id)}">Ver</button>
+                ${q.convertedInvoiceId ? "" : `<button class="btn ghost" style="margin-top:6px;padding:7px 10px" type="button" data-convert-quote="${escapeHtml(q.id)}">Facturar</button>`}
+              </div>
+            </div>
+          `).join("")
+        : `<span class="muted">Sin presupuestos asociados.</span>`;
+
       const ownInvoices = invoices.filter(inv => inv.clientId === c.id);
 
       $("client-invoices").innerHTML = ownInvoices.length
@@ -630,11 +1763,19 @@
               <div style="text-align:right">
                 <strong>${money(inv.totalCents)}</strong>
                 <div class="mini">${escapeHtml(invoiceMiniText(inv) || "Sin notas")} · ${inv.emailSentAt ? "Email enviado" : "Email pendiente"}</div>
-                <button class="btn ghost" style="margin-top:6px;padding:7px 10px" type="button" data-open-invoice="${escapeHtml(inv.id)}">Ver factura</button>
+                <button class="btn ghost" style="margin-top:6px;padding:7px 10px" type="button" data-open-invoice="${escapeHtml(inv.id)}">Ver</button>
               </div>
             </div>
           `).join("")
         : `<span class="muted">Sin facturas asociadas.</span>`;
+
+      document.querySelectorAll("#client-quotes [data-open-quote]").forEach(btn => {
+        btn.addEventListener("click", () => openQuote(btn.dataset.openQuote));
+      });
+
+      document.querySelectorAll("#client-quotes [data-convert-quote]").forEach(btn => {
+        btn.addEventListener("click", () => convertQuoteToInvoice(btn.dataset.convertQuote, btn));
+      });
 
       document.querySelectorAll("#client-invoices [data-open-invoice]").forEach(btn => {
         btn.addEventListener("click", () => openInvoice(btn.dataset.openInvoice));
@@ -642,7 +1783,8 @@
     }
 
     $("close-client-modal").addEventListener("click", () => $("client-modal").classList.add("hidden"));
-    $("invoice-client-btn").addEventListener("click", () => fillFormFromClient(openClientId));
+    $("invoice-client-btn").addEventListener("click", () => fillFormFromClient(openClientId, "invoice"));
+    $("quote-client-btn").addEventListener("click", () => fillFormFromClient(openClientId, "quote"));
     $("save-client-btn").addEventListener("click", saveClient);
     $("archive-client-btn").addEventListener("click", archiveClient);
 
@@ -677,7 +1819,6 @@
         });
 
         const data = await res.json().catch(() => ({}));
-
         if (!res.ok) throw new Error(data.error || "No se pudo guardar la ficha.");
 
         toast("Ficha guardada.");
@@ -691,7 +1832,7 @@
 
     async function archiveClient() {
       if (!openClientId || !currentUser) return;
-      if (!confirm("¿Archivar este cliente? No se borran sus facturas, solo desaparece del listado activo.")) return;
+      if (!confirm("¿Archivar este cliente? No se borran sus facturas ni presupuestos, solo desaparece del listado activo.")) return;
 
       const btn = $("archive-client-btn");
       btn.disabled = true;
@@ -709,7 +1850,6 @@
         });
 
         const data = await res.json().catch(() => ({}));
-
         if (!res.ok) throw new Error(data.error || "No se pudo archivar.");
 
         $("client-modal").classList.add("hidden");
@@ -721,31 +1861,58 @@
       }
     }
 
-    function getInvoice(invoiceId) {
-      return invoices.find(inv => inv.id === invoiceId) || null;
-    }
-
     function openInvoice(invoiceId) {
       const inv = getInvoice(invoiceId);
-
       if (!inv) return toast("No se encontró la factura.");
 
-      $("invoice-modal-title").textContent = `Factura ${inv.invoiceNumber}`;
-      $("invoice-print-area").innerHTML = buildInvoiceSheet(inv);
-      $("invoice-modal").classList.remove("hidden");
+      $("doc-modal-title").textContent = `Factura ${inv.invoiceNumber}`;
+      $("doc-print-area").innerHTML = buildInvoiceSheet(inv);
+      $("doc-modal").classList.remove("hidden");
     }
 
-    $("close-invoice-modal").addEventListener("click", () => $("invoice-modal").classList.add("hidden"));
+    function openQuote(quoteId) {
+      const quote = getQuote(quoteId);
+      if (!quote) return toast("No se encontró el presupuesto.");
 
-    $("print-invoice-btn").addEventListener("click", () => {
-      document.body.classList.add("print-invoice");
+      $("doc-modal-title").textContent = `Presupuesto ${quote.quoteNumber}`;
+      $("doc-print-area").innerHTML = buildQuoteSheet(quote);
+      $("doc-modal").classList.remove("hidden");
+    }
+
+    $("close-doc-modal").addEventListener("click", () => $("doc-modal").classList.add("hidden"));
+
+    $("print-doc-btn").addEventListener("click", () => {
+      document.body.classList.add("print-doc");
       window.print();
-      setTimeout(() => document.body.classList.remove("print-invoice"), 500);
+      setTimeout(() => document.body.classList.remove("print-doc"), 500);
     });
 
+    function issuerClientBoxes(docData) {
+      const issuer = docData.issuer || {};
+      const client = docData.client || {};
+
+      return `
+        <div class="doc-boxes">
+          <div class="doc-box">
+            <h3>Emisor</h3>
+            <p><strong>${escapeHtml(issuer.name || "KreateIA")}</strong></p>
+            <p>NIF/CIF: ${escapeHtml(issuer.taxId || "Pendiente")}</p>
+            <p>${escapeHtml(issuer.address || "Pendiente")}</p>
+            <p>${escapeHtml(issuer.email || "empresas@kreateia.com")}</p>
+          </div>
+
+          <div class="doc-box">
+            <h3>Cliente</h3>
+            <p><strong>${escapeHtml(client.fullName || "")}</strong></p>
+            <p>DNI/NIF/CIF: ${escapeHtml(client.taxId || "No indicado")}</p>
+            <p>${escapeHtml(client.address || "")}</p>
+            <p>${escapeHtml(client.email || "")} · ${escapeHtml(client.phone || "")}</p>
+          </div>
+        </div>
+      `;
+    }
+
     function buildInvoiceSheet(inv) {
-      const issuer = inv.issuer || {};
-      const client = inv.client || {};
       const isExempt = Number(inv.taxRate || 0) === 0;
       const taxLabel = isExempt ? "IVA exento" : `IVA ${Number(inv.taxRate || 0)}%`;
       const appointmentText = inv.appointment?.date && inv.appointment?.time
@@ -753,8 +1920,8 @@
         : "No indicada";
 
       return `
-        <article class="invoice-sheet">
-          <div class="invoice-top">
+        <article class="doc-sheet">
+          <div class="doc-top">
             <div>
               <div class="brand" style="font-size:28px;margin-bottom:10px">
                 <div class="brand-mark" style="width:34px;height:34px;border-radius:11px"></div>
@@ -763,46 +1930,31 @@
               <p style="margin:4px 0;font-size:13px;color:#4b5563">www.kreateia.com</p>
             </div>
             <div style="text-align:right">
-              <h1 class="invoice-title">FACTURA</h1>
-              <div class="invoice-number">${escapeHtml(inv.invoiceNumber)}</div>
+              <h1 class="doc-title">FACTURA</h1>
+              <div class="doc-number">${escapeHtml(inv.invoiceNumber)}</div>
               <p style="margin:6px 0 0;font-size:13px;color:#4b5563">Fecha: ${escapeHtml(inv.issueDate || "")}</p>
             </div>
           </div>
 
-          <div class="invoice-boxes">
-            <div class="invoice-box">
-              <h3>Emisor</h3>
-              <p><strong>${escapeHtml(issuer.name || "KreateIA")}</strong></p>
-              <p>NIF/CIF: ${escapeHtml(issuer.taxId || "Pendiente")}</p>
-              <p>${escapeHtml(issuer.address || "Pendiente")}</p>
-              <p>${escapeHtml(issuer.email || "empresas@kreateia.com")}</p>
-            </div>
+          ${issuerClientBoxes(inv)}
 
-            <div class="invoice-box">
-              <h3>Cliente</h3>
-              <p><strong>${escapeHtml(client.fullName || "")}</strong></p>
-              <p>DNI/NIF/CIF: ${escapeHtml(client.taxId || "No indicado")}</p>
-              <p>${escapeHtml(client.address || "")}</p>
-              <p>${escapeHtml(client.email || "")} · ${escapeHtml(client.phone || "")}</p>
-            </div>
-          </div>
-
-          <div class="invoice-boxes">
-            <div class="invoice-box" style="min-height:auto">
+          <div class="doc-boxes">
+            <div class="doc-box" style="min-height:auto">
               <h3>Datos de la operación</h3>
               <p>Servicio: <strong>${escapeHtml(inv.serviceType || "")}</strong></p>
               ${inv.serviceType === "Academia" ? `<p>Cita / clase: <strong>${escapeHtml(appointmentText)}</strong></p>` : ""}
               <p>Forma de pago: <strong>${escapeHtml(inv.paymentMethod || "No indicado")}</strong></p>
               <p>Estado: <strong>${escapeHtml(inv.paymentStatus || "No indicado")}</strong>${inv.paidAt ? ` · ${escapeHtml(inv.paidAt)}` : ""}</p>
+              ${inv.sourceQuoteNumber ? `<p>Origen: presupuesto <strong>${escapeHtml(inv.sourceQuoteNumber)}</strong></p>` : ""}
             </div>
 
-            <div class="invoice-box" style="min-height:auto">
+            <div class="doc-box" style="min-height:auto">
               <h3>Observaciones</h3>
               <p>${escapeHtml(inv.notes || "Sin observaciones")}</p>
             </div>
           </div>
 
-          <table class="invoice-table">
+          <table class="doc-table">
             <thead>
               <tr>
                 <th style="text-align:left">Descripción</th>
@@ -823,16 +1975,85 @@
             </tbody>
           </table>
 
-          <div class="invoice-totals">
-            <div class="invoice-total-line"><span>Base imponible</span><strong>${money(inv.baseCents)}</strong></div>
-            <div class="invoice-total-line"><span>${escapeHtml(taxLabel)}</span><strong>${isExempt ? "Exento" : money(inv.taxCents)}</strong></div>
-            <div class="invoice-total-line"><span>Total factura</span><span>${money(inv.totalCents)}</span></div>
+          <div class="doc-totals">
+            <div class="doc-total-line"><span>Base imponible</span><strong>${money(inv.baseCents)}</strong></div>
+            <div class="doc-total-line"><span>${escapeHtml(taxLabel)}</span><strong>${isExempt ? "Exento" : money(inv.taxCents)}</strong></div>
+            <div class="doc-total-line"><span>Total factura</span><span>${money(inv.totalCents)}</span></div>
           </div>
 
-          <p class="invoice-note">
+          <p class="doc-note">
             ${isExempt
               ? "Operación de formación indicada como exenta de IVA. Confirma con tu asesoría el texto fiscal exacto aplicable a tu actividad."
               : "La cuota de IVA aparece desglosada de forma separada."}
+          </p>
+        </article>
+      `;
+    }
+
+    function buildQuoteSheet(quote) {
+      return `
+        <article class="doc-sheet">
+          <div class="doc-top">
+            <div>
+              <div class="brand" style="font-size:28px;margin-bottom:10px">
+                <div class="brand-mark" style="width:34px;height:34px;border-radius:11px"></div>
+                <div><span>Kreate</span><span>IA</span></div>
+              </div>
+              <p style="margin:4px 0;font-size:13px;color:#4b5563">www.kreateia.com</p>
+            </div>
+            <div style="text-align:right">
+              <h1 class="doc-title">PRESUPUESTO</h1>
+              <div class="doc-number">${escapeHtml(quote.quoteNumber)}</div>
+              <p style="margin:6px 0 0;font-size:13px;color:#4b5563">Fecha: ${escapeHtml(quote.issueDate || "")}</p>
+              <p style="margin:4px 0 0;font-size:13px;color:#4b5563">Válido hasta: ${escapeHtml(quote.validUntil || "")}</p>
+            </div>
+          </div>
+
+          ${issuerClientBoxes(quote)}
+
+          <div class="doc-boxes">
+            <div class="doc-box" style="min-height:auto">
+              <h3>Datos del presupuesto</h3>
+              <p>Servicio: <strong>Servicios IA</strong></p>
+              <p>Estado: <strong>${escapeHtml(quote.status || "Pendiente")}</strong></p>
+              ${quote.convertedInvoiceNumber ? `<p>Factura generada: <strong>${escapeHtml(quote.convertedInvoiceNumber)}</strong></p>` : ""}
+            </div>
+
+            <div class="doc-box" style="min-height:auto">
+              <h3>Observaciones</h3>
+              <p>${escapeHtml(quote.notes || "Sin observaciones")}</p>
+            </div>
+          </div>
+
+          <table class="doc-table">
+            <thead>
+              <tr>
+                <th style="text-align:left">Descripción</th>
+                <th style="text-align:right">Base</th>
+                <th style="text-align:right">IVA</th>
+                <th style="text-align:right">Cuota IVA</th>
+                <th style="text-align:right">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>${escapeHtml(quote.concept || "")}</td>
+                <td style="text-align:right">${money(quote.baseCents)}</td>
+                <td style="text-align:right">IVA ${Number(quote.taxRate || 21)}%</td>
+                <td style="text-align:right">${money(quote.taxCents)}</td>
+                <td style="text-align:right"><strong>${money(quote.totalCents)}</strong></td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="doc-totals">
+            <div class="doc-total-line"><span>Base imponible</span><strong>${money(quote.baseCents)}</strong></div>
+            <div class="doc-total-line"><span>IVA ${Number(quote.taxRate || 21)}%</span><strong>${money(quote.taxCents)}</strong></div>
+            <div class="doc-total-line"><span>Total presupuesto</span><span>${money(quote.totalCents)}</span></div>
+          </div>
+
+          <p class="doc-note">
+            Este documento es un presupuesto y no constituye factura. La factura se emitirá cuando el cliente acepte la propuesta.
           </p>
         </article>
       `;
@@ -842,11 +2063,13 @@
       e.preventDefault();
 
       if (!currentUser) return toast("Debes iniciar sesión.");
-      if (!signatureDataUrl) return toast("Falta la firma del cliente.");
+
+      const isQuote = selectedType === "Servicios IA" && documentMode === "quote";
+      if (!isQuote && !signatureDataUrl) return toast("Falta la firma del cliente.");
 
       const btn = $("submit-btn");
       btn.disabled = true;
-      btn.textContent = "Generando...";
+      btn.textContent = isQuote ? "Creando presupuesto..." : "Generando...";
 
       try {
         const token = await currentUser.getIdToken();
@@ -874,10 +2097,10 @@
             phone: $("phone").value.trim(),
             email: normalizeEmail($("email").value),
           },
-          signatureDataUrl,
+          ...(isQuote ? { validUntil: $("validUntil").value } : { signatureDataUrl }),
         };
 
-        const res = await fetch("/api/priv/create-invoice", {
+        const res = await fetch(isQuote ? "/api/priv/create-quote" : "/api/priv/create-invoice", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -888,20 +2111,23 @@
 
         const data = await res.json().catch(() => ({}));
 
-        if (!res.ok) throw new Error(data.error || "No se pudo crear la factura.");
+        if (!res.ok) {
+          throw new Error(data.error || (isQuote ? "No se pudo crear el presupuesto." : "No se pudo crear la factura."));
+        }
 
-        toast(`Factura ${data.invoice.invoiceNumber} creada.`);
+        toast(isQuote ? `Presupuesto ${data.quote.quoteNumber} creado.` : `Factura ${data.invoice.invoiceNumber} creada.`);
 
         if ($("sendEmail").checked) {
-          await sendInvoice(data.invoice.id, null, true);
+          if (isQuote) await sendQuote(data.quote.id, null, true);
+          else await sendInvoice(data.invoice.id, null, true);
         }
 
         resetForm();
       } catch (err) {
-        toast(err.message || "Error creando factura.");
+        toast(err.message || (isQuote ? "Error creando presupuesto." : "Error creando factura."));
       } finally {
         btn.disabled = false;
-        btn.textContent = "Generar factura";
+        updateTaxSummary();
       }
     });
 
@@ -926,15 +2152,99 @@
         });
 
         const data = await res.json().catch(() => ({}));
-
         if (!res.ok) throw new Error(data.error || "No se pudo enviar el email.");
-        if (!silent) toast("Email enviado desde empresas@kreateia.com.");
+
+        if (!silent) toast("Factura enviada desde empresas@kreateia.com.");
       } catch (err) {
         toast(err.message || "Error enviando email.");
       } finally {
         if (btn) {
           btn.disabled = false;
           btn.textContent = "Enviar";
+        }
+      }
+    }
+
+    async function sendQuote(quoteId, btn, silent = false) {
+      if (!currentUser) return;
+
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = "Enviando";
+      }
+
+      try {
+        const token = await currentUser.getIdToken();
+
+        const res = await fetch("/api/priv/send-quote", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
+          },
+          body: JSON.stringify({ quoteId }),
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || "No se pudo enviar el presupuesto.");
+
+        if (!silent) toast("Presupuesto enviado desde empresas@kreateia.com.");
+      } catch (err) {
+        toast(err.message || "Error enviando presupuesto.");
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = "Enviar";
+        }
+      }
+    }
+
+    async function convertQuoteToInvoice(quoteId, btn) {
+      if (!currentUser) return;
+
+      const quote = getQuote(quoteId);
+      if (!quote) return toast("No se encontró el presupuesto.");
+      if (quote.convertedInvoiceId) return toast("Este presupuesto ya tiene factura.");
+
+      const ok = confirm(`¿Convertir el presupuesto ${quote.quoteNumber} en factura? Se reservará un número de factura nuevo.`);
+      if (!ok) return;
+
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = "Facturando";
+      }
+
+      try {
+        const token = await currentUser.getIdToken();
+
+        const res = await fetch("/api/priv/convert-quote-to-invoice", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            quoteId,
+            paymentMethod: "Pendiente",
+            paymentStatus: "Pendiente",
+          }),
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || "No se pudo convertir en factura.");
+
+        toast(`Factura ${data.invoice.invoiceNumber} creada desde presupuesto.`);
+        setView("servicesInvoices");
+
+        $("doc-modal-title").textContent = `Factura ${data.invoice.invoiceNumber}`;
+        $("doc-print-area").innerHTML = buildInvoiceSheet(data.invoice);
+        $("doc-modal").classList.remove("hidden");
+      } catch (err) {
+        toast(err.message || "Error convirtiendo presupuesto.");
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = "Facturar";
         }
       }
     }
@@ -1012,6 +2322,8 @@
       modal.classList.add("hidden");
       toast("Firma guardada.");
     });
+
+    resetForm();
   </script>
 </body>
 </html>
