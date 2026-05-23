@@ -196,6 +196,61 @@
       display:flex; align-items:center; justify-content:center; padding:12px; background:#fff;
     }
     .signature-card img { max-width:100%; max-height:120px; object-fit:contain; }
+    .invoice-sheet {
+      background:#fff;
+      color:#111827;
+      border:1px solid #e5e7eb;
+      border-radius:18px;
+      padding:28px;
+      box-shadow:0 18px 60px rgba(15,23,42,.12);
+    }
+    .invoice-top {
+      display:flex;
+      justify-content:space-between;
+      gap:24px;
+      border-bottom:2px solid #111827;
+      padding-bottom:18px;
+      margin-bottom:22px;
+    }
+    .invoice-title { font-size:30px; font-weight:900; letter-spacing:.08em; margin:0; }
+    .invoice-number { font-size:17px; font-weight:900; color:#2563eb; margin-top:8px; }
+    .invoice-boxes { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:20px; }
+    .invoice-box {
+      border:1px solid #e5e7eb;
+      border-radius:14px;
+      padding:14px;
+      background:#f9fafb;
+      min-height:126px;
+    }
+    .invoice-box h3 {
+      margin:0 0 8px;
+      font-size:11px;
+      text-transform:uppercase;
+      letter-spacing:.1em;
+      color:#6b7280;
+    }
+    .invoice-box p { margin:3px 0; font-size:13px; line-height:1.45; }
+    .invoice-table { width:100%; min-width:0; border-collapse:collapse; margin-top:10px; }
+    .invoice-table th {
+      position:static;
+      background:#111827;
+      color:#fff;
+      padding:11px;
+      font-size:11px;
+      text-transform:uppercase;
+      letter-spacing:.06em;
+    }
+    .invoice-table td { padding:12px 11px; border-bottom:1px solid #e5e7eb; font-size:13px; }
+    .invoice-totals {
+      width:min(360px,100%);
+      margin:18px 0 0 auto;
+      border:1px solid #e5e7eb;
+      border-radius:14px;
+      overflow:hidden;
+    }
+    .invoice-total-line { display:flex; justify-content:space-between; padding:11px 14px; border-bottom:1px solid #e5e7eb; }
+    .invoice-total-line:last-child { border-bottom:0; background:#111827; color:#fff; font-size:18px; font-weight:900; }
+    .invoice-note { margin-top:18px; color:#4b5563; font-size:12px; line-height:1.55; }
     @media (max-width: 1050px) {
       main { grid-template-columns: 1fr; }
       .table-scroll { max-height: none; }
@@ -212,6 +267,21 @@
       .table-card { box-shadow: none; border: 0; }
       .table-scroll { overflow: visible; max-height: none; }
       table { min-width: 0; }
+      body.print-invoice * { visibility:hidden; }
+      body.print-invoice #invoice-print-area,
+      body.print-invoice #invoice-print-area * { visibility:visible; }
+      body.print-invoice #invoice-print-area {
+        position:absolute;
+        left:0;
+        top:0;
+        width:100%;
+      }
+      body.print-invoice .invoice-sheet {
+        border:0;
+        border-radius:0;
+        box-shadow:none;
+        padding:22mm 18mm;
+      }
     }
   </style>
 </head>
@@ -316,6 +386,26 @@
             </div>
           </div>
 
+          <div class="grid2">
+            <div class="field">
+              <label>Forma de pago</label>
+              <select id="paymentMethod" required>
+                <option value="Efectivo">Efectivo</option>
+                <option value="TPV / Tarjeta">TPV / Tarjeta</option>
+                <option value="Transferencia">Transferencia</option>
+                <option value="Bizum">Bizum</option>
+                <option value="Pendiente">Pendiente de pago</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Estado del pago</label>
+              <select id="paymentStatus" required>
+                <option value="Pagado">Pagado</option>
+                <option value="Pendiente">Pendiente</option>
+              </select>
+            </div>
+          </div>
+
           <div class="summary" id="tax-summary"></div>
 
           <div class="sig-preview">
@@ -356,7 +446,6 @@
             <button class="btn ghost no-print" onclick="window.print()" type="button">Imprimir</button>
           </div>
         </div>
-
         <div id="clients-view" class="table-scroll">
           <table>
             <thead>
@@ -374,7 +463,6 @@
             </tbody>
           </table>
         </div>
-
         <div id="invoices-view" class="table-scroll hidden">
           <table>
             <thead>
@@ -486,12 +574,34 @@
     </section>
   </div>
 
+  <div id="invoice-modal" class="modal hidden">
+    <section class="modal-card" style="width:min(920px,100%)">
+      <div class="modal-head no-print">
+        <div>
+          <strong id="invoice-modal-title">Factura</strong>
+          <div class="mini">Vista imprimible con datos fiscales y forma de pago.</div>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button id="print-invoice-btn" class="btn primary" type="button">Imprimir / PDF</button>
+          <button id="close-invoice-modal" class="btn ghost" type="button">Cerrar</button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div id="invoice-print-area"></div>
+      </div>
+    </section>
+  </div>
+
   <div id="toast" class="toast hidden"></div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
-    import { getFirestore, doc, getDoc, collection, query, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+    import {
+      getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut
+    } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+    import {
+      getFirestore, doc, getDoc, collection, query, orderBy, limit, onSnapshot
+    } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyDVD2Sbu7nVbFfVkgujMcgOC_S0oDla-zQ",
@@ -516,7 +626,6 @@
     let invoices = [];
     let unsubscribeInvoices = null;
     let unsubscribeClients = null;
-    let openClientId = "";
 
     const money = (cents) => new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format((Number(cents) || 0) / 100);
     const escapeHtml = (s) => String(s || "").replace(/[&<>"']/g, m => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#039;" }[m]));
@@ -680,13 +789,19 @@
           <td>${inv.emailSentAt ? `<span class="status">Enviado</span>` : `<span class="muted">Pendiente</span>`}</td>
           <td>
             <div style="display:flex;gap:6px;flex-wrap:wrap">
+              <button class="btn ghost" type="button" data-open-invoice="${escapeHtml(inv.id)}">Ver factura</button>
               <button class="btn ghost" type="button" data-open-client="${escapeHtml(inv.clientId || "")}">Cliente</button>
               <button class="btn ghost" type="button" data-send="${escapeHtml(inv.id)}">Enviar</button>
             </div>
           </td>
         </tr>
       `).join("");
-      document.querySelectorAll("[data-send]").forEach(btn => btn.addEventListener("click", () => sendInvoice(btn.dataset.send, btn)));
+      document.querySelectorAll("[data-send]").forEach(btn => {
+        btn.addEventListener("click", () => sendInvoice(btn.dataset.send, btn));
+      });
+      document.querySelectorAll("[data-open-invoice]").forEach(btn => {
+        btn.addEventListener("click", () => openInvoice(btn.dataset.openInvoice));
+      });
       document.querySelectorAll("[data-open-client]").forEach(btn => {
         if (btn.dataset.openClient) btn.addEventListener("click", () => openClient(btn.dataset.openClient));
       });
@@ -725,6 +840,7 @@
       toast("Cliente cargado en el formulario.");
     }
 
+    let openClientId = "";
     function openClient(clientId) {
       openClientId = clientId;
       refreshOpenClientModal();
@@ -754,16 +870,133 @@
         ? ownInvoices.map(inv => `
             <div style="display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid #e2e8f0;padding:8px 0">
               <div><strong>${escapeHtml(inv.invoiceNumber)}</strong><div class="mini">${escapeHtml(inv.concept)} · ${escapeHtml(inv.issueDate || "")}</div></div>
-              <div style="text-align:right"><strong>${money(inv.totalCents)}</strong><div class="mini">${inv.emailSentAt ? "Email enviado" : "Email pendiente"}</div></div>
+              <div style="text-align:right">
+                <strong>${money(inv.totalCents)}</strong>
+                <div class="mini">${escapeHtml(inv.paymentMethod || "Sin forma de pago")} · ${inv.emailSentAt ? "Email enviado" : "Email pendiente"}</div>
+                <button class="btn ghost" style="margin-top:6px;padding:7px 10px" type="button" data-open-invoice="${escapeHtml(inv.id)}">Ver factura</button>
+              </div>
             </div>
           `).join("")
         : `<span class="muted">Sin facturas asociadas.</span>`;
+      document.querySelectorAll("#client-invoices [data-open-invoice]").forEach(btn => {
+        btn.addEventListener("click", () => openInvoice(btn.dataset.openInvoice));
+      });
     }
 
     $("close-client-modal").addEventListener("click", () => $("client-modal").classList.add("hidden"));
     $("invoice-client-btn").addEventListener("click", () => fillFormFromClient(openClientId));
     $("save-client-btn").addEventListener("click", saveClient);
     $("archive-client-btn").addEventListener("click", archiveClient);
+    $("close-invoice-modal").addEventListener("click", () => $("invoice-modal").classList.add("hidden"));
+    $("print-invoice-btn").addEventListener("click", () => {
+      document.body.classList.add("print-invoice");
+      window.print();
+      setTimeout(() => document.body.classList.remove("print-invoice"), 500);
+    });
+
+    function getInvoice(invoiceId) {
+      return invoices.find(inv => inv.id === invoiceId) || null;
+    }
+
+    function openInvoice(invoiceId) {
+      const inv = getInvoice(invoiceId);
+      if (!inv) return toast("No se encontró la factura.");
+      $("invoice-modal-title").textContent = `Factura ${inv.invoiceNumber}`;
+      $("invoice-print-area").innerHTML = buildInvoiceSheet(inv);
+      $("invoice-modal").classList.remove("hidden");
+    }
+
+    function buildInvoiceSheet(inv) {
+      const issuer = inv.issuer || {};
+      const client = inv.client || {};
+      const isExempt = Number(inv.taxRate || 0) === 0;
+      const taxLabel = isExempt ? "IVA exento" : `IVA ${Number(inv.taxRate || 0)}%`;
+      const paymentMethod = inv.paymentMethod || "No indicado";
+      const paymentStatus = inv.paymentStatus || "No indicado";
+      const paidAt = inv.paidAt || "";
+
+      return `
+        <article class="invoice-sheet">
+          <div class="invoice-top">
+            <div>
+              <div class="brand" style="font-size:28px;margin-bottom:10px">
+                <div class="brand-mark" style="width:34px;height:34px;border-radius:11px"></div>
+                <div><span>Kreate</span><span>IA</span></div>
+              </div>
+              <p style="margin:4px 0;font-size:13px;color:#4b5563">www.kreateia.com</p>
+            </div>
+            <div style="text-align:right">
+              <h1 class="invoice-title">FACTURA</h1>
+              <div class="invoice-number">${escapeHtml(inv.invoiceNumber)}</div>
+              <p style="margin:6px 0 0;font-size:13px;color:#4b5563">Fecha: ${escapeHtml(inv.issueDate || "")}</p>
+            </div>
+          </div>
+
+          <div class="invoice-boxes">
+            <div class="invoice-box">
+              <h3>Emisor</h3>
+              <p><strong>${escapeHtml(issuer.name || "KreateIA")}</strong></p>
+              <p>NIF/CIF: ${escapeHtml(issuer.taxId || "Pendiente")}</p>
+              <p>${escapeHtml(issuer.address || "Pendiente")}</p>
+              <p>${escapeHtml(issuer.email || "empresas@kreateia.com")}</p>
+            </div>
+            <div class="invoice-box">
+              <h3>Cliente</h3>
+              <p><strong>${escapeHtml(client.fullName || "")}</strong></p>
+              <p>DNI/NIF/CIF: ${escapeHtml(client.taxId || "No indicado")}</p>
+              <p>${escapeHtml(client.address || "")}</p>
+              <p>${escapeHtml(client.email || "")} · ${escapeHtml(client.phone || "")}</p>
+            </div>
+          </div>
+
+          <div class="invoice-boxes">
+            <div class="invoice-box" style="min-height:auto">
+              <h3>Datos de la operación</h3>
+              <p>Servicio: <strong>${escapeHtml(inv.serviceType || "")}</strong></p>
+              <p>Forma de pago: <strong>${escapeHtml(paymentMethod)}</strong></p>
+              <p>Estado: <strong>${escapeHtml(paymentStatus)}</strong>${paidAt ? ` · ${escapeHtml(paidAt)}` : ""}</p>
+            </div>
+            <div class="invoice-box" style="min-height:auto">
+              <h3>Observaciones</h3>
+              <p>${escapeHtml(inv.notes || "Sin observaciones")}</p>
+            </div>
+          </div>
+
+          <table class="invoice-table">
+            <thead>
+              <tr>
+                <th style="text-align:left">Descripción</th>
+                <th style="text-align:right">Base</th>
+                <th style="text-align:right">IVA</th>
+                <th style="text-align:right">Cuota IVA</th>
+                <th style="text-align:right">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>${escapeHtml(inv.concept || "")}</td>
+                <td style="text-align:right">${money(inv.baseCents)}</td>
+                <td style="text-align:right">${escapeHtml(taxLabel)}</td>
+                <td style="text-align:right">${isExempt ? "Exento" : money(inv.taxCents)}</td>
+                <td style="text-align:right"><strong>${money(inv.totalCents)}</strong></td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="invoice-totals">
+            <div class="invoice-total-line"><span>Base imponible</span><strong>${money(inv.baseCents)}</strong></div>
+            <div class="invoice-total-line"><span>${escapeHtml(taxLabel)}</span><strong>${isExempt ? "Exento" : money(inv.taxCents)}</strong></div>
+            <div class="invoice-total-line"><span>Total factura</span><span>${money(inv.totalCents)}</span></div>
+          </div>
+
+          <p class="invoice-note">
+            ${isExempt
+              ? "Operación de formación indicada como exenta de IVA. Confirma con tu asesoría el texto fiscal exacto aplicable a tu actividad."
+              : "La cuota de IVA aparece desglosada de forma separada."}
+          </p>
+        </article>
+      `;
+    }
 
     async function saveClient() {
       if (!openClientId || !currentUser) return;
@@ -838,6 +1071,8 @@
           notes: $("notes").value.trim(),
           baseAmount: Number($("baseAmount").value),
           issueDate: $("issueDate").value,
+          paymentMethod: $("paymentMethod").value,
+          paymentStatus: $("paymentStatus").value,
           client: {
             fullName: $("fullName").value.trim(),
             taxId: $("taxId").value.trim(),
@@ -937,7 +1172,6 @@
     $("open-signature").addEventListener("click", () => modal.classList.remove("hidden"));
     $("close-signature").addEventListener("click", () => modal.classList.add("hidden"));
     $("clear-signature").addEventListener("click", setupCanvas);
-
     $("save-signature").addEventListener("click", () => {
       const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
       let hasInk = false;
