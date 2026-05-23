@@ -37,7 +37,12 @@ export async function onRequest(context) {
       email: env.GMAIL_SENDER || '',
     };
 
-    const invoice = await createInvoiceWithCounter(env.FIREBASE_PROJECT_ID, accessToken, payload);
+    const invoice = await createInvoiceWithCounter(
+      env.FIREBASE_PROJECT_ID,
+      accessToken,
+      payload,
+      body.clientId
+    );
 
     return json({ ok: true, invoice });
   } catch (err) {
@@ -89,7 +94,7 @@ function normalizeInvoicePayload(body, staff) {
   };
 }
 
-async function createInvoiceWithCounter(projectId, accessToken, payload, attempt = 0) {
+async function createInvoiceWithCounter(projectId, accessToken, payload, requestedClientId = '', attempt = 0) {
   if (attempt > 5) throw new Error('No se pudo reservar número de factura. Inténtalo de nuevo.');
 
   const counterPath = 'private_counters/invoices';
@@ -99,7 +104,12 @@ async function createInvoiceWithCounter(projectId, accessToken, payload, attempt
   const padded = String(nextNumber).padStart(5, '0');
   const invoiceNumber = `KIA-${padded}`;
   const invoiceId = invoiceNumber;
-  const clientId = `client_${padded}`;
+  const clientId = normalizeClientId(requestedClientId) || `client_${padded}`;
+
+  const existingClient = normalizeClientId(requestedClientId)
+    ? await getDoc(projectId, `private_clients/${clientId}`, accessToken, true)
+    : { exists: false };
+
   const now = new Date().toISOString();
 
   const invoice = {
@@ -110,6 +120,41 @@ async function createInvoiceWithCounter(projectId, accessToken, payload, attempt
     updatedAt: now,
     emailSentAt: null,
   };
+
+  const clientFields = {
+    id: clientId,
+    ...payload.client,
+    serviceType: payload.serviceType,
+    lastConcept: payload.concept,
+    lastInvoiceNumber: invoiceNumber,
+    signatureDataUrl: payload.signatureDataUrl,
+    lastSignatureAt: payload.createdAt,
+    agreementText: agreementText(payload.serviceType),
+    archivedAt: null,
+    updatedAt: now,
+  };
+
+  const clientFieldPaths = [
+    'id',
+    'fullName',
+    'taxId',
+    'address',
+    'phone',
+    'email',
+    'serviceType',
+    'lastConcept',
+    'lastInvoiceNumber',
+    'signatureDataUrl',
+    'lastSignatureAt',
+    'agreementText',
+    'archivedAt',
+    'updatedAt',
+  ];
+
+  if (!existingClient.exists) {
+    clientFields.createdAt = payload.createdAt;
+    clientFieldPaths.push('createdAt');
+  }
 
   const writes = [
     {
@@ -123,17 +168,9 @@ async function createInvoiceWithCounter(projectId, accessToken, payload, attempt
     {
       update: {
         name: docName(projectId, `private_clients/${clientId}`),
-        fields: toFields({
-          id: clientId,
-          ...payload.client,
-          serviceType: payload.serviceType,
-          lastConcept: payload.concept,
-          lastInvoiceNumber: invoiceNumber,
-          signatureDataUrl: payload.signatureDataUrl,
-          createdAt: payload.createdAt,
-          updatedAt: now,
-        }),
+        fields: toFields(clientFields),
       },
+      updateMask: { fieldPaths: clientFieldPaths },
     },
     {
       update: {
@@ -156,7 +193,7 @@ async function createInvoiceWithCounter(projectId, accessToken, payload, attempt
     const text = await res.text();
     if (res.status === 409 || text.includes('FAILED_PRECONDITION') || text.includes('ABORTED')) {
       await sleep(120 + attempt * 100);
-      return createInvoiceWithCounter(projectId, accessToken, payload, attempt + 1);
+      return createInvoiceWithCounter(projectId, accessToken, payload, requestedClientId, attempt + 1);
     }
     throw new Error(`Firestore commit: ${res.status} ${text.slice(0, 180)}`);
   }
@@ -257,6 +294,7 @@ function toValue(v) {
   if (v === null || v === undefined) return { nullValue: null };
   if (typeof v === 'boolean') return { booleanValue: v };
   if (typeof v === 'number') return Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
+  if (v instanceof Date) return { timestampValue: v.toISOString() };
   if (Array.isArray(v)) return { arrayValue: { values: v.map(toValue) } };
   if (typeof v === 'object') return { mapValue: { fields: toFields(v) } };
   return { stringValue: String(v) };
@@ -287,6 +325,17 @@ function getBearerToken(request) {
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
+}
+
+function normalizeClientId(id) {
+  const clean = String(id || '').trim();
+  return /^[A-Za-z0-9_-]{3,140}$/.test(clean) ? clean : '';
+}
+
+function agreementText(serviceType) {
+  return serviceType === 'Academia'
+    ? 'El cliente/alumno acepta la inscripción o contratación del curso indicado, el tratamiento de sus datos para gestión administrativa y la emisión de factura correspondiente.'
+    : 'El cliente acepta la contratación del servicio IA indicado, el tratamiento de sus datos para gestión administrativa y la emisión de factura correspondiente.';
 }
 
 function requireEnv(env, keys) {
