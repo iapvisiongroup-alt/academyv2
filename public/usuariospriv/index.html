@@ -3,856 +3,185 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>KreateIA · Registro privado</title>
+  <title>KreateIA · Gestión privada</title>
   <style>
-    :root {
-      --blue: #2563eb;
-      --amber: #f59e0b;
-      --ink: #0f172a;
-      --muted: #64748b;
-      --line: #e2e8f0;
-      --soft: #f8fafc;
-      --ok: #059669;
-      --danger: #dc2626;
-    }
-
-    * { box-sizing: border-box; }
-
-    body {
-      margin: 0;
-      min-height: 100vh;
-      color: var(--ink);
-      background: #eef2f7;
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    }
-
-    button, input, textarea, select { font: inherit; }
-    button { -webkit-tap-highlight-color: transparent; }
-    .hidden { display: none !important; }
-
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      font-weight: 900;
-      letter-spacing: -.04em;
-    }
-
-    .brand-mark {
-      width: 42px;
-      height: 42px;
-      border-radius: 14px;
-      background:
-        radial-gradient(circle at 35% 35%, #fff 0 8%, transparent 9%),
-        conic-gradient(from 220deg, #2563eb, #f59e0b, #2563eb);
-      box-shadow: 0 12px 28px rgba(37,99,235,.22);
-    }
-
-    .brand span:first-of-type { color: #1d4ed8; }
-    .brand span:last-of-type { color: #ea580c; font-weight: 700; }
-
-    .login-wrap {
-      min-height: 100vh;
-      display: grid;
-      place-items: center;
-      padding: 24px;
-      background:
-        radial-gradient(circle at top left, rgba(37,99,235,.18), transparent 36%),
-        radial-gradient(circle at bottom right, rgba(245,158,11,.18), transparent 34%),
-        #f8fafc;
-    }
-
-    .login-card, .card {
-      background: rgba(255,255,255,.92);
-      border: 1px solid rgba(226,232,240,.9);
-      border-radius: 24px;
-      box-shadow: 0 28px 90px rgba(15,23,42,.12);
-    }
-
-    .login-card {
-      width: min(460px, 100%);
-      padding: 30px;
-    }
-
-    .login-card h1 {
-      margin: 22px 0 8px;
-      font-size: 30px;
-      letter-spacing: -.04em;
-    }
-
-    .login-card p {
-      margin: 0 0 24px;
-      color: var(--muted);
-      line-height: 1.55;
-    }
-
-    .app {
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
-
-    header {
-      position: sticky;
-      top: 0;
-      z-index: 20;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      padding: 14px 18px;
-      background: rgba(255,255,255,.88);
-      border-bottom: 1px solid var(--line);
-      backdrop-filter: blur(18px);
-    }
-
-    main {
-      width: min(1440px, 100%);
-      margin: 0 auto;
-      padding: 22px;
-      display: grid;
-      grid-template-columns: minmax(360px, 470px) 1fr;
-      gap: 22px;
-      align-items: start;
-    }
-
-    .card { padding: 22px; }
-    .card h2 { margin: 0 0 6px; font-size: 20px; letter-spacing: -.03em; }
-
-    .hint {
-      margin: 0 0 18px;
-      color: var(--muted);
-      font-size: 14px;
-      line-height: 1.5;
-    }
-
-    label {
-      display: block;
-      margin: 0 0 7px;
-      color: #334155;
-      font-size: 13px;
-      font-weight: 800;
-    }
-
-    input, textarea, select {
-      width: 100%;
-      border: 1px solid var(--line);
-      border-radius: 13px;
-      background: #fff;
-      color: var(--ink);
-      padding: 12px 13px;
-      outline: none;
-      transition: border-color .15s, box-shadow .15s;
-    }
-
-    input:focus, textarea:focus, select:focus {
-      border-color: rgba(37,99,235,.65);
-      box-shadow: 0 0 0 4px rgba(37,99,235,.10);
-    }
-
-    textarea {
-      resize: vertical;
-      min-height: 82px;
-    }
-
-    .grid2 {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
-
-    .field { margin-bottom: 13px; }
-
-    .choice-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-bottom: 14px;
-    }
-
-    .choice {
-      border: 1px solid var(--line);
-      background: #fff;
-      border-radius: 16px;
-      padding: 13px;
-      cursor: pointer;
-      min-height: 74px;
-      text-align: left;
-    }
-
-    .choice strong { display: block; font-size: 14px; }
-    .choice span { color: var(--muted); font-size: 12px; }
-
-    .choice.active {
-      border-color: var(--blue);
-      background: #eff6ff;
-      box-shadow: inset 0 0 0 1px rgba(37,99,235,.18);
-    }
-
-    .choice.active[data-type="Servicios IA"] {
-      border-color: var(--amber);
-      background: #fffbeb;
-      box-shadow: inset 0 0 0 1px rgba(245,158,11,.24);
-    }
-
-    .summary {
-      border: 1px solid var(--line);
-      border-radius: 18px;
-      padding: 14px;
-      background: var(--soft);
-      display: grid;
-      gap: 8px;
-      margin: 10px 0 14px;
-    }
-
-    .sum-line {
-      display: flex;
-      justify-content: space-between;
-      gap: 18px;
-      color: #475569;
-      font-size: 14px;
-    }
-
-    .sum-line.total {
-      font-size: 18px;
-      font-weight: 900;
-      color: var(--ink);
-      padding-top: 8px;
-      border-top: 1px solid var(--line);
-    }
-
-    .pill {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      border-radius: 999px;
-      padding: 7px 11px;
-      font-size: 12px;
-      font-weight: 900;
-      background: #e0f2fe;
-      color: #0369a1;
-    }
-
-    .pill.warn { background: #fff7ed; color: #c2410c; }
-
-    .btn {
-      border: 0;
-      border-radius: 14px;
-      padding: 12px 16px;
-      cursor: pointer;
-      font-weight: 900;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      transition: transform .12s, opacity .12s, background .12s;
-    }
-
-    .btn:active { transform: translateY(1px) scale(.99); }
-    .btn.primary { background: var(--blue); color: #fff; box-shadow: 0 14px 28px rgba(37,99,235,.22); }
-    .btn.ghost { background: #f1f5f9; color: #334155; }
-    .btn.danger { background: #fee2e2; color: var(--danger); }
-    .btn:disabled { opacity: .55; cursor: not-allowed; }
-
-    .form-actions {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-top: 12px;
-    }
-
-    .legal {
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      padding: 13px;
-      border-radius: 16px;
-      background: #fff7ed;
-      border: 1px solid #fed7aa;
-      color: #7c2d12;
-      font-size: 12px;
-      line-height: 1.45;
-      margin: 12px 0;
-    }
-
-    .legal input {
-      width: 20px;
-      height: 20px;
-      margin-top: 1px;
-      flex: 0 0 auto;
-    }
-
-    .table-card {
-      overflow: hidden;
-      padding: 0;
-    }
-
-    .table-head {
-      padding: 18px 20px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      border-bottom: 1px solid var(--line);
-    }
-
-    .tabs {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
-    .tab {
-      border: 0;
-      border-radius: 999px;
-      padding: 9px 14px;
-      cursor: pointer;
-      background: #f1f5f9;
-      color: #475569;
-      font-weight: 900;
-      font-size: 13px;
-    }
-
-    .tab.active {
-      background: #0f172a;
-      color: #fff;
-    }
-
-    .table-scroll {
-      overflow: auto;
-      max-height: calc(100vh - 170px);
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      min-width: 920px;
-    }
-
-    th, td {
-      padding: 12px 14px;
-      border-bottom: 1px solid #eef2f7;
-      text-align: left;
-      font-size: 13px;
-      vertical-align: top;
-    }
-
-    th {
-      position: sticky;
-      top: 0;
-      z-index: 2;
-      background: #f8fafc;
-      color: #475569;
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: .06em;
-    }
-
-    td strong { color: var(--ink); }
-    .right { text-align: right; }
-    .status { color: var(--ok); font-weight: 900; }
-    .muted { color: var(--muted); }
-    .mini { font-size: 12px; color: var(--muted); }
-
-    .sig-preview {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      border: 1px dashed #cbd5e1;
-      background: #fff;
-      border-radius: 14px;
-      padding: 10px;
-      min-height: 72px;
-    }
-
-    .sig-preview img {
-      max-height: 48px;
-      max-width: 180px;
-      object-fit: contain;
-    }
-
-    .modal {
-      position: fixed;
-      inset: 0;
-      z-index: 100;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-      background: rgba(15,23,42,.58);
-      backdrop-filter: blur(10px);
-    }
-
-    .modal-card {
-      width: min(780px, 100%);
-      background: #fff;
-      border-radius: 24px;
-      overflow: hidden;
-      box-shadow: 0 30px 100px rgba(0,0,0,.28);
-    }
-
-    .modal-head, .modal-foot {
-      padding: 16px 18px;
-      background: #f8fafc;
-      border-bottom: 1px solid var(--line);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-    }
-
-    .modal-foot {
-      border-top: 1px solid var(--line);
-      border-bottom: 0;
-    }
-
-    .modal-body {
-      padding: 18px;
-      display: grid;
-      gap: 14px;
-      max-height: 72vh;
-      overflow: auto;
-    }
-
-    .agreement-box {
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      padding: 14px;
-      background: #f8fafc;
-      color: #475569;
-      font-size: 13px;
-      line-height: 1.55;
-    }
-
-    .signature-card {
-      min-height: 92px;
-      border: 1px dashed #cbd5e1;
-      border-radius: 16px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 12px;
-      background: #fff;
-    }
-
-    .signature-card img {
-      max-width: 100%;
-      max-height: 120px;
-      object-fit: contain;
-    }
-
-    canvas {
-      width: 100%;
-      height: 300px;
-      display: block;
-      background: #fff;
-      touch-action: none;
-    }
-
-    .canvas-wrap {
-      margin: 18px;
-      border: 2px dashed #cbd5e1;
-      border-radius: 18px;
-      overflow: hidden;
-      background: #fff;
-    }
-
-    .toast {
-      position: fixed;
-      left: 50%;
-      bottom: 22px;
-      transform: translateX(-50%);
-      background: #0f172a;
-      color: #fff;
-      padding: 12px 16px;
-      border-radius: 999px;
-      box-shadow: 0 20px 50px rgba(15,23,42,.25);
-      z-index: 200;
-      font-weight: 800;
-      font-size: 13px;
-    }
-
-    .invoice-sheet {
-      background: #fff;
-      color: #111827;
-      border: 1px solid #e5e7eb;
-      border-radius: 18px;
-      padding: 28px;
-      box-shadow: 0 18px 60px rgba(15,23,42,.12);
-    }
-
-    .invoice-top {
-      display: flex;
-      justify-content: space-between;
-      gap: 24px;
-      border-bottom: 2px solid #111827;
-      padding-bottom: 18px;
-      margin-bottom: 22px;
-    }
-
-    .invoice-title {
-      font-size: 30px;
-      font-weight: 900;
-      letter-spacing: .08em;
-      margin: 0;
-    }
-
-    .invoice-number {
-      font-size: 17px;
-      font-weight: 900;
-      color: #2563eb;
-      margin-top: 8px;
-    }
-
-    .invoice-boxes {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 14px;
-      margin-bottom: 20px;
-    }
-
-    .invoice-box {
-      border: 1px solid #e5e7eb;
-      border-radius: 14px;
-      padding: 14px;
-      background: #f9fafb;
-      min-height: 126px;
-    }
-
-    .invoice-box h3 {
-      margin: 0 0 8px;
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: .1em;
-      color: #6b7280;
-    }
-
-    .invoice-box p {
-      margin: 3px 0;
-      font-size: 13px;
-      line-height: 1.45;
-    }
-
-    .invoice-table {
-      width: 100%;
-      min-width: 0;
-      border-collapse: collapse;
-      margin-top: 10px;
-    }
-
-    .invoice-table th {
-      position: static;
-      background: #111827;
-      color: #fff;
-      padding: 11px;
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: .06em;
-    }
-
-    .invoice-table td {
-      padding: 12px 11px;
-      border-bottom: 1px solid #e5e7eb;
-      font-size: 13px;
-    }
-
-    .invoice-totals {
-      width: min(360px, 100%);
-      margin: 18px 0 0 auto;
-      border: 1px solid #e5e7eb;
-      border-radius: 14px;
-      overflow: hidden;
-    }
-
-    .invoice-total-line {
-      display: flex;
-      justify-content: space-between;
-      padding: 11px 14px;
-      border-bottom: 1px solid #e5e7eb;
-    }
-
-    .invoice-total-line:last-child {
-      border-bottom: 0;
-      background: #111827;
-      color: #fff;
-      font-size: 18px;
-      font-weight: 900;
-    }
-
-    .invoice-note {
-      margin-top: 18px;
-      color: #4b5563;
-      font-size: 12px;
-      line-height: 1.55;
-    }
-
-    @media (max-width: 1050px) {
-      main { grid-template-columns: 1fr; }
-      .table-scroll { max-height: none; }
-    }
-
-    @media (max-width: 620px) {
-      main { padding: 12px; }
-      header { align-items: flex-start; flex-direction: column; }
-      .grid2, .choice-row, .form-actions { grid-template-columns: 1fr; }
-    }
-
-    @media print {
-      body { background: #fff; }
-      header, .form-card, .table-head button, .no-print { display: none !important; }
-      main { display: block; padding: 0; width: 100%; }
-      .table-card { box-shadow: none; border: 0; }
-      .table-scroll { overflow: visible; max-height: none; }
-      table { min-width: 0; }
-
-      body.print-invoice * { visibility: hidden; }
-      body.print-invoice #invoice-print-area,
-      body.print-invoice #invoice-print-area * { visibility: visible; }
-      body.print-invoice #invoice-print-area {
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%;
-      }
-      body.print-invoice .invoice-sheet {
-        border: 0;
-        border-radius: 0;
-        box-shadow: none;
-        padding: 22mm 18mm;
-      }
-    }
+    :root{--blue:#2563eb;--amber:#f59e0b;--ink:#0f172a;--muted:#64748b;--line:#e2e8f0;--soft:#f8fafc;--ok:#059669;--danger:#dc2626}
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;color:var(--ink);background:#eef2f7;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    button,input,textarea,select{font:inherit}button{-webkit-tap-highlight-color:transparent}.hidden{display:none!important}
+    .brand{display:flex;align-items:center;gap:12px;font-weight:900;letter-spacing:-.04em}
+    .brand-mark{width:42px;height:42px;border-radius:14px;background:radial-gradient(circle at 35% 35%,#fff 0 8%,transparent 9%),conic-gradient(from 220deg,#2563eb,#f59e0b,#2563eb);box-shadow:0 12px 28px rgba(37,99,235,.22)}
+    .brand span:first-of-type{color:#1d4ed8}.brand span:last-of-type{color:#ea580c;font-weight:700}
+    .login-wrap{min-height:100vh;display:grid;place-items:center;padding:24px;background:radial-gradient(circle at top left,rgba(37,99,235,.18),transparent 36%),radial-gradient(circle at bottom right,rgba(245,158,11,.18),transparent 34%),#f8fafc}
+    .login-card,.card{background:rgba(255,255,255,.94);border:1px solid rgba(226,232,240,.9);border-radius:24px;box-shadow:0 28px 90px rgba(15,23,42,.12)}
+    .login-card{width:min(460px,100%);padding:30px}.login-card h1{margin:22px 0 8px;font-size:30px;letter-spacing:-.04em}.login-card p{margin:0 0 24px;color:var(--muted);line-height:1.55}
+    .app{min-height:100vh;display:flex;flex-direction:column}
+    header{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 18px;background:rgba(255,255,255,.9);border-bottom:1px solid var(--line);backdrop-filter:blur(18px)}
+    main{width:min(1440px,100%);margin:0 auto;padding:22px;display:grid;grid-template-columns:minmax(360px,470px) 1fr;gap:22px;align-items:start}
+    .card{padding:22px}.card h2{margin:0 0 6px;font-size:20px;letter-spacing:-.03em}.hint{margin:0 0 18px;color:var(--muted);font-size:14px;line-height:1.5}
+    label{display:block;margin:0 0 7px;color:#334155;font-size:13px;font-weight:800}
+    input,textarea,select{width:100%;border:1px solid var(--line);border-radius:13px;background:#fff;color:var(--ink);padding:12px 13px;outline:none;transition:border-color .15s,box-shadow .15s}
+    input:focus,textarea:focus,select:focus{border-color:rgba(37,99,235,.65);box-shadow:0 0 0 4px rgba(37,99,235,.10)}
+    textarea{resize:vertical;min-height:82px}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field{margin-bottom:13px}
+    .choice-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+    .choice{border:1px solid var(--line);background:#fff;border-radius:16px;padding:13px;cursor:pointer;min-height:74px;text-align:left}
+    .choice strong{display:block;font-size:14px}.choice span{color:var(--muted);font-size:12px}
+    .choice.active{border-color:var(--blue);background:#eff6ff;box-shadow:inset 0 0 0 1px rgba(37,99,235,.18)}
+    .choice.active[data-type="Servicios IA"]{border-color:var(--amber);background:#fffbeb;box-shadow:inset 0 0 0 1px rgba(245,158,11,.24)}
+    .summary{border:1px solid var(--line);border-radius:18px;padding:14px;background:var(--soft);display:grid;gap:8px;margin:10px 0 14px}
+    .sum-line{display:flex;justify-content:space-between;gap:18px;color:#475569;font-size:14px}.sum-line.total{font-size:18px;font-weight:900;color:var(--ink);padding-top:8px;border-top:1px solid var(--line)}
+    .pill{display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:999px;padding:7px 11px;font-size:12px;font-weight:900;background:#e0f2fe;color:#0369a1}.pill.warn{background:#fff7ed;color:#c2410c}
+    .btn{border:0;border-radius:14px;padding:12px 16px;cursor:pointer;font-weight:900;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:transform .12s,opacity .12s,background .12s}
+    .btn:active{transform:translateY(1px) scale(.99)}.btn.primary{background:var(--blue);color:#fff;box-shadow:0 14px 28px rgba(37,99,235,.22)}.btn.ghost{background:#f1f5f9;color:#334155}.btn.danger{background:#fee2e2;color:var(--danger)}.btn:disabled{opacity:.55;cursor:not-allowed}
+    .form-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+    .legal{display:flex;align-items:flex-start;gap:10px;padding:13px;border-radius:16px;background:#fff7ed;border:1px solid #fed7aa;color:#7c2d12;font-size:12px;line-height:1.45;margin:12px 0}.legal input{width:20px;height:20px;margin-top:1px;flex:0 0 auto}
+    .sig-preview{display:flex;align-items:center;gap:10px;border:1px dashed #cbd5e1;background:#fff;border-radius:14px;padding:10px;min-height:72px}.sig-preview img{max-height:48px;max-width:180px;object-fit:contain}
+    .table-card{overflow:hidden;padding:0}
+    .panel-head{padding:18px 20px 16px;display:grid;gap:16px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#fff,#f8fafc)}
+    .panel-top{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
+    .panel-title-block h2{margin:0;font-size:24px;letter-spacing:-.04em}.panel-title-block p{margin:5px 0 0;color:var(--muted);font-size:13px;line-height:1.45;max-width:620px}
+    .view-tabs{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:8px}
+    .tab{border:1px solid var(--line);border-radius:16px;padding:11px 12px;cursor:pointer;background:#fff;color:#334155;text-align:left;min-height:66px;transition:background .15s,border-color .15s,color .15s,transform .15s}
+    .tab strong{display:block;font-size:13px;font-weight:950;line-height:1.15}.tab span{display:block;margin-top:4px;color:#64748b;font-size:11px;line-height:1.2}
+    .tab.active{background:#0f172a;border-color:#0f172a;color:#fff;box-shadow:0 12px 28px rgba(15,23,42,.18)}.tab.active span{color:#cbd5e1}
+    .panel-help{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border:1px solid #dbeafe;border-radius:16px;background:#eff6ff;color:#1e3a8a}
+    .panel-help strong{display:block;font-size:13px}.panel-help span{display:block;margin-top:3px;font-size:12px;line-height:1.35}
+    .table-scroll{overflow:auto;max-height:calc(100vh - 250px)}
+    table{width:100%;border-collapse:collapse;min-width:920px}
+    th,td{padding:12px 14px;border-bottom:1px solid #eef2f7;text-align:left;font-size:13px;vertical-align:top}
+    th{position:sticky;top:0;z-index:2;background:#f8fafc;color:#475569;font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+    td strong{color:var(--ink)}.right{text-align:right}.status{color:var(--ok);font-weight:900}.muted{color:var(--muted)}.mini{font-size:12px;color:var(--muted)}
+    .modal{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(15,23,42,.58);backdrop-filter:blur(10px)}
+    .modal-card{width:min(780px,100%);background:#fff;border-radius:24px;overflow:hidden;box-shadow:0 30px 100px rgba(0,0,0,.28)}
+    .modal-head,.modal-foot{padding:16px 18px;background:#f8fafc;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px}.modal-foot{border-top:1px solid var(--line);border-bottom:0}
+    .modal-body{padding:18px;display:grid;gap:14px;max-height:72vh;overflow:auto}
+    .agreement-box{border:1px solid var(--line);border-radius:16px;padding:14px;background:#f8fafc;color:#475569;font-size:13px;line-height:1.55}
+    .signature-card{min-height:92px;border:1px dashed #cbd5e1;border-radius:16px;display:flex;align-items:center;justify-content:center;padding:12px;background:#fff}.signature-card img{max-width:100%;max-height:120px;object-fit:contain}
+    canvas{width:100%;height:300px;display:block;background:#fff;touch-action:none}.canvas-wrap{margin:18px;border:2px dashed #cbd5e1;border-radius:18px;overflow:hidden;background:#fff}
+    .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#0f172a;color:#fff;padding:12px 16px;border-radius:999px;box-shadow:0 20px 50px rgba(15,23,42,.25);z-index:200;font-weight:800;font-size:13px}
+    .invoice-sheet{background:#fff;color:#111827;border:1px solid #e5e7eb;border-radius:18px;padding:28px;box-shadow:0 18px 60px rgba(15,23,42,.12)}
+    .invoice-top{display:flex;justify-content:space-between;gap:24px;border-bottom:2px solid #111827;padding-bottom:18px;margin-bottom:22px}.invoice-title{font-size:30px;font-weight:900;letter-spacing:.08em;margin:0}.invoice-number{font-size:17px;font-weight:900;color:#2563eb;margin-top:8px}
+    .invoice-boxes{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px}.invoice-box{border:1px solid #e5e7eb;border-radius:14px;padding:14px;background:#f9fafb;min-height:126px}.invoice-box h3{margin:0 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:#6b7280}.invoice-box p{margin:3px 0;font-size:13px;line-height:1.45}
+    .invoice-table{width:100%;min-width:0;border-collapse:collapse;margin-top:10px}.invoice-table th{position:static;background:#111827;color:#fff;padding:11px;font-size:11px;text-transform:uppercase;letter-spacing:.06em}.invoice-table td{padding:12px 11px;border-bottom:1px solid #e5e7eb;font-size:13px}
+    .invoice-totals{width:min(360px,100%);margin:18px 0 0 auto;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden}.invoice-total-line{display:flex;justify-content:space-between;padding:11px 14px;border-bottom:1px solid #e5e7eb}.invoice-total-line:last-child{border-bottom:0;background:#111827;color:#fff;font-size:18px;font-weight:900}.invoice-note{margin-top:18px;color:#4b5563;font-size:12px;line-height:1.55}
+    @media(max-width:1120px){main{grid-template-columns:1fr}.table-scroll{max-height:none}.view-tabs{grid-template-columns:repeat(2,1fr)}}
+    @media(max-width:720px){main{padding:12px}header{align-items:flex-start;flex-direction:column}.grid2,.choice-row,.form-actions,.invoice-boxes{grid-template-columns:1fr}.panel-top,.panel-help{align-items:stretch;flex-direction:column}.view-tabs{grid-template-columns:1fr}}
+    @media print{body{background:#fff}header,.form-card,.panel-head button,.no-print{display:none!important}main{display:block;padding:0;width:100%}.table-card{box-shadow:none;border:0}.table-scroll{overflow:visible;max-height:none}table{min-width:0}body.print-invoice *{visibility:hidden}body.print-invoice #invoice-print-area,body.print-invoice #invoice-print-area *{visibility:visible}body.print-invoice #invoice-print-area{position:absolute;left:0;top:0;width:100%}body.print-invoice .invoice-sheet{border:0;border-radius:0;box-shadow:none;padding:22mm 18mm}}
   </style>
 </head>
-
 <body>
   <div id="login" class="login-wrap">
     <section class="login-card">
-      <div class="brand" style="font-size:30px">
-        <div class="brand-mark"></div>
-        <div><span>Kreate</span><span>IA</span></div>
-      </div>
+      <div class="brand" style="font-size:30px"><div class="brand-mark"></div><div><span>Kreate</span><span>IA</span></div></div>
       <h1>Acceso privado</h1>
       <p>Área interna para registrar alumnos, servicios, conformidades firmadas, citas y facturas.</p>
-
       <form id="login-form">
-        <div class="field">
-          <label>Email autorizado</label>
-          <input id="login-email" type="email" autocomplete="email" required placeholder="empresas@kreateia.com" />
-        </div>
-        <div class="field">
-          <label>Contraseña</label>
-          <input id="login-pass" type="password" autocomplete="current-password" required />
-        </div>
+        <div class="field"><label>Email autorizado</label><input id="login-email" type="email" autocomplete="email" required placeholder="empresas@kreateia.com" /></div>
+        <div class="field"><label>Contraseña</label><input id="login-pass" type="password" autocomplete="current-password" required /></div>
         <button class="btn primary" style="width:100%;margin-top:6px" type="submit">Entrar</button>
       </form>
-
       <p id="login-error" class="mini" style="color:#dc2626;margin-top:14px"></p>
     </section>
   </div>
 
   <div id="app" class="app hidden">
     <header>
-      <div class="brand" style="font-size:26px">
-        <div class="brand-mark"></div>
-        <div><span>Kreate</span><span>IA</span></div>
-        <span class="pill">Registro privado</span>
-      </div>
-
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        <span id="user-pill" class="pill warn"></span>
-        <button id="logout-btn" class="btn ghost" type="button">Salir</button>
-      </div>
+      <div class="brand" style="font-size:26px"><div class="brand-mark"></div><div><span>Kreate</span><span>IA</span></div><span class="pill">Gestión privada</span></div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span id="user-pill" class="pill warn"></span><button id="logout-btn" class="btn ghost" type="button">Salir</button></div>
     </header>
 
     <main>
       <section class="card form-card">
         <h2>Nueva ficha y factura</h2>
-        <p class="hint">Rellena los datos delante del cliente, recoge su firma en el iPad y genera la factura correlativa.</p>
+        <p class="hint">Primero elige si estás registrando Academia o Servicios IA. Academia queda exenta de IVA y permite añadir cita con recordatorio automático.</p>
 
         <form id="record-form">
           <div class="choice-row">
-            <button class="choice active" data-type="Academia" type="button">
-              <strong>Academia / Cursos</strong>
-              <span>Exento de IVA</span>
-            </button>
-            <button class="choice" data-type="Servicios IA" type="button">
-              <strong>Servicios IA</strong>
-              <span>IVA 21%</span>
-            </button>
+            <button class="choice active" data-type="Academia" type="button"><strong>Academia / Cursos</strong><span>Alumnos, clases, citas y facturas exentas de IVA.</span></button>
+            <button class="choice" data-type="Servicios IA" type="button"><strong>Servicios IA</strong><span>Clientes, trabajos a medida y facturas con IVA.</span></button>
           </div>
 
-          <div class="field">
-            <label>Nombre completo / Razón social</label>
-            <input id="fullName" required placeholder="Nombre del alumno, autónomo o empresa" />
-          </div>
+          <div class="field"><label>Nombre completo / Razón social</label><input id="fullName" required placeholder="Nombre del alumno, autónomo o empresa" /></div>
 
           <div class="grid2">
-            <div class="field">
-              <label>DNI / NIF / CIF</label>
-              <input id="taxId" placeholder="Opcional pero recomendado" />
-            </div>
-            <div class="field">
-              <label>Teléfono</label>
-              <input id="phone" type="tel" required placeholder="+34 ..." />
-            </div>
+            <div class="field"><label>DNI / NIF / CIF</label><input id="taxId" placeholder="Opcional pero recomendado" /></div>
+            <div class="field"><label>Teléfono</label><input id="phone" type="tel" required placeholder="+34 ..." /></div>
           </div>
 
-          <div class="field">
-            <label>Email del cliente</label>
-            <input id="email" type="email" required placeholder="cliente@email.com" />
-          </div>
-
-          <div class="field">
-            <label>Dirección fiscal / postal</label>
-            <input id="address" required placeholder="Calle, número, ciudad, provincia" />
-          </div>
-
-          <div class="field">
-            <label id="concept-label">Curso contratado</label>
-            <input id="concept" required placeholder="Ej. Programa Anual IA Profesional" />
-          </div>
-
-          <div class="field">
-            <label>Descripción o notas internas</label>
-            <textarea id="notes" placeholder="Horario, forma de pago, observaciones, entrega de portátil, etc."></textarea>
-          </div>
+          <div class="field"><label>Email del cliente</label><input id="email" type="email" required placeholder="cliente@email.com" /></div>
+          <div class="field"><label>Dirección fiscal / postal</label><input id="address" required placeholder="Calle, número, ciudad, provincia" /></div>
+          <div class="field"><label id="concept-label">Curso contratado</label><input id="concept" required placeholder="Ej. Programa Anual IA Profesional" /></div>
+          <div class="field"><label>Descripción o notas internas</label><textarea id="notes" placeholder="Horario, forma de pago, observaciones, entrega de portátil, etc."></textarea></div>
 
           <div class="grid2">
-            <div class="field">
-              <label>Importe base</label>
-              <input id="baseAmount" type="number" min="0" step="0.01" required placeholder="890.00" />
-            </div>
-            <div class="field">
-              <label>Fecha de operación</label>
-              <input id="issueDate" type="date" required />
-            </div>
+            <div class="field"><label>Importe base</label><input id="baseAmount" type="number" min="0" step="0.01" required placeholder="890.00" /></div>
+            <div class="field"><label>Fecha de operación</label><input id="issueDate" type="date" required /></div>
           </div>
 
           <div id="appointment-section" class="agreement-box" style="margin-bottom:14px">
             <strong style="display:block;margin-bottom:10px">Cita / clase de Academia</strong>
-
             <div class="grid2">
-              <div class="field" style="margin-bottom:0">
-                <label>Fecha de la cita</label>
-                <input id="appointmentDate" type="date" />
-              </div>
-              <div class="field" style="margin-bottom:0">
-                <label>Hora</label>
-                <input id="appointmentTime" type="time" />
-              </div>
+              <div class="field" style="margin-bottom:0"><label>Fecha de la cita</label><input id="appointmentDate" type="date" /></div>
+              <div class="field" style="margin-bottom:0"><label>Hora</label><input id="appointmentTime" type="time" /></div>
             </div>
-
-            <div class="field" style="margin:12px 0 0">
-              <label>Notas para el recordatorio</label>
-              <input id="appointmentNotes" placeholder="Ej. Primera clase presencial, traer DNI, venir 10 minutos antes..." />
-            </div>
-
-            <div class="mini" style="margin-top:8px">
-              Si rellenas fecha y hora, el sistema enviará el recordatorio automático 24h antes.
-            </div>
+            <div class="field" style="margin:12px 0 0"><label>Notas para el recordatorio</label><input id="appointmentNotes" placeholder="Ej. Primera clase presencial, traer DNI, venir 10 minutos antes..." /></div>
+            <div class="mini" style="margin-top:8px">Si rellenas fecha y hora, el sistema enviará un recordatorio automático 24h antes.</div>
           </div>
 
           <div class="grid2">
-            <div class="field">
-              <label>Forma de pago</label>
-              <select id="paymentMethod" required>
-                <option value="Efectivo">Efectivo</option>
-                <option value="TPV / Tarjeta">TPV / Tarjeta</option>
-                <option value="Transferencia">Transferencia</option>
-                <option value="Bizum">Bizum</option>
-                <option value="Pendiente">Pendiente de pago</option>
-              </select>
-            </div>
-            <div class="field">
-              <label>Estado del pago</label>
-              <select id="paymentStatus" required>
-                <option value="Pagado">Pagado</option>
-                <option value="Pendiente">Pendiente</option>
-              </select>
-            </div>
+            <div class="field"><label>Forma de pago</label><select id="paymentMethod" required><option value="Efectivo">Efectivo</option><option value="TPV / Tarjeta">TPV / Tarjeta</option><option value="Transferencia">Transferencia</option><option value="Bizum">Bizum</option><option value="Pendiente">Pendiente de pago</option></select></div>
+            <div class="field"><label>Estado del pago</label><select id="paymentStatus" required><option value="Pagado">Pagado</option><option value="Pendiente">Pendiente</option></select></div>
           </div>
 
           <div class="summary" id="tax-summary"></div>
 
           <div class="sig-preview">
-            <div style="flex:1">
-              <strong>Firma de conformidad</strong>
-              <div class="mini">El cliente acepta el registro del servicio, tratamiento de datos y condiciones indicadas.</div>
-            </div>
+            <div style="flex:1"><strong>Firma de conformidad</strong><div class="mini">El cliente acepta el registro, condiciones, tratamiento de datos y emisión de factura.</div></div>
             <img id="signature-preview" class="hidden" alt="Firma del cliente" />
             <button id="open-signature" class="btn ghost" type="button">Firmar</button>
           </div>
 
-          <label class="legal">
-            <input id="legalAccepted" type="checkbox" required />
-            <span>El cliente acepta la política de privacidad, la prestación del servicio indicado y autoriza el tratamiento de sus datos para gestión administrativa, facturación y comunicación relacionada con KreateIA.</span>
-          </label>
+          <label class="legal"><input id="legalAccepted" type="checkbox" required /><span>El cliente acepta la política de privacidad, la prestación del servicio indicado y autoriza el tratamiento de sus datos para gestión administrativa, facturación y comunicación relacionada con KreateIA.</span></label>
+          <label class="legal" style="background:#eff6ff;border-color:#bfdbfe;color:#1e3a8a"><input id="sendEmail" type="checkbox" /><span>Enviar automáticamente al cliente un email desde empresas@kreateia.com con el resumen de factura y mensaje de agradecimiento.</span></label>
 
-          <label class="legal" style="background:#eff6ff;border-color:#bfdbfe;color:#1e3a8a">
-            <input id="sendEmail" type="checkbox" />
-            <span>Enviar automáticamente al cliente un email desde empresas@kreateia.com con el resumen de factura y mensaje de agradecimiento.</span>
-          </label>
-
-          <div class="form-actions">
-            <button id="submit-btn" class="btn primary" type="submit">Generar factura</button>
-            <button id="reset-btn" class="btn ghost" type="button">Limpiar</button>
-          </div>
+          <div class="form-actions"><button id="submit-btn" class="btn primary" type="submit">Generar factura</button><button id="reset-btn" class="btn ghost" type="button">Limpiar</button></div>
         </form>
       </section>
 
       <section class="card table-card">
-        <div class="table-head">
-          <div>
-            <h2 style="margin:0">Gestión privada</h2>
-            <div class="mini">Academia y Servicios IA separados, con fichas, acuerdos, citas y facturas.</div>
+        <div class="panel-head">
+          <div class="panel-top">
+            <div class="panel-title-block">
+              <h2 id="panel-title">Alumnos de Academia</h2>
+              <p id="panel-description">Fichas de alumnos, citas presenciales, acuerdos firmados y acceso rápido a nuevas facturas de cursos.</p>
+            </div>
+            <button class="btn ghost no-print" onclick="window.print()" type="button">Imprimir vista</button>
           </div>
 
-          <div class="tabs">
-            <button id="tab-academy-clients" class="tab active" type="button">Academia</button>
-            <button id="tab-services-clients" class="tab" type="button">Servicios IA</button>
-            <button id="tab-academy-invoices" class="tab" type="button">Facturas Academia</button>
-            <button id="tab-services-invoices" class="tab" type="button">Facturas Servicios</button>
-            <button class="btn ghost no-print" onclick="window.print()" type="button">Imprimir</button>
+          <div class="view-tabs">
+            <button id="tab-academy-clients" class="tab active" type="button"><strong>Alumnos Academia</strong><span>Fichas, firmas y citas</span></button>
+            <button id="tab-services-clients" class="tab" type="button"><strong>Clientes Servicios IA</strong><span>Empresas y trabajos IA</span></button>
+            <button id="tab-academy-invoices" class="tab" type="button"><strong>Facturas Academia</strong><span>Cursos exentos de IVA</span></button>
+            <button id="tab-services-invoices" class="tab" type="button"><strong>Facturas Servicios IA</strong><span>Servicios sujetos a IVA</span></button>
+          </div>
+
+          <div class="panel-help">
+            <div><strong id="panel-help-title">Estás viendo alumnos de Academia</strong><span id="panel-help-text">Desde aquí puedes abrir una ficha, ver su firma y crear una nueva factura reutilizando los datos del alumno.</span></div>
+            <span id="panel-counter" class="pill">0 registros</span>
           </div>
         </div>
 
         <div id="clients-view" class="table-scroll">
           <table>
-            <thead>
-              <tr>
-                <th>Cliente</th>
-                <th>Contacto</th>
-                <th>Tipo</th>
-                <th>Última factura</th>
-                <th>Firma</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody id="client-rows">
-              <tr><td colspan="6" class="muted">Cargando clientes...</td></tr>
-            </tbody>
+            <thead><tr><th>Cliente</th><th>Contacto</th><th>Tipo</th><th>Última factura</th><th>Firma</th><th>Acciones</th></tr></thead>
+            <tbody id="client-rows"><tr><td colspan="6" class="muted">Cargando clientes...</td></tr></tbody>
           </table>
         </div>
 
         <div id="invoices-view" class="table-scroll hidden">
           <table>
-            <thead>
-              <tr>
-                <th>Factura</th>
-                <th>Cliente</th>
-                <th>Concepto</th>
-                <th>Tipo</th>
-                <th class="right">Base</th>
-                <th class="right">IVA</th>
-                <th class="right">Total</th>
-                <th>Email</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody id="invoice-rows">
-              <tr><td colspan="9" class="muted">Cargando...</td></tr>
-            </tbody>
+            <thead><tr><th>Factura</th><th>Cliente</th><th>Concepto</th><th>Tipo</th><th class="right">Base</th><th class="right">IVA</th><th class="right">Total</th><th>Email</th><th>Acciones</th></tr></thead>
+            <tbody id="invoice-rows"><tr><td colspan="9" class="muted">Cargando...</td></tr></tbody>
           </table>
         </div>
       </section>
@@ -861,117 +190,33 @@
 
   <div id="signature-modal" class="modal hidden">
     <section class="modal-card">
-      <div class="modal-head">
-        <div>
-          <strong>Firma del cliente</strong>
-          <div class="mini">Firma directamente con el dedo o Apple Pencil.</div>
-        </div>
-        <button id="close-signature" class="btn ghost" type="button">Cerrar</button>
-      </div>
-
-      <div class="canvas-wrap">
-        <canvas id="signature-canvas" width="1200" height="440"></canvas>
-      </div>
-
-      <div class="modal-foot">
-        <button id="clear-signature" class="btn danger" type="button">Limpiar firma</button>
-        <button id="save-signature" class="btn primary" type="button">Guardar firma</button>
-      </div>
+      <div class="modal-head"><div><strong>Firma del cliente</strong><div class="mini">Firma directamente con el dedo o Apple Pencil.</div></div><button id="close-signature" class="btn ghost" type="button">Cerrar</button></div>
+      <div class="canvas-wrap"><canvas id="signature-canvas" width="1200" height="440"></canvas></div>
+      <div class="modal-foot"><button id="clear-signature" class="btn danger" type="button">Limpiar firma</button><button id="save-signature" class="btn primary" type="button">Guardar firma</button></div>
     </section>
   </div>
 
   <div id="client-modal" class="modal hidden">
     <section class="modal-card">
-      <div class="modal-head">
-        <div>
-          <strong id="client-modal-title">Ficha del cliente</strong>
-          <div class="mini" id="client-modal-subtitle">Datos, notas, firma y facturas asociadas.</div>
-        </div>
-        <button id="close-client-modal" class="btn ghost" type="button">Cerrar</button>
-      </div>
-
+      <div class="modal-head"><div><strong id="client-modal-title">Ficha del cliente</strong><div class="mini" id="client-modal-subtitle">Datos, notas, firma y facturas asociadas.</div></div><button id="close-client-modal" class="btn ghost" type="button">Cerrar</button></div>
       <div class="modal-body">
-        <div class="grid2">
-          <div class="field">
-            <label>Nombre / Razón social</label>
-            <input id="edit-fullName" />
-          </div>
-          <div class="field">
-            <label>DNI / NIF / CIF</label>
-            <input id="edit-taxId" />
-          </div>
-        </div>
-
-        <div class="grid2">
-          <div class="field">
-            <label>Email</label>
-            <input id="edit-email" type="email" />
-          </div>
-          <div class="field">
-            <label>Teléfono</label>
-            <input id="edit-phone" />
-          </div>
-        </div>
-
-        <div class="field">
-          <label>Dirección</label>
-          <input id="edit-address" />
-        </div>
-
-        <div class="grid2">
-          <div class="field">
-            <label>Tipo principal</label>
-            <select id="edit-serviceType">
-              <option value="Academia">Academia / Cursos</option>
-              <option value="Servicios IA">Servicios IA</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>Última factura</label>
-            <input id="edit-lastInvoice" disabled />
-          </div>
-        </div>
-
-        <div class="field">
-          <label>Notas internas</label>
-          <textarea id="edit-internalNotes" placeholder="Seguimiento, pagos, preferencias, horarios, incidencias, etc."></textarea>
-        </div>
-
+        <div class="grid2"><div class="field"><label>Nombre / Razón social</label><input id="edit-fullName" /></div><div class="field"><label>DNI / NIF / CIF</label><input id="edit-taxId" /></div></div>
+        <div class="grid2"><div class="field"><label>Email</label><input id="edit-email" type="email" /></div><div class="field"><label>Teléfono</label><input id="edit-phone" /></div></div>
+        <div class="field"><label>Dirección</label><input id="edit-address" /></div>
+        <div class="grid2"><div class="field"><label>Tipo principal</label><select id="edit-serviceType"><option value="Academia">Academia / Cursos</option><option value="Servicios IA">Servicios IA</option></select></div><div class="field"><label>Última factura</label><input id="edit-lastInvoice" disabled /></div></div>
+        <div class="field"><label>Notas internas</label><textarea id="edit-internalNotes" placeholder="Seguimiento, pagos, preferencias, horarios, incidencias, etc."></textarea></div>
         <div class="agreement-box" id="client-agreement"></div>
         <div class="signature-card" id="client-signature"></div>
-
-        <div>
-          <h2 style="font-size:16px;margin:4px 0 10px">Facturas del cliente</h2>
-          <div id="client-invoices" class="agreement-box"></div>
-        </div>
+        <div><h2 style="font-size:16px;margin:4px 0 10px">Facturas del cliente</h2><div id="client-invoices" class="agreement-box"></div></div>
       </div>
-
-      <div class="modal-foot">
-        <button id="archive-client-btn" class="btn danger" type="button">Archivar cliente</button>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button id="invoice-client-btn" class="btn ghost" type="button">Nueva factura</button>
-          <button id="save-client-btn" class="btn primary" type="button">Guardar ficha</button>
-        </div>
-      </div>
+      <div class="modal-foot"><button id="archive-client-btn" class="btn danger" type="button">Archivar cliente</button><div style="display:flex;gap:8px;flex-wrap:wrap"><button id="invoice-client-btn" class="btn ghost" type="button">Nueva factura</button><button id="save-client-btn" class="btn primary" type="button">Guardar ficha</button></div></div>
     </section>
   </div>
 
   <div id="invoice-modal" class="modal hidden">
     <section class="modal-card" style="width:min(920px,100%)">
-      <div class="modal-head no-print">
-        <div>
-          <strong id="invoice-modal-title">Factura</strong>
-          <div class="mini">Vista imprimible con datos fiscales y forma de pago.</div>
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button id="print-invoice-btn" class="btn primary" type="button">Imprimir / PDF</button>
-          <button id="close-invoice-modal" class="btn ghost" type="button">Cerrar</button>
-        </div>
-      </div>
-
-      <div class="modal-body">
-        <div id="invoice-print-area"></div>
-      </div>
+      <div class="modal-head no-print"><div><strong id="invoice-modal-title">Factura</strong><div class="mini">Vista imprimible con datos fiscales y forma de pago.</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button id="print-invoice-btn" class="btn primary" type="button">Imprimir / PDF</button><button id="close-invoice-modal" class="btn ghost" type="button">Cerrar</button></div></div>
+      <div class="modal-body"><div id="invoice-print-area"></div></div>
     </section>
   </div>
 
@@ -997,6 +242,41 @@
     const db = getFirestore(fbApp);
     const $ = (id) => document.getElementById(id);
 
+    const VIEW_CONFIG = {
+      academyClients: {
+        title: "Alumnos de Academia",
+        description: "Fichas de alumnos, citas presenciales, acuerdos firmados y acceso rápido a nuevas facturas de cursos.",
+        helpTitle: "Estás viendo alumnos de Academia",
+        helpText: "Desde aquí puedes abrir una ficha, ver su firma y crear una nueva factura reutilizando los datos del alumno.",
+        clientView: true,
+        serviceType: "Academia",
+      },
+      servicesClients: {
+        title: "Clientes de Servicios IA",
+        description: "Clientes de trabajos a medida, automatizaciones, contenido IA y servicios profesionales sujetos a IVA.",
+        helpTitle: "Estás viendo clientes de Servicios IA",
+        helpText: "Aquí se gestionan empresas o particulares que contratan trabajos IA, no cursos de Academia.",
+        clientView: true,
+        serviceType: "Servicios IA",
+      },
+      academyInvoices: {
+        title: "Facturas de Academia",
+        description: "Facturas de cursos y formación. Se emiten con los datos fiscales de Academia y figuran como exentas de IVA.",
+        helpTitle: "Estás viendo facturas de Academia",
+        helpText: "Estas facturas pueden incluir cita o clase programada para que el sistema envíe recordatorio 24h antes.",
+        clientView: false,
+        serviceType: "Academia",
+      },
+      servicesInvoices: {
+        title: "Facturas de Servicios IA",
+        description: "Facturas de servicios profesionales IA. Se emiten con los datos fiscales de Servicios IA y aplican IVA.",
+        helpTitle: "Estás viendo facturas de Servicios IA",
+        helpText: "Estas facturas corresponden a trabajos y servicios realizados para clientes, empresas o autónomos.",
+        clientView: false,
+        serviceType: "Servicios IA",
+      },
+    };
+
     let currentUser = null;
     let selectedType = "Academia";
     let signatureDataUrl = "";
@@ -1006,6 +286,7 @@
     let invoices = [];
     let unsubscribeInvoices = null;
     let unsubscribeClients = null;
+    let openClientId = "";
 
     const money = (cents) => new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format((Number(cents) || 0) / 100);
     const escapeHtml = (s) => String(s || "").replace(/[&<>"']/g, m => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#039;" }[m]));
@@ -1043,11 +324,9 @@
       selectedType = "Academia";
       signatureDataUrl = "";
       selectedClientId = "";
-
       $("issueDate").valueAsDate = new Date();
       $("signature-preview").classList.add("hidden");
       $("submit-btn").textContent = "Generar factura";
-
       setupCanvas();
 
       document.querySelectorAll(".choice").forEach(btn => {
@@ -1060,11 +339,7 @@
     document.querySelectorAll(".choice").forEach(btn => {
       btn.addEventListener("click", () => {
         selectedType = btn.dataset.type;
-
-        document.querySelectorAll(".choice").forEach(b => {
-          b.classList.toggle("active", b === btn);
-        });
-
+        document.querySelectorAll(".choice").forEach(b => b.classList.toggle("active", b === btn));
         updateTaxSummary();
       });
     });
@@ -1096,7 +371,6 @@
     onAuthStateChanged(auth, async (user) => {
       if (unsubscribeInvoices) unsubscribeInvoices();
       if (unsubscribeClients) unsubscribeClients();
-
       currentUser = user;
 
       if (!user) {
@@ -1117,7 +391,6 @@
         $("user-pill").textContent = normalizeEmail(user.email);
         $("login").classList.add("hidden");
         $("app").classList.remove("hidden");
-
         subscribeData();
       } catch {
         await signOut(auth);
@@ -1133,6 +406,7 @@
         clients = [];
         snap.forEach(d => clients.push({ id: d.id, ...d.data() }));
         renderClients();
+        updatePanelHeader();
       }, () => {
         $("client-rows").innerHTML = `<tr><td colspan="6" class="muted">No se pudo cargar clientes. Revisa las reglas de Firestore.</td></tr>`;
       });
@@ -1141,22 +415,40 @@
         invoices = [];
         snap.forEach(d => invoices.push({ id: d.id, ...d.data() }));
         renderInvoices();
-
-        if (!$("client-modal").classList.contains("hidden")) {
-          refreshOpenClientModal();
-        }
+        updatePanelHeader();
+        if (!$("client-modal").classList.contains("hidden")) refreshOpenClientModal();
       }, () => {
         $("invoice-rows").innerHTML = `<tr><td colspan="9" class="muted">No se pudo cargar facturas. Revisa las reglas de Firestore.</td></tr>`;
       });
     }
 
+    function filteredClientsForView() {
+      const cfg = VIEW_CONFIG[currentView];
+      return clients.filter(c => !c.archivedAt && (c.serviceType || "Academia") === cfg.serviceType);
+    }
+
+    function filteredInvoicesForView() {
+      const cfg = VIEW_CONFIG[currentView];
+      return invoices.filter(inv => (inv.serviceType || "Academia") === cfg.serviceType);
+    }
+
+    function updatePanelHeader() {
+      const cfg = VIEW_CONFIG[currentView];
+      const count = cfg.clientView ? filteredClientsForView().length : filteredInvoicesForView().length;
+
+      $("panel-title").textContent = cfg.title;
+      $("panel-description").textContent = cfg.description;
+      $("panel-help-title").textContent = cfg.helpTitle;
+      $("panel-help-text").textContent = cfg.helpText;
+      $("panel-counter").textContent = `${count} ${count === 1 ? "registro" : "registros"}`;
+    }
+
     function setView(view) {
       currentView = view;
+      const cfg = VIEW_CONFIG[view];
 
-      const isClientView = view === "academyClients" || view === "servicesClients";
-
-      $("clients-view").classList.toggle("hidden", !isClientView);
-      $("invoices-view").classList.toggle("hidden", isClientView);
+      $("clients-view").classList.toggle("hidden", !cfg.clientView);
+      $("invoices-view").classList.toggle("hidden", cfg.clientView);
 
       $("tab-academy-clients").classList.toggle("active", view === "academyClients");
       $("tab-services-clients").classList.toggle("active", view === "servicesClients");
@@ -1165,6 +457,7 @@
 
       renderClients();
       renderInvoices();
+      updatePanelHeader();
     }
 
     $("tab-academy-clients").addEventListener("click", () => setView("academyClients"));
@@ -1173,11 +466,13 @@
     $("tab-services-invoices").addEventListener("click", () => setView("servicesInvoices"));
 
     function renderClients() {
-      const serviceType = currentView === "servicesClients" ? "Servicios IA" : "Academia";
-      const activeClients = clients.filter(c => !c.archivedAt && (c.serviceType || "Academia") === serviceType);
+      const cfg = VIEW_CONFIG[currentView];
+      const activeClients = filteredClientsForView();
+
+      if (!cfg.clientView) return;
 
       if (!activeClients.length) {
-        $("client-rows").innerHTML = `<tr><td colspan="6" class="muted">Todavía no hay clientes activos en ${serviceType}.</td></tr>`;
+        $("client-rows").innerHTML = `<tr><td colspan="6" class="muted">Todavía no hay clientes activos en ${cfg.serviceType}.</td></tr>`;
         return;
       }
 
@@ -1220,11 +515,13 @@
     }
 
     function renderInvoices() {
-      const serviceType = currentView === "servicesInvoices" ? "Servicios IA" : "Academia";
-      const filteredInvoices = invoices.filter(inv => (inv.serviceType || "Academia") === serviceType);
+      const cfg = VIEW_CONFIG[currentView];
+      const filteredInvoices = filteredInvoicesForView();
+
+      if (cfg.clientView) return;
 
       if (!filteredInvoices.length) {
-        $("invoice-rows").innerHTML = `<tr><td colspan="9" class="muted">Todavía no hay facturas de ${serviceType}.</td></tr>`;
+        $("invoice-rows").innerHTML = `<tr><td colspan="9" class="muted">Todavía no hay facturas de ${cfg.serviceType}.</td></tr>`;
         return;
       }
 
@@ -1257,9 +554,7 @@
       });
 
       document.querySelectorAll("[data-open-client]").forEach(btn => {
-        if (btn.dataset.openClient) {
-          btn.addEventListener("click", () => openClient(btn.dataset.openClient));
-        }
+        if (btn.dataset.openClient) btn.addEventListener("click", () => openClient(btn.dataset.openClient));
       });
     }
 
@@ -1270,10 +565,7 @@
     function fillFormFromClient(clientId) {
       const c = getClient(clientId);
 
-      if (!c) {
-        toast("No se encontró el cliente.");
-        return;
-      }
+      if (!c) return toast("No se encontró el cliente.");
 
       selectedClientId = c.id;
       selectedType = c.serviceType === "Servicios IA" ? "Servicios IA" : "Academia";
@@ -1295,14 +587,10 @@
       $("submit-btn").textContent = `Nueva factura para ${c.fullName || "cliente"}`;
 
       updateTaxSummary();
-
       $("client-modal").classList.add("hidden");
-
       window.scrollTo({ top: 0, behavior: "smooth" });
       toast("Cliente cargado en el formulario.");
     }
-
-    let openClientId = "";
 
     function openClient(clientId) {
       openClientId = clientId;
@@ -1312,7 +600,6 @@
 
     function refreshOpenClientModal() {
       const c = getClient(openClientId);
-
       if (!c) return;
 
       $("client-modal-title").textContent = c.fullName || "Ficha del cliente";
@@ -1404,7 +691,6 @@
 
     async function archiveClient() {
       if (!openClientId || !currentUser) return;
-
       if (!confirm("¿Archivar este cliente? No se borran sus facturas, solo desaparece del listado activo.")) return;
 
       const btn = $("archive-client-btn");
@@ -1419,10 +705,7 @@
             "Content-Type": "application/json",
             "Authorization": `Bearer ${token}`,
           },
-          body: JSON.stringify({
-            clientId: openClientId,
-            archive: true,
-          }),
+          body: JSON.stringify({ clientId: openClientId, archive: true }),
         });
 
         const data = await res.json().catch(() => ({}));
@@ -1445,10 +728,7 @@
     function openInvoice(invoiceId) {
       const inv = getInvoice(invoiceId);
 
-      if (!inv) {
-        toast("No se encontró la factura.");
-        return;
-      }
+      if (!inv) return toast("No se encontró la factura.");
 
       $("invoice-modal-title").textContent = `Factura ${inv.invoiceNumber}`;
       $("invoice-print-area").innerHTML = buildInvoiceSheet(inv);
@@ -1544,18 +824,9 @@
           </table>
 
           <div class="invoice-totals">
-            <div class="invoice-total-line">
-              <span>Base imponible</span>
-              <strong>${money(inv.baseCents)}</strong>
-            </div>
-            <div class="invoice-total-line">
-              <span>${escapeHtml(taxLabel)}</span>
-              <strong>${isExempt ? "Exento" : money(inv.taxCents)}</strong>
-            </div>
-            <div class="invoice-total-line">
-              <span>Total factura</span>
-              <span>${money(inv.totalCents)}</span>
-            </div>
+            <div class="invoice-total-line"><span>Base imponible</span><strong>${money(inv.baseCents)}</strong></div>
+            <div class="invoice-total-line"><span>${escapeHtml(taxLabel)}</span><strong>${isExempt ? "Exento" : money(inv.taxCents)}</strong></div>
+            <div class="invoice-total-line"><span>Total factura</span><span>${money(inv.totalCents)}</span></div>
           </div>
 
           <p class="invoice-note">
@@ -1657,7 +928,6 @@
         const data = await res.json().catch(() => ({}));
 
         if (!res.ok) throw new Error(data.error || "No se pudo enviar el email.");
-
         if (!silent) toast("Email enviado desde empresas@kreateia.com.");
       } catch (err) {
         toast(err.message || "Error enviando email.");
@@ -1688,7 +958,6 @@
     function point(ev) {
       const rect = canvas.getBoundingClientRect();
       const src = ev.touches ? ev.touches[0] : ev;
-
       return {
         x: (src.clientX - rect.left) * (canvas.width / rect.width),
         y: (src.clientY - rect.top) * (canvas.height / rect.height),
@@ -1698,7 +967,6 @@
     function start(ev) {
       ev.preventDefault();
       drawing = true;
-
       const p = point(ev);
       ctx.beginPath();
       ctx.moveTo(p.x, p.y);
@@ -1706,9 +974,7 @@
 
     function move(ev) {
       if (!drawing) return;
-
       ev.preventDefault();
-
       const p = point(ev);
       ctx.lineTo(p.x, p.y);
       ctx.stroke();
@@ -1743,7 +1009,6 @@
       signatureDataUrl = canvas.toDataURL("image/png", .92);
       $("signature-preview").src = signatureDataUrl;
       $("signature-preview").classList.remove("hidden");
-
       modal.classList.add("hidden");
       toast("Firma guardada.");
     });
