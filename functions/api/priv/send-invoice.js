@@ -66,6 +66,8 @@ function buildInvoiceEmail(sender, invoice) {
   const taxText = invoice.taxRate === 0
     ? 'Formación exenta de IVA'
     : `IVA ${invoice.taxRate}%`;
+  const paymentMethod = escapeHtml(invoice.paymentMethod || 'No indicado');
+  const paymentStatus = escapeHtml(invoice.paymentStatus || 'No indicado');
 
   const html = `
     <!doctype html>
@@ -85,7 +87,8 @@ function buildInvoiceEmail(sender, invoice) {
             <tr>
               <td style="padding:28px">
                 <p style="font-size:16px;line-height:1.6;margin:0 0 18px">Hola ${clientName},</p>
-                <p style="font-size:16px;line-height:1.6;margin:0 0 22px">Gracias por confiar en <strong>KreateIA</strong>. Te enviamos el resumen de tu factura <strong>${invoiceNumber}</strong>.</p>
+                <p style="font-size:16px;line-height:1.6;margin:0 0 22px">Gracias por confiar en <strong>KreateIA</strong>. Te enviamos la factura <strong>${invoiceNumber}</strong>.</p>
+
                 <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 18px;border-collapse:collapse">
                   <tr>
                     <td style="width:50%;vertical-align:top;padding:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px">
@@ -103,6 +106,7 @@ function buildInvoiceEmail(sender, invoice) {
                     </td>
                   </tr>
                 </table>
+
                 <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden">
                   <tr style="background:#f8fafc">
                     <td style="padding:12px;border-bottom:1px solid #e2e8f0;color:#64748b;font-size:12px;text-transform:uppercase;font-weight:bold">Concepto</td>
@@ -124,7 +128,20 @@ function buildInvoiceEmail(sender, invoice) {
                     <td style="padding:14px;text-align:right;font-size:18px;font-weight:900">${money(invoice.totalCents)}</td>
                   </tr>
                 </table>
-                <p style="font-size:13px;line-height:1.6;color:#64748b;margin:22px 0 0">Si necesitas que modifiquemos algún dato fiscal, responde directamente a este correo.</p>
+
+                <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:18px;border-collapse:collapse;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden">
+                  <tr>
+                    <td style="padding:12px;background:#f8fafc;color:#64748b;font-size:12px;text-transform:uppercase;font-weight:bold">Forma de pago</td>
+                    <td style="padding:12px">${paymentMethod}</td>
+                    <td style="padding:12px;background:#f8fafc;color:#64748b;font-size:12px;text-transform:uppercase;font-weight:bold">Estado</td>
+                    <td style="padding:12px">${paymentStatus}</td>
+                  </tr>
+                </table>
+
+                <p style="font-size:13px;line-height:1.6;color:#64748b;margin:22px 0 0">
+                  ${invoice.taxRate === 0 ? 'Operación de formación indicada como exenta de IVA.' : 'La cuota de IVA se muestra desglosada.'}
+                  Si necesitas que modifiquemos algún dato fiscal, responde directamente a este correo.
+                </p>
               </td>
             </tr>
             <tr>
@@ -169,6 +186,7 @@ async function sendGmail(accessToken, mail) {
     },
     body: JSON.stringify({ raw: b64uBytes(new TextEncoder().encode(mime)) }),
   });
+
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error?.message || 'Gmail API no pudo enviar el correo');
   return data;
@@ -177,6 +195,7 @@ async function sendGmail(accessToken, mail) {
 async function getGmailDelegatedToken(env) {
   const serviceEmail = env.GOOGLE_CLIENT_EMAIL || env.FIREBASE_CLIENT_EMAIL;
   const privateKey = (env.GOOGLE_PRIVATE_KEY || env.FIREBASE_PRIVATE_KEY).replace(/\\n/g, '\n');
+
   const now = Math.floor(Date.now() / 1000);
   const payload = {
     iss: serviceEmail,
@@ -186,12 +205,14 @@ async function getGmailDelegatedToken(env) {
     exp: now + 3600,
     scope: 'https://www.googleapis.com/auth/gmail.send',
   };
+
   const jwt = await signJWT(payload, privateKey);
   const res = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`,
   });
+
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error_description || data.error || 'No se pudo obtener token Gmail');
   return data.access_token;
@@ -200,6 +221,7 @@ async function getGmailDelegatedToken(env) {
 async function isAllowedStaff(projectId, accessToken, email) {
   const key = normalizeEmail(email);
   if (!key) return false;
+
   const doc = await getDoc(projectId, `private_allowed_users/${key}`, accessToken, true);
   return doc.exists && doc.data.active === true;
 }
@@ -210,15 +232,23 @@ async function verifyFirebaseToken(idToken, firebaseApiKey) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ idToken }),
   });
+
   if (!res.ok) throw new Error('Token inválido o expirado');
+
   const data = await res.json();
   const user = data.users?.[0];
+
   if (!user?.localId || !user?.email) throw new Error('Token inválido');
-  return { uid: user.localId, email: normalizeEmail(user.email) };
+
+  return {
+    uid: user.localId,
+    email: normalizeEmail(user.email),
+  };
 }
 
 async function getServiceAccountToken(env, scope) {
   const now = Math.floor(Date.now() / 1000);
+
   const payload = {
     iss: env.FIREBASE_CLIENT_EMAIL,
     sub: env.FIREBASE_CLIENT_EMAIL,
@@ -227,22 +257,40 @@ async function getServiceAccountToken(env, scope) {
     exp: now + 3600,
     scope,
   };
+
   const jwt = await signJWT(payload, env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'));
   const res = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`,
   });
+
   if (!res.ok) throw new Error('No se pudo obtener token de Google');
   return (await res.json()).access_token;
 }
 
 async function signJWT(payload, pemKey) {
   const unsigned = `${b64uJson({ alg: 'RS256', typ: 'JWT' })}.${b64uJson(payload)}`;
-  const pemBody = pemKey.replace('-----BEGIN PRIVATE KEY-----', '').replace('-----END PRIVATE KEY-----', '').replace(/\s/g, '');
+  const pemBody = pemKey
+    .replace('-----BEGIN PRIVATE KEY-----', '')
+    .replace('-----END PRIVATE KEY-----', '')
+    .replace(/\s/g, '');
+
   const der = Uint8Array.from(atob(pemBody), c => c.charCodeAt(0));
-  const key = await crypto.subtle.importKey('pkcs8', der.buffer, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign']);
-  const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, new TextEncoder().encode(unsigned));
+  const key = await crypto.subtle.importKey(
+    'pkcs8',
+    der.buffer,
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+
+  const sig = await crypto.subtle.sign(
+    'RSASSA-PKCS1-v1_5',
+    key,
+    new TextEncoder().encode(unsigned)
+  );
+
   return `${unsigned}.${b64uBytes(new Uint8Array(sig))}`;
 }
 
@@ -262,10 +310,19 @@ async function getDoc(projectId, path, accessToken, allowMissing = false) {
   const res = await fetch(`${firestoreBase(projectId)}/${encodePath(path)}`, {
     headers: { 'Authorization': `Bearer ${accessToken}` },
   });
-  if (res.status === 404 && allowMissing) return { exists: false, data: {}, updateTime: null };
+
+  if (res.status === 404 && allowMissing) {
+    return { exists: false, data: {}, updateTime: null };
+  }
+
   if (!res.ok) throw new Error(`No se pudo leer ${path}`);
+
   const raw = await res.json();
-  return { exists: true, data: fromFields(raw.fields || {}), updateTime: raw.updateTime || null };
+  return {
+    exists: true,
+    data: fromFields(raw.fields || {}),
+    updateTime: raw.updateTime || null,
+  };
 }
 
 async function commitWrites(projectId, accessToken, writes) {
@@ -277,6 +334,7 @@ async function commitWrites(projectId, accessToken, writes) {
     },
     body: JSON.stringify({ writes }),
   });
+
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`Firestore commit: ${res.status} ${text.slice(0, 180)}`);
@@ -297,14 +355,18 @@ function encodePath(path) {
 
 function toFields(obj) {
   const fields = {};
-  Object.entries(obj).forEach(([k, v]) => { fields[k] = toValue(v); });
+  Object.entries(obj).forEach(([k, v]) => {
+    fields[k] = toValue(v);
+  });
   return fields;
 }
 
 function toValue(v) {
   if (v === null || v === undefined) return { nullValue: null };
   if (typeof v === 'boolean') return { booleanValue: v };
-  if (typeof v === 'number') return Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
+  if (typeof v === 'number') {
+    return Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
+  }
   if (Array.isArray(v)) return { arrayValue: { values: v.map(toValue) } };
   if (typeof v === 'object') return { mapValue: { fields: toFields(v) } };
   return { stringValue: String(v) };
@@ -312,7 +374,9 @@ function toValue(v) {
 
 function fromFields(fields) {
   const obj = {};
-  Object.entries(fields).forEach(([k, v]) => { obj[k] = fromValue(v); });
+  Object.entries(fields).forEach(([k, v]) => {
+    obj[k] = fromValue(v);
+  });
   return obj;
 }
 
@@ -329,11 +393,20 @@ function fromValue(v) {
 }
 
 function money(cents) {
-  return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format((Number(cents) || 0) / 100);
+  return new Intl.NumberFormat('es-ES', {
+    style: 'currency',
+    currency: 'EUR',
+  }).format((Number(cents) || 0) / 100);
 }
 
 function escapeHtml(s) {
-  return String(s || '').replace(/[&<>"']/g, m => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#039;' }[m]));
+  return String(s || '').replace(/[&<>"']/g, m => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;',
+  }[m]));
 }
 
 function getBearerToken(request) {
@@ -351,7 +424,10 @@ function requireEnv(env, keys) {
 }
 
 function json(data, status = 200) {
-  return new Response(JSON.stringify(data), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { ...CORS, 'Content-Type': 'application/json' },
+  });
 }
 
 function jsonError(error, status = 400) {
