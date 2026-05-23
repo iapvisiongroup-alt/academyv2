@@ -30,12 +30,7 @@ export async function onRequest(context) {
     if (!body) return jsonError('Body JSON inválido', 400);
 
     const payload = normalizeInvoicePayload(body, staff);
-    payload.issuer = {
-      name: env.COMPANY_NAME || 'KreateIA',
-      taxId: env.COMPANY_TAX_ID || '',
-      address: env.COMPANY_ADDRESS || '',
-      email: env.GMAIL_SENDER || '',
-    };
+    payload.issuer = getIssuerForService(env, payload.serviceType);
 
     const invoice = await createInvoiceWithCounter(
       env.FIREBASE_PROJECT_ID,
@@ -53,12 +48,20 @@ export async function onRequest(context) {
 function normalizeInvoicePayload(body, staff) {
   const serviceType = body.serviceType === 'Academia' ? 'Academia' : 'Servicios IA';
   const baseCents = Math.round(Number(body.baseAmount || 0) * 100);
-  if (!Number.isFinite(baseCents) || baseCents <= 0) throw new Error('Importe base inválido');
+
+  if (!Number.isFinite(baseCents) || baseCents <= 0) {
+    throw new Error('Importe base inválido');
+  }
 
   const client = body.client || {};
   const clientEmail = normalizeEmail(client.email);
-  if (!client.fullName || !clientEmail || !clientEmail.includes('@')) throw new Error('Faltan datos del cliente');
+
+  if (!client.fullName || !clientEmail || !clientEmail.includes('@')) {
+    throw new Error('Faltan datos del cliente');
+  }
+
   if (!body.concept) throw new Error('Falta el concepto');
+
   if (!body.signatureDataUrl || !String(body.signatureDataUrl).startsWith('data:image/png;base64,')) {
     throw new Error('Falta la firma del cliente');
   }
@@ -67,7 +70,6 @@ function normalizeInvoicePayload(body, staff) {
   const taxCents = Math.round(baseCents * taxRate / 100);
   const totalCents = baseCents + taxCents;
   const now = new Date().toISOString();
-  const paymentStatus = normalizePaymentStatus(body.paymentStatus);
 
   return {
     serviceType,
@@ -75,8 +77,9 @@ function normalizeInvoicePayload(body, staff) {
     notes: String(body.notes || '').trim().slice(0, 1200),
     issueDate: String(body.issueDate || now.slice(0, 10)).slice(0, 10),
     paymentMethod: normalizePaymentMethod(body.paymentMethod),
-    paymentStatus,
-    paidAt: paymentStatus === 'Pagado' ? now.slice(0, 10) : null,
+    paymentStatus: normalizePaymentStatus(body.paymentStatus),
+    paidAt: normalizePaymentStatus(body.paymentStatus) === 'Pagado' ? now.slice(0, 10) : null,
+    appointment: normalizeAppointment(body.appointment, serviceType),
     taxRate,
     taxLabel: taxRate === 0 ? 'Formación exenta de IVA' : 'IVA 21%',
     baseCents,
@@ -98,6 +101,24 @@ function normalizeInvoicePayload(body, staff) {
   };
 }
 
+function getIssuerForService(env, serviceType) {
+  if (serviceType === 'Academia') {
+    return {
+      name: env.ACADEMY_COMPANY_NAME || env.COMPANY_NAME || 'KreateIA',
+      taxId: env.ACADEMY_COMPANY_TAX_ID || env.COMPANY_TAX_ID || '',
+      address: env.ACADEMY_COMPANY_ADDRESS || env.COMPANY_ADDRESS || '',
+      email: env.ACADEMY_COMPANY_EMAIL || env.GMAIL_SENDER || '',
+    };
+  }
+
+  return {
+    name: env.SERVICES_COMPANY_NAME || env.COMPANY_NAME || 'KreateIA',
+    taxId: env.SERVICES_COMPANY_TAX_ID || env.COMPANY_TAX_ID || '',
+    address: env.SERVICES_COMPANY_ADDRESS || env.COMPANY_ADDRESS || '',
+    email: env.SERVICES_COMPANY_EMAIL || env.GMAIL_SENDER || '',
+  };
+}
+
 function normalizePaymentMethod(value) {
   const allowed = new Set(['Efectivo', 'TPV / Tarjeta', 'Transferencia', 'Bizum', 'Pendiente']);
   const clean = String(value || '').trim();
@@ -108,8 +129,49 @@ function normalizePaymentStatus(value) {
   return String(value || '').trim() === 'Pendiente' ? 'Pendiente' : 'Pagado';
 }
 
+function normalizeAppointment(value, serviceType) {
+  if (serviceType !== 'Academia') return null;
+
+  const appointment = value || {};
+  const date = String(appointment.date || '').trim();
+  const time = String(appointment.time || '').trim();
+  const notes = String(appointment.notes || '').trim().slice(0, 500);
+
+  if (!date || !time) return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+  if (!/^\d{2}:\d{2}$/.test(time)) return null;
+
+  const startAt = `${date}T${time}:00${madridOffsetForDate(date)}`;
+  const reminderDueAt = new Date(new Date(startAt).getTime() - 24 * 60 * 60 * 1000).toISOString();
+
+  return {
+    date,
+    time,
+    timezone: 'Europe/Madrid',
+    startAt,
+    reminderDueAt,
+    reminderSentAt: null,
+    notes,
+  };
+}
+
+function madridOffsetForDate(date) {
+  const [year, month, day] = date.split('-').map(Number);
+  const current = Date.UTC(year, month - 1, day);
+  const dstStart = Date.UTC(year, 2, lastSunday(year, 2));
+  const dstEnd = Date.UTC(year, 9, lastSunday(year, 9));
+  return current >= dstStart && current < dstEnd ? '+02:00' : '+01:00';
+}
+
+function lastSunday(year, monthIndex) {
+  const last = new Date(Date.UTC(year, monthIndex + 1, 0));
+  return last.getUTCDate() - last.getUTCDay();
+}
+
 async function createInvoiceWithCounter(projectId, accessToken, payload, requestedClientId = '', attempt = 0) {
-  if (attempt > 5) throw new Error('No se pudo reservar número de factura. Inténtalo de nuevo.');
+  if (attempt > 5) {
+    throw new Error('No se pudo reservar número de factura. Inténtalo de nuevo.');
+  }
 
   const counterPath = 'private_counters/invoices';
   const counterDoc = await getDoc(projectId, counterPath, accessToken, true);
@@ -228,15 +290,23 @@ async function verifyFirebaseToken(idToken, firebaseApiKey) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ idToken }),
   });
+
   if (!res.ok) throw new Error('Token inválido o expirado');
+
   const data = await res.json();
   const user = data.users?.[0];
+
   if (!user?.localId || !user?.email) throw new Error('Token inválido');
-  return { uid: user.localId, email: normalizeEmail(user.email) };
+
+  return {
+    uid: user.localId,
+    email: normalizeEmail(user.email),
+  };
 }
 
 async function getServiceAccountToken(env, scope) {
   const now = Math.floor(Date.now() / 1000);
+
   const payload = {
     iss: env.FIREBASE_CLIENT_EMAIL,
     sub: env.FIREBASE_CLIENT_EMAIL,
@@ -245,22 +315,42 @@ async function getServiceAccountToken(env, scope) {
     exp: now + 3600,
     scope,
   };
+
   const jwt = await signJWT(payload, env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'));
+
   const res = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`,
   });
+
   if (!res.ok) throw new Error('No se pudo obtener token de Google');
+
   return (await res.json()).access_token;
 }
 
 async function signJWT(payload, pemKey) {
   const unsigned = `${b64uJson({ alg: 'RS256', typ: 'JWT' })}.${b64uJson(payload)}`;
-  const pemBody = pemKey.replace('-----BEGIN PRIVATE KEY-----', '').replace('-----END PRIVATE KEY-----', '').replace(/\s/g, '');
+  const pemBody = pemKey
+    .replace('-----BEGIN PRIVATE KEY-----', '')
+    .replace('-----END PRIVATE KEY-----', '')
+    .replace(/\s/g, '');
+
   const der = Uint8Array.from(atob(pemBody), c => c.charCodeAt(0));
-  const key = await crypto.subtle.importKey('pkcs8', der.buffer, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign']);
-  const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, new TextEncoder().encode(unsigned));
+  const key = await crypto.subtle.importKey(
+    'pkcs8',
+    der.buffer,
+    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+
+  const sig = await crypto.subtle.sign(
+    'RSASSA-PKCS1-v1_5',
+    key,
+    new TextEncoder().encode(unsigned)
+  );
+
   return `${unsigned}.${b64uBytes(new Uint8Array(sig))}`;
 }
 
@@ -280,10 +370,20 @@ async function getDoc(projectId, path, accessToken, allowMissing = false) {
   const res = await fetch(`${firestoreBase(projectId)}/${encodePath(path)}`, {
     headers: { 'Authorization': `Bearer ${accessToken}` },
   });
-  if (res.status === 404 && allowMissing) return { exists: false, data: {}, updateTime: null };
+
+  if (res.status === 404 && allowMissing) {
+    return { exists: false, data: {}, updateTime: null };
+  }
+
   if (!res.ok) throw new Error(`No se pudo leer ${path}`);
+
   const raw = await res.json();
-  return { exists: true, data: fromFields(raw.fields || {}), updateTime: raw.updateTime || null };
+
+  return {
+    exists: true,
+    data: fromFields(raw.fields || {}),
+    updateTime: raw.updateTime || null,
+  };
 }
 
 function firestoreBase(projectId) {
@@ -300,14 +400,18 @@ function encodePath(path) {
 
 function toFields(obj) {
   const fields = {};
-  Object.entries(obj).forEach(([k, v]) => { fields[k] = toValue(v); });
+  Object.entries(obj).forEach(([k, v]) => {
+    fields[k] = toValue(v);
+  });
   return fields;
 }
 
 function toValue(v) {
   if (v === null || v === undefined) return { nullValue: null };
   if (typeof v === 'boolean') return { booleanValue: v };
-  if (typeof v === 'number') return Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
+  if (typeof v === 'number') {
+    return Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
+  }
   if (v instanceof Date) return { timestampValue: v.toISOString() };
   if (Array.isArray(v)) return { arrayValue: { values: v.map(toValue) } };
   if (typeof v === 'object') return { mapValue: { fields: toFields(v) } };
@@ -316,7 +420,9 @@ function toValue(v) {
 
 function fromFields(fields) {
   const obj = {};
-  Object.entries(fields).forEach(([k, v]) => { obj[k] = fromValue(v); });
+  Object.entries(fields).forEach(([k, v]) => {
+    obj[k] = fromValue(v);
+  });
   return obj;
 }
 
@@ -362,7 +468,10 @@ function sleep(ms) {
 }
 
 function json(data, status = 200) {
-  return new Response(JSON.stringify(data), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { ...CORS, 'Content-Type': 'application/json' },
+  });
 }
 
 function jsonError(error, status = 400) {
