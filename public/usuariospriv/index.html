@@ -5,304 +5,55 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>KreateIA · Registro privado</title>
   <style>
-    :root {
-      --blue: #2563eb;
-      --amber: #f59e0b;
-      --ink: #0f172a;
-      --muted: #64748b;
-      --line: #e2e8f0;
-      --soft: #f8fafc;
-      --ok: #059669;
-      --danger: #dc2626;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      min-height: 100vh;
-      color: var(--ink);
-      background: #eef2f7;
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    }
-    button, input, textarea, select { font: inherit; }
-    button { -webkit-tap-highlight-color: transparent; }
-    .hidden { display: none !important; }
-    .brand { display: flex; align-items: center; gap: 12px; font-weight: 900; letter-spacing: -.04em; }
-    .brand-mark {
-      width: 42px; height: 42px; border-radius: 14px;
-      background: radial-gradient(circle at 35% 35%, #fff 0 8%, transparent 9%),
-        conic-gradient(from 220deg, #2563eb, #f59e0b, #2563eb);
-      box-shadow: 0 12px 28px rgba(37,99,235,.22);
-    }
-    .brand span:first-of-type { color: #1d4ed8; }
-    .brand span:last-of-type { color: #ea580c; font-weight: 700; }
-    .login-wrap {
-      min-height: 100vh;
-      display: grid;
-      place-items: center;
-      padding: 24px;
-      background:
-        radial-gradient(circle at top left, rgba(37,99,235,.18), transparent 36%),
-        radial-gradient(circle at bottom right, rgba(245,158,11,.18), transparent 34%),
-        #f8fafc;
-    }
-    .login-card, .card {
-      background: rgba(255,255,255,.92);
-      border: 1px solid rgba(226,232,240,.9);
-      border-radius: 24px;
-      box-shadow: 0 28px 90px rgba(15,23,42,.12);
-    }
-    .login-card { width: min(460px, 100%); padding: 30px; }
-    .login-card h1 { margin: 22px 0 8px; font-size: 30px; letter-spacing: -.04em; }
-    .login-card p { margin: 0 0 24px; color: var(--muted); line-height: 1.55; }
-    .app { min-height: 100vh; display: flex; flex-direction: column; }
-    header {
-      position: sticky; top: 0; z-index: 20;
-      display: flex; align-items: center; justify-content: space-between; gap: 16px;
-      padding: 14px max(18px, env(safe-area-inset-left)) 14px max(18px, env(safe-area-inset-right));
-      background: rgba(255,255,255,.88);
-      border-bottom: 1px solid var(--line);
-      backdrop-filter: blur(18px);
-    }
-    main {
-      width: min(1440px, 100%);
-      margin: 0 auto;
-      padding: 22px;
-      display: grid;
-      grid-template-columns: minmax(360px, 470px) 1fr;
-      gap: 22px;
-      align-items: start;
-    }
-    .card { padding: 22px; }
-    .card h2 { margin: 0 0 6px; font-size: 20px; letter-spacing: -.03em; }
-    .hint { margin: 0 0 18px; color: var(--muted); font-size: 14px; line-height: 1.5; }
-    label { display: block; margin: 0 0 7px; color: #334155; font-size: 13px; font-weight: 800; }
-    input, textarea, select {
-      width: 100%;
-      border: 1px solid var(--line);
-      border-radius: 13px;
-      background: #fff;
-      color: var(--ink);
-      padding: 12px 13px;
-      outline: none;
-      transition: border-color .15s, box-shadow .15s;
-    }
-    input:focus, textarea:focus, select:focus {
-      border-color: rgba(37,99,235,.65);
-      box-shadow: 0 0 0 4px rgba(37,99,235,.10);
-    }
-    textarea { resize: vertical; min-height: 82px; }
-    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .field { margin-bottom: 13px; }
-    .choice-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
-    .choice {
-      border: 1px solid var(--line); background: #fff; border-radius: 16px;
-      padding: 13px; cursor: pointer; min-height: 74px;
-    }
-    .choice strong { display: block; font-size: 14px; }
-    .choice span { color: var(--muted); font-size: 12px; }
-    .choice.active { border-color: var(--blue); background: #eff6ff; box-shadow: inset 0 0 0 1px rgba(37,99,235,.18); }
-    .choice.active[data-type="Servicios IA"] { border-color: var(--amber); background: #fffbeb; box-shadow: inset 0 0 0 1px rgba(245,158,11,.24); }
-    .summary {
-      border: 1px solid var(--line);
-      border-radius: 18px;
-      padding: 14px;
-      background: var(--soft);
-      display: grid;
-      gap: 8px;
-      margin: 10px 0 14px;
-    }
-    .sum-line { display: flex; justify-content: space-between; gap: 18px; color: #475569; font-size: 14px; }
-    .sum-line.total { font-size: 18px; font-weight: 900; color: var(--ink); padding-top: 8px; border-top: 1px solid var(--line); }
-    .pill {
-      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-      border-radius: 999px; padding: 7px 11px; font-size: 12px; font-weight: 900;
-      background: #e0f2fe; color: #0369a1;
-    }
-    .pill.warn { background: #fff7ed; color: #c2410c; }
-    .btn {
-      border: 0; border-radius: 14px; padding: 12px 16px;
-      cursor: pointer; font-weight: 900;
-      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-      transition: transform .12s, opacity .12s, background .12s;
-    }
-    .btn:active { transform: translateY(1px) scale(.99); }
-    .btn.primary { background: var(--blue); color: #fff; box-shadow: 0 14px 28px rgba(37,99,235,.22); }
-    .btn.amber { background: var(--amber); color: #111827; box-shadow: 0 14px 28px rgba(245,158,11,.22); }
-    .btn.ghost { background: #f1f5f9; color: #334155; }
-    .btn.danger { background: #fee2e2; color: var(--danger); }
-    .btn:disabled { opacity: .55; cursor: not-allowed; }
-    .form-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
-    .legal {
-      display: flex; align-items: flex-start; gap: 10px;
-      padding: 13px; border-radius: 16px; background: #fff7ed; border: 1px solid #fed7aa;
-      color: #7c2d12; font-size: 12px; line-height: 1.45; margin: 12px 0;
-    }
-    .legal input { width: 20px; height: 20px; margin-top: 1px; flex: 0 0 auto; }
-    .table-card { overflow: hidden; padding: 0; }
-    .table-head {
-      padding: 18px 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px;
-      border-bottom: 1px solid var(--line);
-    }
-    .tabs { display:flex; gap:8px; flex-wrap:wrap; }
-    .tab {
-      border:0; border-radius:999px; padding:9px 14px; cursor:pointer;
-      background:#f1f5f9; color:#475569; font-weight:900; font-size:13px;
-    }
-    .tab.active { background:#0f172a; color:#fff; }
-    .table-scroll { overflow: auto; max-height: calc(100vh - 170px); }
-    table { width: 100%; border-collapse: collapse; min-width: 920px; }
-    th, td { padding: 12px 14px; border-bottom: 1px solid #eef2f7; text-align: left; font-size: 13px; vertical-align: top; }
-    th { position: sticky; top: 0; z-index: 2; background: #f8fafc; color: #475569; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
-    td strong { color: var(--ink); }
-    .right { text-align: right; }
-    .status { color: var(--ok); font-weight: 900; }
-    .muted { color: var(--muted); }
-    .mini { font-size: 12px; color: var(--muted); }
-    .sig-preview {
-      display: flex; align-items: center; gap: 10px;
-      border: 1px dashed #cbd5e1; background: #fff; border-radius: 14px; padding: 10px;
-      min-height: 72px;
-    }
-    .sig-preview img { max-height: 48px; max-width: 180px; object-fit: contain; }
-    .modal {
-      position: fixed; inset: 0; z-index: 100;
-      display: flex; align-items: center; justify-content: center;
-      padding: 20px; background: rgba(15,23,42,.58); backdrop-filter: blur(10px);
-    }
-    .modal-card {
-      width: min(780px, 100%);
-      background: #fff; border-radius: 24px; overflow: hidden;
-      box-shadow: 0 30px 100px rgba(0,0,0,.28);
-    }
-    .modal-head, .modal-foot {
-      padding: 16px 18px; background: #f8fafc; border-bottom: 1px solid var(--line);
-      display: flex; align-items: center; justify-content: space-between; gap: 12px;
-    }
-    .modal-foot { border-top: 1px solid var(--line); border-bottom: 0; }
-    canvas { width: 100%; height: 300px; display: block; background: #fff; touch-action: none; }
-    .canvas-wrap { margin: 18px; border: 2px dashed #cbd5e1; border-radius: 18px; overflow: hidden; background: #fff; }
-    .toast {
-      position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%);
-      background: #0f172a; color: #fff; padding: 12px 16px; border-radius: 999px;
-      box-shadow: 0 20px 50px rgba(15,23,42,.25); z-index: 200; font-weight: 800; font-size: 13px;
-    }
-    .modal-body { padding:18px; display:grid; gap:14px; max-height:72vh; overflow:auto; }
-    .agreement-box {
-      border:1px solid var(--line); border-radius:16px; padding:14px; background:#f8fafc;
-      color:#475569; font-size:13px; line-height:1.55;
-    }
-    .signature-card {
-      min-height:92px; border:1px dashed #cbd5e1; border-radius:16px;
-      display:flex; align-items:center; justify-content:center; padding:12px; background:#fff;
-    }
-    .signature-card img { max-width:100%; max-height:120px; object-fit:contain; }
-    .invoice-sheet {
-      background:#fff;
-      color:#111827;
-      border:1px solid #e5e7eb;
-      border-radius:18px;
-      padding:28px;
-      box-shadow:0 18px 60px rgba(15,23,42,.12);
-    }
-    .invoice-top {
-      display:flex;
-      justify-content:space-between;
-      gap:24px;
-      border-bottom:2px solid #111827;
-      padding-bottom:18px;
-      margin-bottom:22px;
-    }
-    .invoice-title { font-size:30px; font-weight:900; letter-spacing:.08em; margin:0; }
-    .invoice-number { font-size:17px; font-weight:900; color:#2563eb; margin-top:8px; }
-    .invoice-boxes { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:20px; }
-    .invoice-box {
-      border:1px solid #e5e7eb;
-      border-radius:14px;
-      padding:14px;
-      background:#f9fafb;
-      min-height:126px;
-    }
-    .invoice-box h3 {
-      margin:0 0 8px;
-      font-size:11px;
-      text-transform:uppercase;
-      letter-spacing:.1em;
-      color:#6b7280;
-    }
-    .invoice-box p { margin:3px 0; font-size:13px; line-height:1.45; }
-    .invoice-table { width:100%; min-width:0; border-collapse:collapse; margin-top:10px; }
-    .invoice-table th {
-      position:static;
-      background:#111827;
-      color:#fff;
-      padding:11px;
-      font-size:11px;
-      text-transform:uppercase;
-      letter-spacing:.06em;
-    }
-    .invoice-table td { padding:12px 11px; border-bottom:1px solid #e5e7eb; font-size:13px; }
-    .invoice-totals {
-      width:min(360px,100%);
-      margin:18px 0 0 auto;
-      border:1px solid #e5e7eb;
-      border-radius:14px;
-      overflow:hidden;
-    }
-    .invoice-total-line { display:flex; justify-content:space-between; padding:11px 14px; border-bottom:1px solid #e5e7eb; }
-    .invoice-total-line:last-child { border-bottom:0; background:#111827; color:#fff; font-size:18px; font-weight:900; }
-    .invoice-note { margin-top:18px; color:#4b5563; font-size:12px; line-height:1.55; }
-    @media (max-width: 1050px) {
-      main { grid-template-columns: 1fr; }
-      .table-scroll { max-height: none; }
-    }
-    @media (max-width: 620px) {
-      main { padding: 12px; }
-      header { align-items: flex-start; flex-direction: column; }
-      .grid2, .choice-row, .form-actions { grid-template-columns: 1fr; }
-    }
-    @media print {
-      body { background: #fff; }
-      header, .form-card, .table-head button, .no-print { display: none !important; }
-      main { display: block; padding: 0; width: 100%; }
-      .table-card { box-shadow: none; border: 0; }
-      .table-scroll { overflow: visible; max-height: none; }
-      table { min-width: 0; }
-      body.print-invoice * { visibility:hidden; }
-      body.print-invoice #invoice-print-area,
-      body.print-invoice #invoice-print-area * { visibility:visible; }
-      body.print-invoice #invoice-print-area {
-        position:absolute;
-        left:0;
-        top:0;
-        width:100%;
-      }
-      body.print-invoice .invoice-sheet {
-        border:0;
-        border-radius:0;
-        box-shadow:none;
-        padding:22mm 18mm;
-      }
-    }
+    :root{--blue:#2563eb;--amber:#f59e0b;--ink:#0f172a;--muted:#64748b;--line:#e2e8f0;--soft:#f8fafc;--ok:#059669;--danger:#dc2626}
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;color:var(--ink);background:#eef2f7;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    button,input,textarea,select{font:inherit}button{-webkit-tap-highlight-color:transparent}.hidden{display:none!important}
+    .brand{display:flex;align-items:center;gap:12px;font-weight:900;letter-spacing:-.04em}
+    .brand-mark{width:42px;height:42px;border-radius:14px;background:radial-gradient(circle at 35% 35%,#fff 0 8%,transparent 9%),conic-gradient(from 220deg,#2563eb,#f59e0b,#2563eb);box-shadow:0 12px 28px rgba(37,99,235,.22)}
+    .brand span:first-of-type{color:#1d4ed8}.brand span:last-of-type{color:#ea580c;font-weight:700}
+    .login-wrap{min-height:100vh;display:grid;place-items:center;padding:24px;background:radial-gradient(circle at top left,rgba(37,99,235,.18),transparent 36%),radial-gradient(circle at bottom right,rgba(245,158,11,.18),transparent 34%),#f8fafc}
+    .login-card,.card{background:rgba(255,255,255,.92);border:1px solid rgba(226,232,240,.9);border-radius:24px;box-shadow:0 28px 90px rgba(15,23,42,.12)}
+    .login-card{width:min(460px,100%);padding:30px}.login-card h1{margin:22px 0 8px;font-size:30px;letter-spacing:-.04em}.login-card p{margin:0 0 24px;color:var(--muted);line-height:1.55}
+    .app{min-height:100vh;display:flex;flex-direction:column}
+    header{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px max(18px,env(safe-area-inset-left)) 14px max(18px,env(safe-area-inset-right));background:rgba(255,255,255,.88);border-bottom:1px solid var(--line);backdrop-filter:blur(18px)}
+    main{width:min(1440px,100%);margin:0 auto;padding:22px;display:grid;grid-template-columns:minmax(360px,470px) 1fr;gap:22px;align-items:start}
+    .card{padding:22px}.card h2{margin:0 0 6px;font-size:20px;letter-spacing:-.03em}.hint{margin:0 0 18px;color:var(--muted);font-size:14px;line-height:1.5}
+    label{display:block;margin:0 0 7px;color:#334155;font-size:13px;font-weight:800}
+    input,textarea,select{width:100%;border:1px solid var(--line);border-radius:13px;background:#fff;color:var(--ink);padding:12px 13px;outline:none;transition:border-color .15s,box-shadow .15s}
+    input:focus,textarea:focus,select:focus{border-color:rgba(37,99,235,.65);box-shadow:0 0 0 4px rgba(37,99,235,.10)}
+    textarea{resize:vertical;min-height:82px}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field{margin-bottom:13px}
+    .choice-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}.choice{border:1px solid var(--line);background:#fff;border-radius:16px;padding:13px;cursor:pointer;min-height:74px}.choice strong{display:block;font-size:14px}.choice span{color:var(--muted);font-size:12px}
+    .choice.active{border-color:var(--blue);background:#eff6ff;box-shadow:inset 0 0 0 1px rgba(37,99,235,.18)}.choice.active[data-type="Servicios IA"]{border-color:var(--amber);background:#fffbeb;box-shadow:inset 0 0 0 1px rgba(245,158,11,.24)}
+    .summary{border:1px solid var(--line);border-radius:18px;padding:14px;background:var(--soft);display:grid;gap:8px;margin:10px 0 14px}
+    .sum-line{display:flex;justify-content:space-between;gap:18px;color:#475569;font-size:14px}.sum-line.total{font-size:18px;font-weight:900;color:var(--ink);padding-top:8px;border-top:1px solid var(--line)}
+    .pill{display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:999px;padding:7px 11px;font-size:12px;font-weight:900;background:#e0f2fe;color:#0369a1}.pill.warn{background:#fff7ed;color:#c2410c}
+    .btn{border:0;border-radius:14px;padding:12px 16px;cursor:pointer;font-weight:900;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:transform .12s,opacity .12s,background .12s}.btn:active{transform:translateY(1px) scale(.99)}.btn.primary{background:var(--blue);color:#fff;box-shadow:0 14px 28px rgba(37,99,235,.22)}.btn.ghost{background:#f1f5f9;color:#334155}.btn.danger{background:#fee2e2;color:var(--danger)}.btn:disabled{opacity:.55;cursor:not-allowed}
+    .form-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}.legal{display:flex;align-items:flex-start;gap:10px;padding:13px;border-radius:16px;background:#fff7ed;border:1px solid #fed7aa;color:#7c2d12;font-size:12px;line-height:1.45;margin:12px 0}.legal input{width:20px;height:20px;margin-top:1px;flex:0 0 auto}
+    .table-card{overflow:hidden;padding:0}.table-head{padding:18px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid var(--line)}
+    .tabs{display:flex;gap:8px;flex-wrap:wrap}.tab{border:0;border-radius:999px;padding:9px 14px;cursor:pointer;background:#f1f5f9;color:#475569;font-weight:900;font-size:13px}.tab.active{background:#0f172a;color:#fff}
+    .table-scroll{overflow:auto;max-height:calc(100vh - 170px)}table{width:100%;border-collapse:collapse;min-width:920px}th,td{padding:12px 14px;border-bottom:1px solid #eef2f7;text-align:left;font-size:13px;vertical-align:top}th{position:sticky;top:0;z-index:2;background:#f8fafc;color:#475569;font-size:11px;text-transform:uppercase;letter-spacing:.06em}td strong{color:var(--ink)}.right{text-align:right}.status{color:var(--ok);font-weight:900}.muted{color:var(--muted)}.mini{font-size:12px;color:var(--muted)}
+    .sig-preview{display:flex;align-items:center;gap:10px;border:1px dashed #cbd5e1;background:#fff;border-radius:14px;padding:10px;min-height:72px}.sig-preview img{max-height:48px;max-width:180px;object-fit:contain}
+    .modal{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(15,23,42,.58);backdrop-filter:blur(10px)}
+    .modal-card{width:min(780px,100%);background:#fff;border-radius:24px;overflow:hidden;box-shadow:0 30px 100px rgba(0,0,0,.28)}
+    .modal-head,.modal-foot{padding:16px 18px;background:#f8fafc;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px}.modal-foot{border-top:1px solid var(--line);border-bottom:0}
+    canvas{width:100%;height:300px;display:block;background:#fff;touch-action:none}.canvas-wrap{margin:18px;border:2px dashed #cbd5e1;border-radius:18px;overflow:hidden;background:#fff}
+    .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#0f172a;color:#fff;padding:12px 16px;border-radius:999px;box-shadow:0 20px 50px rgba(15,23,42,.25);z-index:200;font-weight:800;font-size:13px}
+    .modal-body{padding:18px;display:grid;gap:14px;max-height:72vh;overflow:auto}.agreement-box{border:1px solid var(--line);border-radius:16px;padding:14px;background:#f8fafc;color:#475569;font-size:13px;line-height:1.55}.signature-card{min-height:92px;border:1px dashed #cbd5e1;border-radius:16px;display:flex;align-items:center;justify-content:center;padding:12px;background:#fff}.signature-card img{max-width:100%;max-height:120px;object-fit:contain}
+    .invoice-sheet{background:#fff;color:#111827;border:1px solid #e5e7eb;border-radius:18px;padding:28px;box-shadow:0 18px 60px rgba(15,23,42,.12)}.invoice-top{display:flex;justify-content:space-between;gap:24px;border-bottom:2px solid #111827;padding-bottom:18px;margin-bottom:22px}.invoice-title{font-size:30px;font-weight:900;letter-spacing:.08em;margin:0}.invoice-number{font-size:17px;font-weight:900;color:#2563eb;margin-top:8px}.invoice-boxes{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px}.invoice-box{border:1px solid #e5e7eb;border-radius:14px;padding:14px;background:#f9fafb;min-height:126px}.invoice-box h3{margin:0 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:#6b7280}.invoice-box p{margin:3px 0;font-size:13px;line-height:1.45}.invoice-table{width:100%;min-width:0;border-collapse:collapse;margin-top:10px}.invoice-table th{position:static;background:#111827;color:#fff;padding:11px;font-size:11px;text-transform:uppercase;letter-spacing:.06em}.invoice-table td{padding:12px 11px;border-bottom:1px solid #e5e7eb;font-size:13px}.invoice-totals{width:min(360px,100%);margin:18px 0 0 auto;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden}.invoice-total-line{display:flex;justify-content:space-between;padding:11px 14px;border-bottom:1px solid #e5e7eb}.invoice-total-line:last-child{border-bottom:0;background:#111827;color:#fff;font-size:18px;font-weight:900}.invoice-note{margin-top:18px;color:#4b5563;font-size:12px;line-height:1.55}
+    @media(max-width:1050px){main{grid-template-columns:1fr}.table-scroll{max-height:none}}@media(max-width:620px){main{padding:12px}header{align-items:flex-start;flex-direction:column}.grid2,.choice-row,.form-actions{grid-template-columns:1fr}}
+    @media print{body{background:#fff}header,.form-card,.table-head button,.no-print{display:none!important}main{display:block;padding:0;width:100%}.table-card{box-shadow:none;border:0}.table-scroll{overflow:visible;max-height:none}table{min-width:0}body.print-invoice *{visibility:hidden}body.print-invoice #invoice-print-area,body.print-invoice #invoice-print-area *{visibility:visible}body.print-invoice #invoice-print-area{position:absolute;left:0;top:0;width:100%}body.print-invoice .invoice-sheet{border:0;border-radius:0;box-shadow:none;padding:22mm 18mm}}
   </style>
 </head>
 <body>
   <div id="login" class="login-wrap">
     <section class="login-card">
-      <div class="brand" style="font-size:30px">
-        <div class="brand-mark"></div>
-        <div><span>Kreate</span><span>IA</span></div>
-      </div>
+      <div class="brand" style="font-size:30px"><div class="brand-mark"></div><div><span>Kreate</span><span>IA</span></div></div>
       <h1>Acceso privado</h1>
-      <p>Área interna para registrar alumnos, servicios, conformidades firmadas y facturas.</p>
+      <p>Área interna para registrar alumnos, servicios, conformidades firmadas, citas y facturas.</p>
       <form id="login-form">
-        <div class="field">
-          <label>Email autorizado</label>
-          <input id="login-email" type="email" autocomplete="email" required placeholder="empresas@kreateia.com" />
-        </div>
-        <div class="field">
-          <label>Contraseña</label>
-          <input id="login-pass" type="password" autocomplete="current-password" required />
-        </div>
+        <div class="field"><label>Email autorizado</label><input id="login-email" type="email" autocomplete="email" required placeholder="empresas@kreateia.com" /></div>
+        <div class="field"><label>Contraseña</label><input id="login-pass" type="password" autocomplete="current-password" required /></div>
         <button class="btn primary" style="width:100%;margin-top:6px" type="submit">Entrar</button>
       </form>
       <p id="login-error" class="mini" style="color:#dc2626;margin-top:14px"></p>
@@ -311,15 +62,8 @@
 
   <div id="app" class="app hidden">
     <header>
-      <div class="brand" style="font-size:26px">
-        <div class="brand-mark"></div>
-        <div><span>Kreate</span><span>IA</span></div>
-        <span class="pill">Registro privado</span>
-      </div>
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        <span id="user-pill" class="pill warn"></span>
-        <button id="logout-btn" class="btn ghost" type="button">Salir</button>
-      </div>
+      <div class="brand" style="font-size:26px"><div class="brand-mark"></div><div><span>Kreate</span><span>IA</span></div><span class="pill">Registro privado</span></div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span id="user-pill" class="pill warn"></span><button id="logout-btn" class="btn ghost" type="button">Salir</button></div>
     </header>
 
     <main>
@@ -328,159 +72,79 @@
         <p class="hint">Rellena los datos delante del cliente, recoge su firma en el iPad y genera la factura correlativa.</p>
 
         <form id="record-form">
-          <div class="choice-row" id="service-choices">
-            <button class="choice active" data-type="Academia" type="button">
-              <strong>Academia / Cursos</strong>
-              <span>Exento de IVA</span>
-            </button>
-            <button class="choice" data-type="Servicios IA" type="button">
-              <strong>Servicios IA</strong>
-              <span>IVA 21%</span>
-            </button>
+          <div class="choice-row">
+            <button class="choice active" data-type="Academia" type="button"><strong>Academia / Cursos</strong><span>Exento de IVA</span></button>
+            <button class="choice" data-type="Servicios IA" type="button"><strong>Servicios IA</strong><span>IVA 21%</span></button>
           </div>
 
-          <div class="field">
-            <label>Nombre completo / Razón social</label>
-            <input id="fullName" required placeholder="Nombre del alumno, autónomo o empresa" />
+          <div class="field"><label>Nombre completo / Razón social</label><input id="fullName" required placeholder="Nombre del alumno, autónomo o empresa" /></div>
+          <div class="grid2">
+            <div class="field"><label>DNI / NIF / CIF</label><input id="taxId" placeholder="Opcional pero recomendado" /></div>
+            <div class="field"><label>Teléfono</label><input id="phone" type="tel" required placeholder="+34 ..." /></div>
+          </div>
+          <div class="field"><label>Email del cliente</label><input id="email" type="email" required placeholder="cliente@email.com" /></div>
+          <div class="field"><label>Dirección fiscal / postal</label><input id="address" required placeholder="Calle, número, ciudad, provincia" /></div>
+          <div class="field"><label id="concept-label">Curso contratado</label><input id="concept" required placeholder="Ej. Programa Anual IA Profesional" /></div>
+          <div class="field"><label>Descripción o notas internas</label><textarea id="notes" placeholder="Horario, forma de pago, observaciones, entrega de portátil, etc."></textarea></div>
+
+          <div class="grid2">
+            <div class="field"><label>Importe base</label><input id="baseAmount" type="number" min="0" step="0.01" required placeholder="890.00" /></div>
+            <div class="field"><label>Fecha de operación</label><input id="issueDate" type="date" required /></div>
+          </div>
+
+          <div id="appointment-section" class="agreement-box" style="margin-bottom:14px">
+            <strong style="display:block;margin-bottom:10px">Cita / clase de Academia</strong>
+            <div class="grid2">
+              <div class="field" style="margin-bottom:0"><label>Fecha de la cita</label><input id="appointmentDate" type="date" /></div>
+              <div class="field" style="margin-bottom:0"><label>Hora</label><input id="appointmentTime" type="time" /></div>
+            </div>
+            <div class="field" style="margin:12px 0 0"><label>Notas para el recordatorio</label><input id="appointmentNotes" placeholder="Ej. Primera clase presencial, traer DNI, venir 10 minutos antes..." /></div>
+            <div class="mini" style="margin-top:8px">Si rellenas fecha y hora, el sistema podrá enviar un recordatorio automático 24h antes cuando activemos el cron.</div>
           </div>
 
           <div class="grid2">
-            <div class="field">
-              <label>DNI / NIF / CIF</label>
-              <input id="taxId" placeholder="Opcional pero recomendado" />
-            </div>
-            <div class="field">
-              <label>Teléfono</label>
-              <input id="phone" type="tel" required placeholder="+34 ..." />
-            </div>
-          </div>
-
-          <div class="field">
-            <label>Email del cliente</label>
-            <input id="email" type="email" required placeholder="cliente@email.com" />
-          </div>
-
-          <div class="field">
-            <label>Dirección fiscal / postal</label>
-            <input id="address" required placeholder="Calle, número, ciudad, provincia" />
-          </div>
-
-          <div class="field">
-            <label id="concept-label">Curso contratado</label>
-            <input id="concept" required placeholder="Ej. Programa Anual IA Profesional" />
-          </div>
-
-          <div class="field">
-            <label>Descripción o notas internas</label>
-            <textarea id="notes" placeholder="Horario, forma de pago, observaciones, entrega de portátil, etc."></textarea>
-          </div>
-
-          <div class="grid2">
-            <div class="field">
-              <label>Importe base</label>
-              <input id="baseAmount" type="number" min="0" step="0.01" required placeholder="890.00" />
-            </div>
-            <div class="field">
-              <label>Fecha de operación</label>
-              <input id="issueDate" type="date" required />
-            </div>
-          </div>
-
-          <div class="grid2">
-            <div class="field">
-              <label>Forma de pago</label>
-              <select id="paymentMethod" required>
-                <option value="Efectivo">Efectivo</option>
-                <option value="TPV / Tarjeta">TPV / Tarjeta</option>
-                <option value="Transferencia">Transferencia</option>
-                <option value="Bizum">Bizum</option>
-                <option value="Pendiente">Pendiente de pago</option>
-              </select>
-            </div>
-            <div class="field">
-              <label>Estado del pago</label>
-              <select id="paymentStatus" required>
-                <option value="Pagado">Pagado</option>
-                <option value="Pendiente">Pendiente</option>
-              </select>
-            </div>
+            <div class="field"><label>Forma de pago</label><select id="paymentMethod" required><option value="Efectivo">Efectivo</option><option value="TPV / Tarjeta">TPV / Tarjeta</option><option value="Transferencia">Transferencia</option><option value="Bizum">Bizum</option><option value="Pendiente">Pendiente de pago</option></select></div>
+            <div class="field"><label>Estado del pago</label><select id="paymentStatus" required><option value="Pagado">Pagado</option><option value="Pendiente">Pendiente</option></select></div>
           </div>
 
           <div class="summary" id="tax-summary"></div>
 
           <div class="sig-preview">
-            <div style="flex:1">
-              <strong>Firma de conformidad</strong>
-              <div class="mini">El cliente acepta el registro del servicio, tratamiento de datos y condiciones indicadas.</div>
-            </div>
+            <div style="flex:1"><strong>Firma de conformidad</strong><div class="mini">El cliente acepta el registro del servicio, tratamiento de datos y condiciones indicadas.</div></div>
             <img id="signature-preview" class="hidden" alt="Firma del cliente" />
             <button id="open-signature" class="btn ghost" type="button">Firmar</button>
           </div>
 
-          <label class="legal">
-            <input id="legalAccepted" type="checkbox" required />
-            <span>El cliente acepta la política de privacidad, la prestación del servicio indicado y autoriza el tratamiento de sus datos para gestión administrativa, facturación y comunicación relacionada con KreateIA.</span>
-          </label>
+          <label class="legal"><input id="legalAccepted" type="checkbox" required /><span>El cliente acepta la política de privacidad, la prestación del servicio indicado y autoriza el tratamiento de sus datos para gestión administrativa, facturación y comunicación relacionada con KreateIA.</span></label>
+          <label class="legal" style="background:#eff6ff;border-color:#bfdbfe;color:#1e3a8a"><input id="sendEmail" type="checkbox" /><span>Enviar automáticamente al cliente un email desde empresas@kreateia.com con el resumen de factura y mensaje de agradecimiento.</span></label>
 
-          <label class="legal" style="background:#eff6ff;border-color:#bfdbfe;color:#1e3a8a">
-            <input id="sendEmail" type="checkbox" />
-            <span>Enviar automáticamente al cliente un email desde empresas@kreateia.com con el resumen de factura y mensaje de agradecimiento.</span>
-          </label>
-
-          <div class="form-actions">
-            <button id="submit-btn" class="btn primary" type="submit">Generar factura</button>
-            <button id="reset-btn" class="btn ghost" type="button">Limpiar</button>
-          </div>
+          <div class="form-actions"><button id="submit-btn" class="btn primary" type="submit">Generar factura</button><button id="reset-btn" class="btn ghost" type="button">Limpiar</button></div>
         </form>
       </section>
 
       <section class="card table-card">
         <div class="table-head">
-          <div>
-            <h2 style="margin:0">Gestión de academia</h2>
-            <div class="mini">Clientes, fichas, acuerdos firmados y facturas en tiempo real.</div>
-          </div>
+          <div><h2 style="margin:0">Gestión privada</h2><div class="mini">Academia y Servicios IA separados, con fichas, acuerdos, citas y facturas.</div></div>
           <div class="tabs">
-            <button id="tab-clients" class="tab active" type="button">Clientes</button>
-            <button id="tab-invoices" class="tab" type="button">Facturas</button>
+            <button id="tab-academy-clients" class="tab active" type="button">Academia</button>
+            <button id="tab-services-clients" class="tab" type="button">Servicios IA</button>
+            <button id="tab-academy-invoices" class="tab" type="button">Facturas Academia</button>
+            <button id="tab-services-invoices" class="tab" type="button">Facturas Servicios</button>
             <button class="btn ghost no-print" onclick="window.print()" type="button">Imprimir</button>
           </div>
         </div>
+
         <div id="clients-view" class="table-scroll">
           <table>
-            <thead>
-              <tr>
-                <th>Cliente</th>
-                <th>Contacto</th>
-                <th>Tipo</th>
-                <th>Última factura</th>
-                <th>Firma</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody id="client-rows">
-              <tr><td colspan="6" class="muted">Cargando clientes...</td></tr>
-            </tbody>
+            <thead><tr><th>Cliente</th><th>Contacto</th><th>Tipo</th><th>Última factura</th><th>Firma</th><th>Acciones</th></tr></thead>
+            <tbody id="client-rows"><tr><td colspan="6" class="muted">Cargando clientes...</td></tr></tbody>
           </table>
         </div>
+
         <div id="invoices-view" class="table-scroll hidden">
           <table>
-            <thead>
-              <tr>
-                <th>Factura</th>
-                <th>Cliente</th>
-                <th>Concepto</th>
-                <th>Tipo</th>
-                <th class="right">Base</th>
-                <th class="right">IVA</th>
-                <th class="right">Total</th>
-                <th>Email</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody id="invoice-rows">
-              <tr><td colspan="9" class="muted">Cargando...</td></tr>
-            </tbody>
+            <thead><tr><th>Factura</th><th>Cliente</th><th>Concepto</th><th>Tipo</th><th class="right">Base</th><th class="right">IVA</th><th class="right">Total</th><th>Email</th><th>Acciones</th></tr></thead>
+            <tbody id="invoice-rows"><tr><td colspan="9" class="muted">Cargando...</td></tr></tbody>
           </table>
         </div>
       </section>
@@ -489,106 +153,33 @@
 
   <div id="signature-modal" class="modal hidden">
     <section class="modal-card">
-      <div class="modal-head">
-        <div>
-          <strong>Firma del cliente</strong>
-          <div class="mini">Firma directamente con el dedo o Apple Pencil.</div>
-        </div>
-        <button id="close-signature" class="btn ghost" type="button">Cerrar</button>
-      </div>
-      <div class="canvas-wrap">
-        <canvas id="signature-canvas" width="1200" height="440"></canvas>
-      </div>
-      <div class="modal-foot">
-        <button id="clear-signature" class="btn danger" type="button">Limpiar firma</button>
-        <button id="save-signature" class="btn primary" type="button">Guardar firma</button>
-      </div>
+      <div class="modal-head"><div><strong>Firma del cliente</strong><div class="mini">Firma directamente con el dedo o Apple Pencil.</div></div><button id="close-signature" class="btn ghost" type="button">Cerrar</button></div>
+      <div class="canvas-wrap"><canvas id="signature-canvas" width="1200" height="440"></canvas></div>
+      <div class="modal-foot"><button id="clear-signature" class="btn danger" type="button">Limpiar firma</button><button id="save-signature" class="btn primary" type="button">Guardar firma</button></div>
     </section>
   </div>
 
   <div id="client-modal" class="modal hidden">
     <section class="modal-card">
-      <div class="modal-head">
-        <div>
-          <strong id="client-modal-title">Ficha del cliente</strong>
-          <div class="mini" id="client-modal-subtitle">Datos, notas, firma y facturas asociadas.</div>
-        </div>
-        <button id="close-client-modal" class="btn ghost" type="button">Cerrar</button>
-      </div>
+      <div class="modal-head"><div><strong id="client-modal-title">Ficha del cliente</strong><div class="mini" id="client-modal-subtitle">Datos, notas, firma y facturas asociadas.</div></div><button id="close-client-modal" class="btn ghost" type="button">Cerrar</button></div>
       <div class="modal-body">
-        <div class="grid2">
-          <div class="field">
-            <label>Nombre / Razón social</label>
-            <input id="edit-fullName" />
-          </div>
-          <div class="field">
-            <label>DNI / NIF / CIF</label>
-            <input id="edit-taxId" />
-          </div>
-        </div>
-        <div class="grid2">
-          <div class="field">
-            <label>Email</label>
-            <input id="edit-email" type="email" />
-          </div>
-          <div class="field">
-            <label>Teléfono</label>
-            <input id="edit-phone" />
-          </div>
-        </div>
-        <div class="field">
-          <label>Dirección</label>
-          <input id="edit-address" />
-        </div>
-        <div class="grid2">
-          <div class="field">
-            <label>Tipo principal</label>
-            <select id="edit-serviceType">
-              <option value="Academia">Academia / Cursos</option>
-              <option value="Servicios IA">Servicios IA</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>Última factura</label>
-            <input id="edit-lastInvoice" disabled />
-          </div>
-        </div>
-        <div class="field">
-          <label>Notas internas</label>
-          <textarea id="edit-internalNotes" placeholder="Seguimiento, pagos, preferencias, horarios, incidencias, etc."></textarea>
-        </div>
+        <div class="grid2"><div class="field"><label>Nombre / Razón social</label><input id="edit-fullName" /></div><div class="field"><label>DNI / NIF / CIF</label><input id="edit-taxId" /></div></div>
+        <div class="grid2"><div class="field"><label>Email</label><input id="edit-email" type="email" /></div><div class="field"><label>Teléfono</label><input id="edit-phone" /></div></div>
+        <div class="field"><label>Dirección</label><input id="edit-address" /></div>
+        <div class="grid2"><div class="field"><label>Tipo principal</label><select id="edit-serviceType"><option value="Academia">Academia / Cursos</option><option value="Servicios IA">Servicios IA</option></select></div><div class="field"><label>Última factura</label><input id="edit-lastInvoice" disabled /></div></div>
+        <div class="field"><label>Notas internas</label><textarea id="edit-internalNotes" placeholder="Seguimiento, pagos, preferencias, horarios, incidencias, etc."></textarea></div>
         <div class="agreement-box" id="client-agreement"></div>
         <div class="signature-card" id="client-signature"></div>
-        <div>
-          <h2 style="font-size:16px;margin:4px 0 10px">Facturas del cliente</h2>
-          <div id="client-invoices" class="agreement-box"></div>
-        </div>
+        <div><h2 style="font-size:16px;margin:4px 0 10px">Facturas del cliente</h2><div id="client-invoices" class="agreement-box"></div></div>
       </div>
-      <div class="modal-foot">
-        <button id="archive-client-btn" class="btn danger" type="button">Archivar cliente</button>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button id="invoice-client-btn" class="btn ghost" type="button">Nueva factura</button>
-          <button id="save-client-btn" class="btn primary" type="button">Guardar ficha</button>
-        </div>
-      </div>
+      <div class="modal-foot"><button id="archive-client-btn" class="btn danger" type="button">Archivar cliente</button><div style="display:flex;gap:8px;flex-wrap:wrap"><button id="invoice-client-btn" class="btn ghost" type="button">Nueva factura</button><button id="save-client-btn" class="btn primary" type="button">Guardar ficha</button></div></div>
     </section>
   </div>
 
   <div id="invoice-modal" class="modal hidden">
     <section class="modal-card" style="width:min(920px,100%)">
-      <div class="modal-head no-print">
-        <div>
-          <strong id="invoice-modal-title">Factura</strong>
-          <div class="mini">Vista imprimible con datos fiscales y forma de pago.</div>
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button id="print-invoice-btn" class="btn primary" type="button">Imprimir / PDF</button>
-          <button id="close-invoice-modal" class="btn ghost" type="button">Cerrar</button>
-        </div>
-      </div>
-      <div class="modal-body">
-        <div id="invoice-print-area"></div>
-      </div>
+      <div class="modal-head no-print"><div><strong id="invoice-modal-title">Factura</strong><div class="mini">Vista imprimible con datos fiscales y forma de pago.</div></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button id="print-invoice-btn" class="btn primary" type="button">Imprimir / PDF</button><button id="close-invoice-modal" class="btn ghost" type="button">Cerrar</button></div></div>
+      <div class="modal-body"><div id="invoice-print-area"></div></div>
     </section>
   </div>
 
@@ -596,12 +187,8 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-    import {
-      getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut
-    } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
-    import {
-      getFirestore, doc, getDoc, collection, query, orderBy, limit, onSnapshot
-    } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+    import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+    import { getFirestore, doc, getDoc, collection, query, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyDVD2Sbu7nVbFfVkgujMcgOC_S0oDla-zQ",
@@ -616,12 +203,13 @@
     const fbApp = initializeApp(firebaseConfig);
     const auth = getAuth(fbApp);
     const db = getFirestore(fbApp);
-
     const $ = (id) => document.getElementById(id);
+
     let currentUser = null;
     let selectedType = "Academia";
     let signatureDataUrl = "";
     let selectedClientId = "";
+    let currentView = "academyClients";
     let clients = [];
     let invoices = [];
     let unsubscribeInvoices = null;
@@ -647,6 +235,7 @@
       const tax = Math.round(base * taxRate / 100);
       const total = base + tax;
       $("concept-label").textContent = selectedType === "Academia" ? "Curso contratado" : "Servicio IA contratado";
+      $("appointment-section").classList.toggle("hidden", selectedType !== "Academia");
       $("tax-summary").innerHTML = `
         <div class="sum-line"><span>Base imponible</span><strong>${money(base)}</strong></div>
         <div class="sum-line"><span>${taxRate === 0 ? "IVA" : "IVA 21%"}</span><strong>${taxRate === 0 ? "Exento" : money(tax)}</strong></div>
@@ -686,7 +275,7 @@
       $("login-error").textContent = "";
       try {
         await signInWithEmailAndPassword(auth, normalizeEmail($("login-email").value), $("login-pass").value);
-      } catch (err) {
+      } catch {
         $("login-error").textContent = "No se pudo iniciar sesión. Revisa email y contraseña.";
       }
     });
@@ -719,15 +308,15 @@
         $("login").classList.add("hidden");
         $("app").classList.remove("hidden");
         subscribeData();
-      } catch (err) {
+      } catch {
         await signOut(auth);
         $("login-error").textContent = "No se pudo validar el permiso de acceso.";
       }
     });
 
     function subscribeData() {
-      const clientQ = query(collection(db, "private_clients"), orderBy("updatedAt", "desc"), limit(200));
-      const invoiceQ = query(collection(db, "private_invoices"), orderBy("createdAt", "desc"), limit(200));
+      const clientQ = query(collection(db, "private_clients"), orderBy("updatedAt", "desc"), limit(300));
+      const invoiceQ = query(collection(db, "private_invoices"), orderBy("createdAt", "desc"), limit(300));
 
       unsubscribeClients = onSnapshot(clientQ, snap => {
         clients = [];
@@ -747,12 +336,32 @@
       });
     }
 
+    function setView(view) {
+      currentView = view;
+      const isClientView = view === "academyClients" || view === "servicesClients";
+      $("clients-view").classList.toggle("hidden", !isClientView);
+      $("invoices-view").classList.toggle("hidden", isClientView);
+      $("tab-academy-clients").classList.toggle("active", view === "academyClients");
+      $("tab-services-clients").classList.toggle("active", view === "servicesClients");
+      $("tab-academy-invoices").classList.toggle("active", view === "academyInvoices");
+      $("tab-services-invoices").classList.toggle("active", view === "servicesInvoices");
+      renderClients();
+      renderInvoices();
+    }
+
+    $("tab-academy-clients").addEventListener("click", () => setView("academyClients"));
+    $("tab-services-clients").addEventListener("click", () => setView("servicesClients"));
+    $("tab-academy-invoices").addEventListener("click", () => setView("academyInvoices"));
+    $("tab-services-invoices").addEventListener("click", () => setView("servicesInvoices"));
+
     function renderClients() {
-      const activeClients = clients.filter(c => !c.archivedAt);
+      const serviceType = currentView === "servicesClients" ? "Servicios IA" : "Academia";
+      const activeClients = clients.filter(c => !c.archivedAt && (c.serviceType || "Academia") === serviceType);
       if (!activeClients.length) {
-        $("client-rows").innerHTML = `<tr><td colspan="6" class="muted">Todavía no hay clientes activos.</td></tr>`;
+        $("client-rows").innerHTML = `<tr><td colspan="6" class="muted">Todavía no hay clientes activos en ${serviceType}.</td></tr>`;
         return;
       }
+
       $("client-rows").innerHTML = activeClients.map(c => `
         <tr>
           <td><strong>${escapeHtml(c.fullName)}</strong><div class="mini">${escapeHtml(c.taxId || "Sin NIF/CIF")}</div></td>
@@ -760,61 +369,49 @@
           <td><span class="pill ${c.serviceType === "Servicios IA" ? "warn" : ""}">${escapeHtml(c.serviceType || "Academia")}</span></td>
           <td><strong>${escapeHtml(c.lastInvoiceNumber || "-")}</strong><div class="mini">${escapeHtml(c.lastConcept || "")}</div></td>
           <td>${c.signatureDataUrl ? `<span class="status">Firmado</span>` : `<span class="muted">Sin firma</span>`}</td>
-          <td>
-            <div style="display:flex;gap:6px;flex-wrap:wrap">
-              <button class="btn ghost" type="button" data-open-client="${escapeHtml(c.id)}">Ficha</button>
-              <button class="btn ghost" type="button" data-new-invoice="${escapeHtml(c.id)}">Nueva factura</button>
-            </div>
-          </td>
+          <td><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn ghost" type="button" data-open-client="${escapeHtml(c.id)}">Ficha</button><button class="btn ghost" type="button" data-new-invoice="${escapeHtml(c.id)}">Nueva factura</button></div></td>
         </tr>
       `).join("");
+
       document.querySelectorAll("[data-open-client]").forEach(btn => btn.addEventListener("click", () => openClient(btn.dataset.openClient)));
       document.querySelectorAll("[data-new-invoice]").forEach(btn => btn.addEventListener("click", () => fillFormFromClient(btn.dataset.newInvoice)));
     }
 
+    function invoiceMiniText(inv) {
+      const parts = [];
+      if (inv.appointment?.date && inv.appointment?.time) parts.push(`Cita ${inv.appointment.date} a las ${inv.appointment.time}`);
+      if (inv.paymentMethod) parts.push(inv.paymentMethod);
+      if (inv.notes) parts.push(inv.notes);
+      return parts.join(" · ");
+    }
+
     function renderInvoices() {
-      if (!invoices.length) {
-        $("invoice-rows").innerHTML = `<tr><td colspan="9" class="muted">Todavía no hay facturas.</td></tr>`;
+      const serviceType = currentView === "servicesInvoices" ? "Servicios IA" : "Academia";
+      const filteredInvoices = invoices.filter(inv => (inv.serviceType || "Academia") === serviceType);
+      if (!filteredInvoices.length) {
+        $("invoice-rows").innerHTML = `<tr><td colspan="9" class="muted">Todavía no hay facturas de ${serviceType}.</td></tr>`;
         return;
       }
-      $("invoice-rows").innerHTML = invoices.map(inv => `
+
+      $("invoice-rows").innerHTML = filteredInvoices.map(inv => `
         <tr>
           <td><strong>${escapeHtml(inv.invoiceNumber)}</strong><div class="mini">${escapeHtml(inv.issueDate || "")}</div></td>
           <td><strong>${escapeHtml(inv.client?.fullName)}</strong><div class="mini">${escapeHtml(inv.client?.email)} · ${escapeHtml(inv.client?.phone)}</div></td>
-          <td>${escapeHtml(inv.concept)}<div class="mini">${escapeHtml(inv.notes || "")}</div></td>
+          <td>${escapeHtml(inv.concept)}<div class="mini">${escapeHtml(invoiceMiniText(inv))}</div></td>
           <td><span class="pill ${inv.taxRate === 0 ? "" : "warn"}">${escapeHtml(inv.serviceType)}</span></td>
           <td class="right">${money(inv.baseCents)}</td>
           <td class="right">${inv.taxRate === 0 ? "Exento" : money(inv.taxCents)}</td>
           <td class="right"><strong>${money(inv.totalCents)}</strong></td>
           <td>${inv.emailSentAt ? `<span class="status">Enviado</span>` : `<span class="muted">Pendiente</span>`}</td>
-          <td>
-            <div style="display:flex;gap:6px;flex-wrap:wrap">
-              <button class="btn ghost" type="button" data-open-invoice="${escapeHtml(inv.id)}">Ver factura</button>
-              <button class="btn ghost" type="button" data-open-client="${escapeHtml(inv.clientId || "")}">Cliente</button>
-              <button class="btn ghost" type="button" data-send="${escapeHtml(inv.id)}">Enviar</button>
-            </div>
-          </td>
+          <td><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn ghost" type="button" data-open-invoice="${escapeHtml(inv.id)}">Ver factura</button><button class="btn ghost" type="button" data-open-client="${escapeHtml(inv.clientId || "")}">Cliente</button><button class="btn ghost" type="button" data-send="${escapeHtml(inv.id)}">Enviar</button></div></td>
         </tr>
       `).join("");
-      document.querySelectorAll("[data-send]").forEach(btn => {
-        btn.addEventListener("click", () => sendInvoice(btn.dataset.send, btn));
-      });
-      document.querySelectorAll("[data-open-invoice]").forEach(btn => {
-        btn.addEventListener("click", () => openInvoice(btn.dataset.openInvoice));
-      });
+
+      document.querySelectorAll("[data-send]").forEach(btn => btn.addEventListener("click", () => sendInvoice(btn.dataset.send, btn)));
+      document.querySelectorAll("[data-open-invoice]").forEach(btn => btn.addEventListener("click", () => openInvoice(btn.dataset.openInvoice)));
       document.querySelectorAll("[data-open-client]").forEach(btn => {
         if (btn.dataset.openClient) btn.addEventListener("click", () => openClient(btn.dataset.openClient));
       });
-    }
-
-    $("tab-clients").addEventListener("click", () => setView("clients"));
-    $("tab-invoices").addEventListener("click", () => setView("invoices"));
-
-    function setView(view) {
-      $("clients-view").classList.toggle("hidden", view !== "clients");
-      $("invoices-view").classList.toggle("hidden", view !== "invoices");
-      $("tab-clients").classList.toggle("active", view === "clients");
-      $("tab-invoices").classList.toggle("active", view === "invoices");
     }
 
     function getClient(clientId) {
@@ -832,6 +429,9 @@
       $("email").value = c.email || "";
       $("address").value = c.address || "";
       $("concept").value = c.lastConcept || "";
+      $("appointmentDate").value = "";
+      $("appointmentTime").value = "";
+      $("appointmentNotes").value = "";
       document.querySelectorAll(".choice").forEach(btn => btn.classList.toggle("active", btn.dataset.type === selectedType));
       $("submit-btn").textContent = `Nueva factura para ${c.fullName || "cliente"}`;
       updateTaxSummary();
@@ -841,6 +441,7 @@
     }
 
     let openClientId = "";
+
     function openClient(clientId) {
       openClientId = clientId;
       refreshOpenClientModal();
@@ -861,26 +462,19 @@
       $("edit-lastInvoice").value = c.lastInvoiceNumber || "";
       $("edit-internalNotes").value = c.internalNotes || "";
       $("client-agreement").textContent = c.agreementText || "Acuerdo firmado no disponible todavía.";
-      $("client-signature").innerHTML = c.signatureDataUrl
-        ? `<img src="${c.signatureDataUrl}" alt="Firma del cliente">`
-        : `<span class="muted">Este cliente todavía no tiene firma guardada.</span>`;
+      $("client-signature").innerHTML = c.signatureDataUrl ? `<img src="${c.signatureDataUrl}" alt="Firma del cliente">` : `<span class="muted">Este cliente todavía no tiene firma guardada.</span>`;
 
       const ownInvoices = invoices.filter(inv => inv.clientId === c.id);
       $("client-invoices").innerHTML = ownInvoices.length
         ? ownInvoices.map(inv => `
             <div style="display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid #e2e8f0;padding:8px 0">
               <div><strong>${escapeHtml(inv.invoiceNumber)}</strong><div class="mini">${escapeHtml(inv.concept)} · ${escapeHtml(inv.issueDate || "")}</div></div>
-              <div style="text-align:right">
-                <strong>${money(inv.totalCents)}</strong>
-                <div class="mini">${escapeHtml(inv.paymentMethod || "Sin forma de pago")} · ${inv.emailSentAt ? "Email enviado" : "Email pendiente"}</div>
-                <button class="btn ghost" style="margin-top:6px;padding:7px 10px" type="button" data-open-invoice="${escapeHtml(inv.id)}">Ver factura</button>
-              </div>
+              <div style="text-align:right"><strong>${money(inv.totalCents)}</strong><div class="mini">${escapeHtml(invoiceMiniText(inv) || "Sin notas")} · ${inv.emailSentAt ? "Email enviado" : "Email pendiente"}</div><button class="btn ghost" style="margin-top:6px;padding:7px 10px" type="button" data-open-invoice="${escapeHtml(inv.id)}">Ver factura</button></div>
             </div>
           `).join("")
         : `<span class="muted">Sin facturas asociadas.</span>`;
-      document.querySelectorAll("#client-invoices [data-open-invoice]").forEach(btn => {
-        btn.addEventListener("click", () => openInvoice(btn.dataset.openInvoice));
-      });
+
+      document.querySelectorAll("#client-invoices [data-open-invoice]").forEach(btn => btn.addEventListener("click", () => openInvoice(btn.dataset.openInvoice)));
     }
 
     $("close-client-modal").addEventListener("click", () => $("client-modal").classList.add("hidden"));
@@ -911,89 +505,25 @@
       const client = inv.client || {};
       const isExempt = Number(inv.taxRate || 0) === 0;
       const taxLabel = isExempt ? "IVA exento" : `IVA ${Number(inv.taxRate || 0)}%`;
-      const paymentMethod = inv.paymentMethod || "No indicado";
-      const paymentStatus = inv.paymentStatus || "No indicado";
-      const paidAt = inv.paidAt || "";
+      const appointmentText = inv.appointment?.date && inv.appointment?.time ? `${inv.appointment.date} a las ${inv.appointment.time}` : "No indicada";
 
       return `
         <article class="invoice-sheet">
           <div class="invoice-top">
-            <div>
-              <div class="brand" style="font-size:28px;margin-bottom:10px">
-                <div class="brand-mark" style="width:34px;height:34px;border-radius:11px"></div>
-                <div><span>Kreate</span><span>IA</span></div>
-              </div>
-              <p style="margin:4px 0;font-size:13px;color:#4b5563">www.kreateia.com</p>
-            </div>
-            <div style="text-align:right">
-              <h1 class="invoice-title">FACTURA</h1>
-              <div class="invoice-number">${escapeHtml(inv.invoiceNumber)}</div>
-              <p style="margin:6px 0 0;font-size:13px;color:#4b5563">Fecha: ${escapeHtml(inv.issueDate || "")}</p>
-            </div>
+            <div><div class="brand" style="font-size:28px;margin-bottom:10px"><div class="brand-mark" style="width:34px;height:34px;border-radius:11px"></div><div><span>Kreate</span><span>IA</span></div></div><p style="margin:4px 0;font-size:13px;color:#4b5563">www.kreateia.com</p></div>
+            <div style="text-align:right"><h1 class="invoice-title">FACTURA</h1><div class="invoice-number">${escapeHtml(inv.invoiceNumber)}</div><p style="margin:6px 0 0;font-size:13px;color:#4b5563">Fecha: ${escapeHtml(inv.issueDate || "")}</p></div>
           </div>
-
           <div class="invoice-boxes">
-            <div class="invoice-box">
-              <h3>Emisor</h3>
-              <p><strong>${escapeHtml(issuer.name || "KreateIA")}</strong></p>
-              <p>NIF/CIF: ${escapeHtml(issuer.taxId || "Pendiente")}</p>
-              <p>${escapeHtml(issuer.address || "Pendiente")}</p>
-              <p>${escapeHtml(issuer.email || "empresas@kreateia.com")}</p>
-            </div>
-            <div class="invoice-box">
-              <h3>Cliente</h3>
-              <p><strong>${escapeHtml(client.fullName || "")}</strong></p>
-              <p>DNI/NIF/CIF: ${escapeHtml(client.taxId || "No indicado")}</p>
-              <p>${escapeHtml(client.address || "")}</p>
-              <p>${escapeHtml(client.email || "")} · ${escapeHtml(client.phone || "")}</p>
-            </div>
+            <div class="invoice-box"><h3>Emisor</h3><p><strong>${escapeHtml(issuer.name || "KreateIA")}</strong></p><p>NIF/CIF: ${escapeHtml(issuer.taxId || "Pendiente")}</p><p>${escapeHtml(issuer.address || "Pendiente")}</p><p>${escapeHtml(issuer.email || "empresas@kreateia.com")}</p></div>
+            <div class="invoice-box"><h3>Cliente</h3><p><strong>${escapeHtml(client.fullName || "")}</strong></p><p>DNI/NIF/CIF: ${escapeHtml(client.taxId || "No indicado")}</p><p>${escapeHtml(client.address || "")}</p><p>${escapeHtml(client.email || "")} · ${escapeHtml(client.phone || "")}</p></div>
           </div>
-
           <div class="invoice-boxes">
-            <div class="invoice-box" style="min-height:auto">
-              <h3>Datos de la operación</h3>
-              <p>Servicio: <strong>${escapeHtml(inv.serviceType || "")}</strong></p>
-              <p>Forma de pago: <strong>${escapeHtml(paymentMethod)}</strong></p>
-              <p>Estado: <strong>${escapeHtml(paymentStatus)}</strong>${paidAt ? ` · ${escapeHtml(paidAt)}` : ""}</p>
-            </div>
-            <div class="invoice-box" style="min-height:auto">
-              <h3>Observaciones</h3>
-              <p>${escapeHtml(inv.notes || "Sin observaciones")}</p>
-            </div>
+            <div class="invoice-box" style="min-height:auto"><h3>Datos de la operación</h3><p>Servicio: <strong>${escapeHtml(inv.serviceType || "")}</strong></p>${inv.serviceType === "Academia" ? `<p>Cita / clase: <strong>${escapeHtml(appointmentText)}</strong></p>` : ""}<p>Forma de pago: <strong>${escapeHtml(inv.paymentMethod || "No indicado")}</strong></p><p>Estado: <strong>${escapeHtml(inv.paymentStatus || "No indicado")}</strong>${inv.paidAt ? ` · ${escapeHtml(inv.paidAt)}` : ""}</p></div>
+            <div class="invoice-box" style="min-height:auto"><h3>Observaciones</h3><p>${escapeHtml(inv.notes || "Sin observaciones")}</p></div>
           </div>
-
-          <table class="invoice-table">
-            <thead>
-              <tr>
-                <th style="text-align:left">Descripción</th>
-                <th style="text-align:right">Base</th>
-                <th style="text-align:right">IVA</th>
-                <th style="text-align:right">Cuota IVA</th>
-                <th style="text-align:right">Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>${escapeHtml(inv.concept || "")}</td>
-                <td style="text-align:right">${money(inv.baseCents)}</td>
-                <td style="text-align:right">${escapeHtml(taxLabel)}</td>
-                <td style="text-align:right">${isExempt ? "Exento" : money(inv.taxCents)}</td>
-                <td style="text-align:right"><strong>${money(inv.totalCents)}</strong></td>
-              </tr>
-            </tbody>
-          </table>
-
-          <div class="invoice-totals">
-            <div class="invoice-total-line"><span>Base imponible</span><strong>${money(inv.baseCents)}</strong></div>
-            <div class="invoice-total-line"><span>${escapeHtml(taxLabel)}</span><strong>${isExempt ? "Exento" : money(inv.taxCents)}</strong></div>
-            <div class="invoice-total-line"><span>Total factura</span><span>${money(inv.totalCents)}</span></div>
-          </div>
-
-          <p class="invoice-note">
-            ${isExempt
-              ? "Operación de formación indicada como exenta de IVA. Confirma con tu asesoría el texto fiscal exacto aplicable a tu actividad."
-              : "La cuota de IVA aparece desglosada de forma separada."}
-          </p>
+          <table class="invoice-table"><thead><tr><th style="text-align:left">Descripción</th><th style="text-align:right">Base</th><th style="text-align:right">IVA</th><th style="text-align:right">Cuota IVA</th><th style="text-align:right">Total</th></tr></thead><tbody><tr><td>${escapeHtml(inv.concept || "")}</td><td style="text-align:right">${money(inv.baseCents)}</td><td style="text-align:right">${escapeHtml(taxLabel)}</td><td style="text-align:right">${isExempt ? "Exento" : money(inv.taxCents)}</td><td style="text-align:right"><strong>${money(inv.totalCents)}</strong></td></tr></tbody></table>
+          <div class="invoice-totals"><div class="invoice-total-line"><span>Base imponible</span><strong>${money(inv.baseCents)}</strong></div><div class="invoice-total-line"><span>${escapeHtml(taxLabel)}</span><strong>${isExempt ? "Exento" : money(inv.taxCents)}</strong></div><div class="invoice-total-line"><span>Total factura</span><span>${money(inv.totalCents)}</span></div></div>
+          <p class="invoice-note">${isExempt ? "Operación de formación indicada como exenta de IVA. Confirma con tu asesoría el texto fiscal exacto aplicable a tu actividad." : "La cuota de IVA aparece desglosada de forma separada."}</p>
         </article>
       `;
     }
@@ -1059,9 +589,11 @@
       e.preventDefault();
       if (!currentUser) return toast("Debes iniciar sesión.");
       if (!signatureDataUrl) return toast("Falta la firma del cliente.");
+
       const btn = $("submit-btn");
       btn.disabled = true;
       btn.textContent = "Generando...";
+
       try {
         const token = await currentUser.getIdToken();
         const payload = {
@@ -1073,6 +605,11 @@
           issueDate: $("issueDate").value,
           paymentMethod: $("paymentMethod").value,
           paymentStatus: $("paymentStatus").value,
+          appointment: selectedType === "Academia" ? {
+            date: $("appointmentDate").value,
+            time: $("appointmentTime").value,
+            notes: $("appointmentNotes").value.trim(),
+          } : null,
           client: {
             fullName: $("fullName").value.trim(),
             taxId: $("taxId").value.trim(),
@@ -1082,13 +619,16 @@
           },
           signatureDataUrl,
         };
+
         const res = await fetch("/api/priv/create-invoice", {
           method: "POST",
           headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
           body: JSON.stringify(payload),
         });
+
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || "No se pudo crear la factura.");
+
         toast(`Factura ${data.invoice.invoiceNumber} creada.`);
         if ($("sendEmail").checked) await sendInvoice(data.invoice.id, null, true);
         resetForm();
