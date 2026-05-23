@@ -67,12 +67,16 @@ function normalizeInvoicePayload(body, staff) {
   const taxCents = Math.round(baseCents * taxRate / 100);
   const totalCents = baseCents + taxCents;
   const now = new Date().toISOString();
+  const paymentStatus = normalizePaymentStatus(body.paymentStatus);
 
   return {
     serviceType,
     concept: String(body.concept).trim().slice(0, 240),
     notes: String(body.notes || '').trim().slice(0, 1200),
     issueDate: String(body.issueDate || now.slice(0, 10)).slice(0, 10),
+    paymentMethod: normalizePaymentMethod(body.paymentMethod),
+    paymentStatus,
+    paidAt: paymentStatus === 'Pagado' ? now.slice(0, 10) : null,
     taxRate,
     taxLabel: taxRate === 0 ? 'Formación exenta de IVA' : 'IVA 21%',
     baseCents,
@@ -92,6 +96,16 @@ function normalizeInvoicePayload(body, staff) {
       email: staff.email,
     },
   };
+}
+
+function normalizePaymentMethod(value) {
+  const allowed = new Set(['Efectivo', 'TPV / Tarjeta', 'Transferencia', 'Bizum', 'Pendiente']);
+  const clean = String(value || '').trim();
+  return allowed.has(clean) ? clean : 'No indicado';
+}
+
+function normalizePaymentStatus(value) {
+  return String(value || '').trim() === 'Pendiente' ? 'Pendiente' : 'Pagado';
 }
 
 async function createInvoiceWithCounter(projectId, accessToken, payload, requestedClientId = '', attempt = 0) {
