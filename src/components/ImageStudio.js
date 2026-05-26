@@ -1,6 +1,3 @@
-Sí. Pega este archivo completo en `src/components/ImageStudio.js`.
-
-```js
 import {
     getAspectRatiosForModel,
     getResolutionsForModel,
@@ -969,4 +966,3 @@ export function ImageStudio() {
     updateControlsForMode();
     return container;
 }
-```
