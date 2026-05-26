@@ -1,4 +1,4 @@
-Pega este archivo completo donde tienes tu `ImageStudio` actual.
+Sí. Pega este archivo completo en `src/components/ImageStudio.js`.
 
 ```js
 import {
@@ -21,12 +21,10 @@ import {
     limit,
     getDocs,
     serverTimestamp,
-    doc,
     updateDoc
 } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 
-// saveGenerationTask inline — sin imports dinámicos
 async function saveGenerationTask({ type, endpoint, requestId, prompt, userId }) {
     try {
         return addDoc(
@@ -56,17 +54,6 @@ const ACTIVE_I2I = [
     { id: 'nano-banana-2-edit', name: 'KreateImage 2 Edit', desc: 'Edición de imágenes con IA' }
 ];
 
-const getModelCost = (id, resolution = '720p') => {
-    const base = id === 'nano-banana-2' ? 16
-        : id === 'nano-banana-2-edit'   ? 8
-        : 8;
-
-    const multipliers = { '720p': 1, '1080p': 1.5, '2k': 2, '4k': 4 };
-    const mult = multipliers[String(resolution).toLowerCase()] || 1;
-
-    return Math.ceil(base * mult);
-};
-
 const STYLE_PRESETS = [
     'Ninguno',
     'Fotorrealista',
@@ -79,12 +66,23 @@ const STYLE_PRESETS = [
     'Cyberpunk'
 ];
 
+const getModelCost = (id, resolution = '720p') => {
+    const base = id === 'nano-banana-2' ? 16
+        : id === 'nano-banana-2-edit' ? 8
+        : 8;
+
+    const multipliers = { '720p': 1, '1080p': 1.5, '2k': 2, '4k': 4 };
+    const mult = multipliers[String(resolution).toLowerCase()] || 1;
+
+    return Math.ceil(base * mult);
+};
+
 function isDynamicModelId(id) {
     return String(id || '').startsWith('tool:');
 }
 
 function dynamicModelId(toolId) {
-    return `tool:${toolId}`;
+    return 'tool:' + toolId;
 }
 
 function getToolIdFromModelId(id) {
@@ -92,24 +90,24 @@ function getToolIdFromModelId(id) {
 }
 
 function getSchemaField(tool, names) {
-    const schema = Array.isArray(tool?.schema) ? tool.schema : [];
+    const schema = Array.isArray(tool && tool.schema) ? tool.schema : [];
     const wanted = names.map(v => String(v).toLowerCase());
 
     return schema.find(field => {
-        const key = String(field?.key || '').toLowerCase();
-        const paramKey = String(field?.paramKey || '').toLowerCase();
-        const muapiKey = String(field?.muapiKey || '').toLowerCase();
+        const key = String((field && field.key) || '').toLowerCase();
+        const paramKey = String((field && field.paramKey) || '').toLowerCase();
+        const muapiKey = String((field && field.muapiKey) || '').toLowerCase();
 
         return wanted.includes(key) || wanted.includes(paramKey) || wanted.includes(muapiKey);
     }) || null;
 }
 
 function getFieldOptions(field) {
-    if (!Array.isArray(field?.options)) return [];
+    if (!Array.isArray(field && field.options)) return [];
 
     return field.options.map(opt => {
         if (opt && typeof opt === 'object') {
-            return String(opt.value ?? opt.id ?? opt.label ?? '');
+            return String(opt.value || opt.id || opt.label || '');
         }
 
         return String(opt);
@@ -139,29 +137,29 @@ function getDynamicResolutions(tool) {
 
     if (options.length) return options;
 
-    const pricingKeys = orderedPricingKeys(tool?.pricing || {});
+    const pricingKeys = orderedPricingKeys((tool && tool.pricing) || {});
     return pricingKeys.length ? pricingKeys : ['720p'];
 }
 
 function getDynamicToolCost(tool, resolution = '720p') {
-    const pricing = tool?.pricing || {};
+    const pricing = (tool && tool.pricing) || {};
     const selected = String(resolution || '720p');
+    const value = pricing[selected] || pricing.default || tool.costCredits || tool.cost || 0;
 
-    const value = pricing[selected] ?? pricing.default ?? tool?.costCredits ?? tool?.cost ?? 0;
     return Math.max(0, Math.ceil(Number(value) || 0));
 }
 
 function extractImageUrl(data) {
-    return data?.url
-        || data?.image_url
-        || data?.output?.url
-        || data?.output?.image_url
-        || data?.output?.outputs?.[0]
-        || data?.outputs?.[0]
-        || data?.data?.url
-        || data?.data?.image_url
-        || data?.data?.outputs?.[0]
-        || data?.images?.[0]?.url
+    return (data && data.url)
+        || (data && data.image_url)
+        || (data && data.output && data.output.url)
+        || (data && data.output && data.output.image_url)
+        || (data && data.output && data.output.outputs && data.output.outputs[0])
+        || (data && data.outputs && data.outputs[0])
+        || (data && data.data && data.data.url)
+        || (data && data.data && data.data.image_url)
+        || (data && data.data && data.data.outputs && data.data.outputs[0])
+        || (data && data.images && data.images[0] && data.images[0].url)
         || null;
 }
 
@@ -235,8 +233,9 @@ export function ImageStudio() {
         ]);
 
         const fields = (Array.isArray(tool.schema) ? tool.schema : []).filter(field => {
-            const key = String(field?.key || '').toLowerCase();
-            const paramKey = String(field?.paramKey || '').toLowerCase();
+            const key = String((field && field.key) || '').toLowerCase();
+            const paramKey = String((field && field.paramKey) || '').toLowerCase();
+
             return !baseKeys.has(key) && !baseKeys.has(paramKey);
         });
 
@@ -252,7 +251,7 @@ export function ImageStudio() {
 
         const title = document.createElement('div');
         title.style.cssText = 'color:#fff;font-size:12px;font-weight:800';
-        title.textContent = `Opciones de ${tool.name}`;
+        title.textContent = 'Opciones de ' + tool.name;
         inner.appendChild(title);
 
         fields.forEach(field => {
@@ -287,6 +286,7 @@ export function ImageStudio() {
                 input.type = 'number';
             } else if (field.type === 'boolean') {
                 input = document.createElement('select');
+
                 [
                     { value: 'true', label: 'Sí' },
                     { value: 'false', label: 'No' },
@@ -302,7 +302,7 @@ export function ImageStudio() {
             }
 
             input.placeholder = field.placeholder || '';
-            input.value = dynamicFieldValues[key] ?? field.default ?? '';
+            input.value = dynamicFieldValues[key] || field.default || '';
             input.style.cssText = 'width:100%;background:#1a1a1a;border:1px solid #2a2a2a;border-radius:10px;padding:10px 12px;color:#fff;font-size:13px;outline:none;font-family:inherit';
 
             input.addEventListener('input', () => {
@@ -328,7 +328,7 @@ export function ImageStudio() {
 
     const updateControlsForMode = () => {
         const ars = getCurrentAspectRatios(selectedModel);
-        if (ars?.length && !ars.includes(selectedAr)) selectedAr = ars[0];
+        if (ars && ars.length && !ars.includes(selectedAr)) selectedAr = ars[0];
 
         const mLabel = container.querySelector('#model-btn-label');
         if (mLabel) mLabel.textContent = selectedModelName;
@@ -337,25 +337,26 @@ export function ImageStudio() {
         if (aLabel) aLabel.textContent = selectedAr;
 
         const validRes = getCurrentResolutions(selectedModel);
-        if (validRes?.length && !validRes.includes(selectedResolution)) {
+
+        if (validRes && validRes.length && !validRes.includes(selectedResolution)) {
             selectedResolution = validRes[0];
         }
 
         const qBtn = container.querySelector('#quality-btn');
+
         if (qBtn) {
-            qBtn.style.display = validRes?.length ? 'flex' : 'none';
+            qBtn.style.display = validRes && validRes.length ? 'flex' : 'none';
 
             const qLabel = container.querySelector('#quality-btn-label');
-            if (validRes?.length && qLabel) qLabel.textContent = selectedResolution;
+            if (validRes && validRes.length && qLabel) qLabel.textContent = selectedResolution;
         }
 
         const cost = getCurrentCost();
 
-        generateBtn.innerHTML = `Generar ✨ <span style="background:rgba(255,255,255,.2);padding:2px 8px;border-radius:100px;font-size:11px;font-family:monospace">${cost} 🪙</span>`;
+        generateBtn.innerHTML = 'Generar <span style="background:rgba(255,255,255,.2);padding:2px 8px;border-radius:100px;font-size:11px;font-family:monospace">' + cost + ' CR</span>';
         renderDynamicFields();
     };
 
-    // HERO
     const hero = document.createElement('div');
     hero.className = 'flex flex-col items-center mb-6 md:mb-16 mt-4 md:mt-0 animate-fade-in-up shrink-0';
     hero.innerHTML = `
@@ -372,7 +373,6 @@ export function ImageStudio() {
     `;
     container.appendChild(hero);
 
-    // PROMPT BAR
     const promptWrapper = document.createElement('div');
     promptWrapper.className = 'w-full max-w-4xl relative z-40 shrink-0 px-2 md:px-0';
 
@@ -395,7 +395,7 @@ export function ImageStudio() {
         }
 
         textarea.placeholder = uploadedImageUrls.length > 1
-            ? `${uploadedImageUrls.length} imágenes seleccionadas`
+            ? uploadedImageUrls.length + ' imágenes seleccionadas'
             : 'Describe cómo editar esta imagen (opcional)';
     }
 
@@ -406,7 +406,7 @@ export function ImageStudio() {
         const resp = await fetch('/api/v1/upload_file', {
             method: 'POST',
             headers: {
-                Authorization: `Bearer ${token}`,
+                Authorization: 'Bearer ' + token,
             },
             body: fd,
         });
@@ -414,17 +414,16 @@ export function ImageStudio() {
         const data = await resp.json().catch(() => ({}));
 
         if (!resp.ok) {
-            throw new Error(data.error || data.message || `Error subiendo imagen: ${resp.status}`);
+            throw new Error(data.error || data.message || 'Error subiendo imagen: ' + resp.status);
         }
 
-        const url =
-            data.url ||
-            data.file_url ||
-            data.image_url ||
-            data.output?.url ||
-            data.data?.url ||
-            data.output?.outputs?.[0] ||
-            data.outputs?.[0];
+        const url = data.url
+            || data.file_url
+            || data.image_url
+            || (data.output && data.output.url)
+            || (data.data && data.data.url)
+            || (data.output && data.output.outputs && data.output.outputs[0])
+            || (data.outputs && data.outputs[0]);
 
         if (!url) throw new Error('No se recibió URL de la imagen subida.');
 
@@ -459,7 +458,7 @@ export function ImageStudio() {
 
         bar.style.border = '1px solid #3b82f6';
         bar.style.background = '#0b1220';
-        textarea.placeholder = `Subiendo ${selectedFiles.length} imagen(es)...`;
+        textarea.placeholder = 'Subiendo ' + selectedFiles.length + ' imagen(es)...';
 
         try {
             const token = await auth.currentUser.getIdToken();
@@ -513,6 +512,7 @@ export function ImageStudio() {
             generateBtn.click();
         }
     });
+
     topRow.appendChild(textarea);
     bar.appendChild(topRow);
 
@@ -543,7 +543,7 @@ export function ImageStudio() {
             if (eventName === 'drop') {
                 imageDragDepth = 0;
                 setImageDropActive(false);
-                handleDroppedImageFiles(e.dataTransfer?.files);
+                handleDroppedImageFiles(e.dataTransfer && e.dataTransfer.files);
                 return;
             }
 
@@ -551,7 +551,6 @@ export function ImageStudio() {
         });
     });
 
-    // CONTROLS
     const bottomRow = document.createElement('div');
     bottomRow.style.cssText = 'display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;padding-top:12px;border-top:1px solid #1f1f1f';
 
@@ -559,25 +558,25 @@ export function ImageStudio() {
     controlsLeft.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;flex:1;min-width:0';
 
     const modelBtn = createControlBtn(
-        `<div style="width:16px;height:16px;background:#3b82f6;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:900;color:#fff;flex-shrink:0">K</div>`,
+        '<div style="width:16px;height:16px;background:#3b82f6;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:900;color:#fff;flex-shrink:0">K</div>',
         selectedModelName,
         'model-btn'
     );
 
     const arBtn = createControlBtn(
-        `<svg style="opacity:.5;flex-shrink:0" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>`,
+        '<svg style="opacity:.5;flex-shrink:0" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>',
         selectedAr,
         'ar-btn'
     );
 
     const qualityBtn = createControlBtn(
-        `<svg style="opacity:.5;flex-shrink:0" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 2L3 6v15a2 2 0 002 2h14a2 2 0 002-2V6l-3-4H6z"/></svg>`,
+        '<svg style="opacity:.5;flex-shrink:0" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 2L3 6v15a2 2 0 002 2h14a2 2 0 002-2V6l-3-4H6z"/></svg>',
         '720p',
         'quality-btn'
     );
 
     const advancedBtn = createControlBtn(
-        `<svg style="opacity:.5;flex-shrink:0" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 001.82-.33 1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-1.82.33A1.65 1.65 0 0019.4 9a1.65 1.65 0 00-1.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>`,
+        '<svg style="opacity:.5;flex-shrink:0" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>',
         'Avanzado',
         'advanced-btn'
     );
@@ -602,7 +601,6 @@ export function ImageStudio() {
         innerHTML: '<p style="color:#333;font-size:11px">Puedes lanzar varias generaciones a la vez sin esperar</p>'
     }));
 
-    // ADVANCED PANEL
     const advancedPanel = document.createElement('div');
     advancedPanel.style.cssText = 'display:none;width:100%;max-width:56rem;margin-top:12px;padding:0 8px';
     advancedPanel.innerHTML = `
@@ -625,13 +623,12 @@ export function ImageStudio() {
     `;
     container.appendChild(advancedPanel);
 
-    // Style presets
     const presetsContainer = advancedPanel.querySelector('#style-presets');
 
     STYLE_PRESETS.forEach(s => {
         const btn = document.createElement('button');
         btn.type = 'button';
-        btn.style.cssText = `padding:6px 12px;background:${s === selectedStyle ? '#3b82f622' : '#1a1a1a'};border:${s === selectedStyle ? '1px solid #3b82f666' : '1px solid #2a2a2a'};border-radius:100px;color:${s === selectedStyle ? '#60a5fa' : '#666'};font-size:11px;font-weight:600;cursor:pointer;transition:all .15s`;
+        btn.style.cssText = 'padding:6px 12px;background:' + (s === selectedStyle ? '#3b82f622' : '#1a1a1a') + ';border:' + (s === selectedStyle ? '1px solid #3b82f666' : '1px solid #2a2a2a') + ';border-radius:100px;color:' + (s === selectedStyle ? '#60a5fa' : '#666') + ';font-size:11px;font-weight:600;cursor:pointer;transition:all .15s';
         btn.textContent = s;
 
         btn.addEventListener('click', () => {
@@ -662,7 +659,6 @@ export function ImageStudio() {
         if (l) l.textContent = showAdvanced ? 'Ocultar' : 'Avanzado';
     });
 
-    // DROPDOWN HANDLERS
     modelBtn.addEventListener('click', (e) => {
         e.stopPropagation();
 
@@ -702,7 +698,7 @@ export function ImageStudio() {
 
         const res = (getCurrentResolutions(selectedModel) || []).map(v => ({ id: v, name: v }));
 
-        dd.openList('Resolución', res, container.querySelector('#quality-btn-label')?.textContent || '', qualityBtn, (val) => {
+        dd.openList('Resolución', res, container.querySelector('#quality-btn-label') ? container.querySelector('#quality-btn-label').textContent : '', qualityBtn, (val) => {
             selectedResolution = val;
 
             const l = container.querySelector('#quality-btn-label');
@@ -712,7 +708,6 @@ export function ImageStudio() {
         });
     });
 
-    // GALERÍA
     const galleryWrapper = document.createElement('div');
     galleryWrapper.className = 'w-full max-w-6xl mt-4 md:mt-8 flex-1 flex flex-col shrink-0 px-2 md:px-0';
 
@@ -732,7 +727,7 @@ export function ImageStudio() {
 
         const card = document.createElement('div');
         card.className = 'relative aspect-square rounded-xl md:rounded-2xl overflow-hidden bg-white/5 border border-white/10 group animate-fade-in-up cursor-pointer';
-        card.innerHTML = `<img src="${entry.url}" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" loading="lazy"><div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent opacity-0 group-hover:opacity-100 transition-opacity p-2 md:p-4 flex flex-col justify-end"><p class="text-white text-[10px] md:text-xs line-clamp-2 leading-tight">${entry.prompt || ''}</p></div>`;
+        card.innerHTML = '<img src="' + entry.url + '" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" loading="lazy"><div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent opacity-0 group-hover:opacity-100 transition-opacity p-2 md:p-4 flex flex-col justify-end"><p class="text-white text-[10px] md:text-xs line-clamp-2 leading-tight">' + (entry.prompt || '') + '</p></div>';
 
         card.onclick = async () => {
             const blob = await fetch(entry.url).then(r => r.blob());
@@ -798,7 +793,6 @@ export function ImageStudio() {
         }
     });
 
-    // GENERACIÓN
     generateBtn.addEventListener('click', async () => {
         const promptText = textarea.value.trim();
 
@@ -812,7 +806,7 @@ export function ImageStudio() {
 
         const loadingCard = document.createElement('div');
         loadingCard.className = 'relative aspect-square rounded-xl md:rounded-2xl overflow-hidden bg-white/5 border border-white/10 flex flex-col items-center justify-center';
-        loadingCard.innerHTML = `<div style="width:32px;height:32px;border:3px solid #3b82f633;border-top-color:#3b82f6;border-radius:50%;animation:spin 1s linear infinite;margin-bottom:8px"></div><span style="font-size:10px;font-weight:700;color:#60a5fa">Generando...</span>`;
+        loadingCard.innerHTML = '<div style="width:32px;height:32px;border:3px solid #3b82f633;border-top-color:#3b82f6;border-radius:50%;animation:spin 1s linear infinite;margin-bottom:8px"></div><span style="font-size:10px;font-weight:700;color:#60a5fa">Generando...</span>';
 
         galleryGrid.prepend(loadingCard);
 
@@ -823,7 +817,7 @@ export function ImageStudio() {
             let finalPrompt = promptText || (imageMode ? 'Edición de imagen' : '');
 
             if (selectedStyle && selectedStyle !== 'Ninguno') {
-                finalPrompt += `, estilo ${selectedStyle.toLowerCase()}`;
+                finalPrompt += ', estilo ' + selectedStyle.toLowerCase();
             }
 
             const token = await auth.currentUser.getIdToken();
@@ -832,13 +826,13 @@ export function ImageStudio() {
             let req;
 
             if (isDynamicTool) {
-                endpointLabel = `tools/run:${dynamicTool.toolId}`;
+                endpointLabel = 'tools/run:' + dynamicTool.toolId;
 
                 req = await fetch('/api/v1/tools/run', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        Authorization: `Bearer ${token}`,
+                        Authorization: 'Bearer ' + token,
                     },
                     body: JSON.stringify({
                         toolId: dynamicTool.toolId,
@@ -855,11 +849,11 @@ export function ImageStudio() {
             } else {
                 const route = imageMode ? 'generate/image/edit' : 'generate/image/create';
 
-                req = await fetch(`/api/v1/${route}`, {
+                req = await fetch('/api/v1/' + route, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        Authorization: `Bearer ${token}`,
+                        Authorization: 'Bearer ' + token,
                     },
                     body: JSON.stringify({
                         prompt: finalPrompt,
@@ -874,11 +868,10 @@ export function ImageStudio() {
             let res = await req.json().catch(() => ({}));
 
             if (!req.ok) {
-                throw new Error(res.error || `Error en el servidor: ${req.status}`);
+                throw new Error(res.error || 'Error en el servidor: ' + req.status);
             }
 
-            const requestId = res.request_id || res.id || res.output?.id || null;
-
+            const requestId = res.request_id || res.id || (res.output && res.output.id) || null;
             let generationTaskRef = null;
 
             if (requestId && auth.currentUser) {
@@ -900,16 +893,16 @@ export function ImageStudio() {
                     await new Promise(r => setTimeout(r, 2000));
                     attempts++;
 
-                    const poll = await fetch(`/api/v1/predictions/${requestId}/result`, {
+                    const poll = await fetch('/api/v1/predictions/' + requestId + '/result', {
                         headers: {
-                            Authorization: `Bearer ${token}`,
+                            Authorization: 'Bearer ' + token,
                         },
                     });
 
                     const p = await poll.json().catch(() => ({}));
 
                     if (!poll.ok) {
-                        throw new Error(p.error || `Error consultando resultado: ${poll.status}`);
+                        throw new Error(p.error || 'Error consultando resultado: ' + poll.status);
                     }
 
                     imageUrl = extractImageUrl(p);
@@ -919,7 +912,12 @@ export function ImageStudio() {
                         break;
                     }
 
-                    const status = String(p.status || p.output?.status || p.data?.status || '').toLowerCase();
+                    const status = String(
+                        p.status
+                        || (p.output && p.output.status)
+                        || (p.data && p.data.status)
+                        || ''
+                    ).toLowerCase();
 
                     if (status === 'failed' || status === 'error') {
                         throw new Error(p.error || p.message || 'Error en la generación.');
@@ -937,7 +935,7 @@ export function ImageStudio() {
                 }).catch(() => {});
             }
 
-            if (!res?.url) throw new Error('No se recibió URL de la imagen.');
+            if (!res || !res.url) throw new Error('No se recibió URL de la imagen.');
 
             const entry = {
                 url: res.url,
@@ -959,7 +957,7 @@ export function ImageStudio() {
             loadingCard.innerHTML = `
                 <div class="absolute inset-0" style="background:#ef444411"></div>
                 <div class="z-10 flex flex-col items-center gap-2 p-3 text-center">
-                    <span style="font-size:18px">⚠️</span>
+                    <span style="font-size:18px;color:#f87171">!</span>
                     <span style="font-size:9px;font-weight:700;color:#f87171">Error al generar</span>
                     <span style="font-size:8px;color:#555">${String(e.message || '').slice(0, 80)}</span>
                     <button onclick="this.closest('.aspect-square').remove()" style="margin-top:4px;background:#ffffff11;border:1px solid #ffffff22;border-radius:8px;padding:4px 10px;font-size:9px;color:#fff;cursor:pointer">Cerrar</button>
