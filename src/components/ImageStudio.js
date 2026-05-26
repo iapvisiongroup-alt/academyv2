@@ -68,7 +68,7 @@ const getModelCost = (id, resolution = '720p') => {
         : id === 'nano-banana-2-edit' ? 8
         : 8;
 
-    const multipliers = { '720p': 1, '1080p': 1.5, '2k': 2, '4k': 4 };
+    const multipliers = { '720p': 1, '1080p': 1.5, '1k': 2, '2k': 2, '4k': 4 };
     const mult = multipliers[String(resolution).toLowerCase()] || 1;
 
     return Math.ceil(base * mult);
@@ -80,10 +80,6 @@ function isDynamicModelId(id) {
 
 function dynamicModelId(toolId) {
     return 'tool:' + toolId;
-}
-
-function getToolIdFromModelId(id) {
-    return String(id || '').replace(/^tool:/, '');
 }
 
 function getSchemaField(tool, names) {
@@ -112,8 +108,14 @@ function getFieldOptions(field) {
 }
 
 function orderedPricingKeys(pricing) {
-    const preferred = ['720p', '1080p', '2k', '4k'];
-    const keys = Object.keys(pricing || {}).filter(k => k !== 'default');
+    const preferred = ['720p', '1080p', '1k', '2k', '4k'];
+    const rawKeys = Object.keys(pricing || {});
+
+    const keys = rawKeys.filter(k => {
+        if (k === 'default') return false;
+        const value = pricing[k];
+        return typeof value === 'number' && Number.isFinite(value);
+    });
 
     return [
         ...preferred.filter(k => keys.includes(k)),
@@ -129,13 +131,15 @@ function getDynamicAspectRatios(tool) {
 }
 
 function getDynamicResolutions(tool) {
+    const pricingKeys = orderedPricingKeys((tool && tool.pricing) || {});
     const field = getSchemaField(tool, ['quality', 'resolution']);
-    const options = getFieldOptions(field);
+
+    const options = getFieldOptions(field).filter(option => {
+        return pricingKeys.includes(option);
+    });
 
     if (options.length) return options;
-
-    const pricingKeys = orderedPricingKeys((tool && tool.pricing) || {});
-    return pricingKeys.length ? pricingKeys : ['720p'];
+    return pricingKeys.length ? pricingKeys : ['2k'];
 }
 
 function getDynamicToolCost(tool, resolution = '720p') {
