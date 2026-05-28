@@ -63,6 +63,8 @@ const STYLE_PRESETS = [
     'Cyberpunk'
 ];
 
+const IMAGE_EDIT_QUALITY_OPTIONS = ['1K', '2K', '4K'];
+
 const getModelCost = (id, resolution = '720p') => {
     const base = id === 'nano-banana-2' ? 16
         : id === 'nano-banana-2-edit' ? 8
@@ -73,6 +75,29 @@ const getModelCost = (id, resolution = '720p') => {
 
     return Math.ceil(base * mult);
 };
+
+function normalizeImageQuality(value) {
+    const raw = String(value || '').trim();
+    const low = raw.toLowerCase();
+
+    if (low === '4k') return '4K';
+    if (low === '2k') return '2K';
+    if (low === '1k') return '1K';
+
+    if (low === '1080p') return '1K';
+    if (low === '720p') return '1K';
+
+    return raw || '1K';
+}
+
+function getImageEditQualityOptions(modelId) {
+    const fromModel = getResolutionsForI2IModel(modelId) || [];
+    const normalized = fromModel
+        .map(normalizeImageQuality)
+        .filter(v => IMAGE_EDIT_QUALITY_OPTIONS.includes(v));
+
+    return Array.from(new Set([...normalized, ...IMAGE_EDIT_QUALITY_OPTIONS]));
+}
 
 function isDynamicModelId(id) {
     return String(id || '').startsWith('tool:');
@@ -145,7 +170,7 @@ function getDynamicResolutions(tool) {
 function getDynamicToolCost(tool, resolution = '720p') {
     const pricing = (tool && tool.pricing) || {};
     const selected = String(resolution || '720p');
-    const value = pricing[selected] || pricing.default || tool.costCredits || tool.cost || 0;
+    const value = pricing[selected] || pricing[selected.toLowerCase()] || pricing.default || tool.costCredits || tool.cost || 0;
 
     return Math.max(0, Math.ceil(Number(value) || 0));
 }
@@ -204,7 +229,9 @@ export function ImageStudio() {
         const tool = dynamicT2I.find(t => t.id === id);
         if (tool) return getDynamicResolutions(tool);
 
-        return imageMode ? getResolutionsForI2IModel(id) : getResolutionsForModel(id);
+        if (imageMode) return getImageEditQualityOptions(id);
+
+        return getResolutionsForModel(id);
     };
 
     const getCurrentCost = () => {
@@ -339,6 +366,10 @@ export function ImageStudio() {
 
         const validRes = getCurrentResolutions(selectedModel);
 
+        if (imageMode) {
+            selectedResolution = normalizeImageQuality(selectedResolution);
+        }
+
         if (validRes && validRes.length && !validRes.includes(selectedResolution)) {
             selectedResolution = validRes[0];
         }
@@ -391,6 +422,7 @@ export function ImageStudio() {
             imageMode = true;
             selectedModel = ACTIVE_I2I[0].id;
             selectedModelName = ACTIVE_I2I[0].name;
+            selectedResolution = '1K';
             updateControlsForMode();
             picker.setMaxImages(getMaxImagesForI2IModel(selectedModel));
         }
@@ -447,6 +479,7 @@ export function ImageStudio() {
         imageMode = true;
         selectedModel = ACTIVE_I2I[0].id;
         selectedModelName = ACTIVE_I2I[0].name;
+        selectedResolution = '1K';
 
         const maxImages = getMaxImagesForI2IModel(selectedModel) || 1;
         const selectedFiles = files.slice(0, maxImages);
@@ -490,6 +523,7 @@ export function ImageStudio() {
             imageMode = false;
             selectedModel = ACTIVE_T2I[0].id;
             selectedModelName = ACTIVE_T2I[0].name;
+            selectedResolution = '720p';
             updateControlsForMode();
             picker.setMaxImages(1);
             textarea.placeholder = 'Describe la imagen que quieres crear...';
@@ -677,6 +711,10 @@ export function ImageStudio() {
                 textarea.placeholder = 'Describe la imagen que quieres crear...';
             }
 
+            if (imageMode) {
+                selectedResolution = normalizeImageQuality(selectedResolution);
+            }
+
             updateControlsForMode();
         });
     });
@@ -699,11 +737,11 @@ export function ImageStudio() {
 
         const res = (getCurrentResolutions(selectedModel) || []).map(v => ({ id: v, name: v }));
 
-        dd.openList('Resolución', res, container.querySelector('#quality-btn-label') ? container.querySelector('#quality-btn-label').textContent : '', qualityBtn, (val) => {
-            selectedResolution = val;
+        dd.openList('Calidad', res, selectedResolution, qualityBtn, (val) => {
+            selectedResolution = imageMode ? normalizeImageQuality(val) : val;
 
             const l = container.querySelector('#quality-btn-label');
-            if (l) l.textContent = val;
+            if (l) l.textContent = selectedResolution;
 
             updateControlsForMode();
         });
@@ -799,6 +837,7 @@ export function ImageStudio() {
 
         if (!auth.currentUser) return alert('Debes iniciar sesión.');
         if (!imageMode && !promptText) return alert('Por favor, escribe un prompt.');
+        if (imageMode && !uploadedImageUrls.length) return alert('Sube una imagen de referencia.');
 
         const dynamicTool = getSelectedDynamicTool();
         const isDynamicTool = !imageMode && !!dynamicTool;
@@ -819,6 +858,10 @@ export function ImageStudio() {
 
             if (selectedStyle && selectedStyle !== 'Ninguno') {
                 finalPrompt += ', estilo ' + selectedStyle.toLowerCase();
+            }
+
+            if (imageMode && selectedResolution !== '1K') {
+                finalPrompt += ', alta calidad, detalles nítidos, imagen limpia, acabado profesional';
             }
 
             const token = await auth.currentUser.getIdToken();
@@ -849,6 +892,7 @@ export function ImageStudio() {
                 });
             } else {
                 const route = imageMode ? 'generate/image/edit' : 'generate/image/create';
+                const apiResolution = imageMode ? normalizeImageQuality(selectedResolution) : selectedResolution;
 
                 req = await fetch('/api/v1/' + route, {
                     method: 'POST',
@@ -859,7 +903,7 @@ export function ImageStudio() {
                     body: JSON.stringify({
                         prompt: finalPrompt,
                         aspect_ratio: selectedAr,
-                        resolution: selectedResolution,
+                        resolution: apiResolution,
                         ...(imageMode && { images_list: uploadedImageUrls }),
                         ...(negativePrompt && { negative_prompt: negativePrompt }),
                     }),
@@ -869,7 +913,7 @@ export function ImageStudio() {
             let res = await req.json().catch(() => ({}));
 
             if (!req.ok) {
-                throw new Error(res.error || 'Error en el servidor: ' + req.status);
+                throw new Error(res.error || res.message || 'Error en el servidor: ' + req.status);
             }
 
             const requestId = res.request_id || res.id || (res.output && res.output.id) || null;
@@ -943,6 +987,7 @@ export function ImageStudio() {
                 prompt: finalPrompt,
                 model: isDynamicTool ? dynamicTool.toolId : selectedModel,
                 aspect_ratio: selectedAr,
+                resolution: selectedResolution,
                 createdAt: serverTimestamp(),
             };
 
@@ -960,7 +1005,7 @@ export function ImageStudio() {
                 <div class="z-10 flex flex-col items-center gap-2 p-3 text-center">
                     <span style="font-size:18px;color:#f87171">!</span>
                     <span style="font-size:9px;font-weight:700;color:#f87171">Error al generar</span>
-                    <span style="font-size:8px;color:#555">${String(e.message || '').slice(0, 80)}</span>
+                    <span style="font-size:8px;color:#555">${String(e.message || '').slice(0, 120)}</span>
                     <button onclick="this.closest('.aspect-square').remove()" style="margin-top:4px;background:#ffffff11;border:1px solid #ffffff22;border-radius:8px;padding:4px 10px;font-size:9px;color:#fff;cursor:pointer">Cerrar</button>
                 </div>
             `;
