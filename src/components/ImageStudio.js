@@ -63,12 +63,24 @@ const STYLE_PRESETS = [
     'Cyberpunk'
 ];
 
-const IMAGE_EDIT_QUALITY_OPTIONS = ['1K', '2K', '4K'];
+const IMAGE_EDIT_QUALITY_OPTIONS = ['Normal', 'Alta', 'Máxima'];
 
 const getModelCost = (id, resolution = '720p') => {
     const base = id === 'nano-banana-2' ? 16
         : id === 'nano-banana-2-edit' ? 8
         : 8;
+
+    if (id === 'nano-banana-2-edit') {
+        const editMultipliers = {
+            'normal': 1,
+            'alta': 1.5,
+            'máxima': 2,
+            'maxima': 2,
+        };
+
+        const mult = editMultipliers[String(resolution).toLowerCase()] || 1;
+        return Math.ceil(base * mult);
+    }
 
     const multipliers = { '720p': 1, '1080p': 1.5, '1k': 2, '2k': 2, '4k': 4 };
     const mult = multipliers[String(resolution).toLowerCase()] || 1;
@@ -76,27 +88,26 @@ const getModelCost = (id, resolution = '720p') => {
     return Math.ceil(base * mult);
 };
 
-function normalizeImageQuality(value) {
-    const raw = String(value || '').trim();
-    const low = raw.toLowerCase();
+function isImageFile(file) {
+    const type = String(file && file.type || '').toLowerCase();
+    const name = String(file && file.name || '').toLowerCase();
 
-    if (low === '4k') return '4K';
-    if (low === '2k') return '2K';
-    if (low === '1k') return '1K';
-
-    if (low === '1080p') return '1K';
-    if (low === '720p') return '1K';
-
-    return raw || '1K';
+    return type.startsWith('image/')
+        || /\.(png|jpg|jpeg|webp|gif|heic|heif|avif)$/i.test(name);
 }
 
-function getImageEditQualityOptions(modelId) {
-    const fromModel = getResolutionsForI2IModel(modelId) || [];
-    const normalized = fromModel
-        .map(normalizeImageQuality)
-        .filter(v => IMAGE_EDIT_QUALITY_OPTIONS.includes(v));
+function getImageEditQualityPromptSuffix(value) {
+    const quality = String(value || '').toLowerCase();
 
-    return Array.from(new Set([...normalized, ...IMAGE_EDIT_QUALITY_OPTIONS]));
+    if (quality === 'alta') {
+        return ', alta calidad, detalles nítidos, imagen limpia, acabado profesional';
+    }
+
+    if (quality === 'máxima' || quality === 'maxima') {
+        return ', máxima calidad visual, detalles muy nítidos, textura limpia, acabado profesional, iluminación cuidada, resultado premium';
+    }
+
+    return '';
 }
 
 function isDynamicModelId(id) {
@@ -170,7 +181,7 @@ function getDynamicResolutions(tool) {
 function getDynamicToolCost(tool, resolution = '720p') {
     const pricing = (tool && tool.pricing) || {};
     const selected = String(resolution || '720p');
-    const value = pricing[selected] || pricing[selected.toLowerCase()] || pricing.default || tool.costCredits || tool.cost || 0;
+    const value = pricing[selected] || pricing.default || tool.costCredits || tool.cost || 0;
 
     return Math.max(0, Math.ceil(Number(value) || 0));
 }
@@ -229,7 +240,7 @@ export function ImageStudio() {
         const tool = dynamicT2I.find(t => t.id === id);
         if (tool) return getDynamicResolutions(tool);
 
-        if (imageMode) return getImageEditQualityOptions(id);
+        if (imageMode) return IMAGE_EDIT_QUALITY_OPTIONS;
 
         return getResolutionsForModel(id);
     };
@@ -366,10 +377,6 @@ export function ImageStudio() {
 
         const validRes = getCurrentResolutions(selectedModel);
 
-        if (imageMode) {
-            selectedResolution = normalizeImageQuality(selectedResolution);
-        }
-
         if (validRes && validRes.length && !validRes.includes(selectedResolution)) {
             selectedResolution = validRes[0];
         }
@@ -422,7 +429,7 @@ export function ImageStudio() {
             imageMode = true;
             selectedModel = ACTIVE_I2I[0].id;
             selectedModelName = ACTIVE_I2I[0].name;
-            selectedResolution = '1K';
+            selectedResolution = 'Normal';
             updateControlsForMode();
             picker.setMaxImages(getMaxImagesForI2IModel(selectedModel));
         }
@@ -469,7 +476,7 @@ export function ImageStudio() {
             return;
         }
 
-        const files = Array.from(fileList || []).filter(file => file.type.startsWith('image/'));
+        const files = Array.from(fileList || []).filter(isImageFile);
 
         if (!files.length) {
             alert('Arrastra una imagen válida.');
@@ -479,7 +486,7 @@ export function ImageStudio() {
         imageMode = true;
         selectedModel = ACTIVE_I2I[0].id;
         selectedModelName = ACTIVE_I2I[0].name;
-        selectedResolution = '1K';
+        selectedResolution = 'Normal';
 
         const maxImages = getMaxImagesForI2IModel(selectedModel) || 1;
         const selectedFiles = files.slice(0, maxImages);
@@ -711,10 +718,6 @@ export function ImageStudio() {
                 textarea.placeholder = 'Describe la imagen que quieres crear...';
             }
 
-            if (imageMode) {
-                selectedResolution = normalizeImageQuality(selectedResolution);
-            }
-
             updateControlsForMode();
         });
     });
@@ -737,11 +740,11 @@ export function ImageStudio() {
 
         const res = (getCurrentResolutions(selectedModel) || []).map(v => ({ id: v, name: v }));
 
-        dd.openList('Calidad', res, selectedResolution, qualityBtn, (val) => {
-            selectedResolution = imageMode ? normalizeImageQuality(val) : val;
+        dd.openList(imageMode ? 'Calidad' : 'Resolución', res, selectedResolution, qualityBtn, (val) => {
+            selectedResolution = val;
 
             const l = container.querySelector('#quality-btn-label');
-            if (l) l.textContent = selectedResolution;
+            if (l) l.textContent = val;
 
             updateControlsForMode();
         });
@@ -860,8 +863,8 @@ export function ImageStudio() {
                 finalPrompt += ', estilo ' + selectedStyle.toLowerCase();
             }
 
-            if (imageMode && selectedResolution !== '1K') {
-                finalPrompt += ', alta calidad, detalles nítidos, imagen limpia, acabado profesional';
+            if (imageMode) {
+                finalPrompt += getImageEditQualityPromptSuffix(selectedResolution);
             }
 
             const token = await auth.currentUser.getIdToken();
@@ -892,7 +895,20 @@ export function ImageStudio() {
                 });
             } else {
                 const route = imageMode ? 'generate/image/edit' : 'generate/image/create';
-                const apiResolution = imageMode ? normalizeImageQuality(selectedResolution) : selectedResolution;
+
+                const payload = imageMode
+                    ? {
+                        prompt: finalPrompt,
+                        aspect_ratio: selectedAr,
+                        images_list: uploadedImageUrls,
+                        ...(negativePrompt && { negative_prompt: negativePrompt }),
+                    }
+                    : {
+                        prompt: finalPrompt,
+                        aspect_ratio: selectedAr,
+                        resolution: selectedResolution,
+                        ...(negativePrompt && { negative_prompt: negativePrompt }),
+                    };
 
                 req = await fetch('/api/v1/' + route, {
                     method: 'POST',
@@ -900,13 +916,7 @@ export function ImageStudio() {
                         'Content-Type': 'application/json',
                         Authorization: 'Bearer ' + token,
                     },
-                    body: JSON.stringify({
-                        prompt: finalPrompt,
-                        aspect_ratio: selectedAr,
-                        resolution: apiResolution,
-                        ...(imageMode && { images_list: uploadedImageUrls }),
-                        ...(negativePrompt && { negative_prompt: negativePrompt }),
-                    }),
+                    body: JSON.stringify(payload),
                 });
             }
 
