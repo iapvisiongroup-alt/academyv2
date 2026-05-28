@@ -1323,8 +1323,14 @@
                 </div>
               </div>
 
+              <div class="field" style="margin-bottom:0">
+                <label>Búsqueda personalizada</label>
+                <input id="lead-custom-query" placeholder="Ej. clínicas de estética, concesionarios, academias de inglés, hoteles boutique..." />
+                <div class="mini" style="margin-top:6px">Puedes usar este campo sin marcar ningún sector predeterminado.</div>
+              </div>
+
               <div>
-                <label>Sectores a escanear</label>
+                <label>Sectores a escanear opcionales</label>
                 <div class="lead-sector-grid">
                   <label class="lead-sector-option"><input data-lead-sector value="restaurant" type="checkbox" checked /> Restaurantes</label>
                   <label class="lead-sector-option"><input data-lead-sector value="cafe" type="checkbox" /> Cafeterías</label>
@@ -1347,7 +1353,7 @@
 
               <div style="display:flex;gap:10px;flex-wrap:wrap">
                 <button id="lead-search-btn" class="btn primary" type="submit">Buscar empresas</button>
-                <button id="lead-clear-btn" class="btn ghost" type="button">Limpiar búsqueda</button>
+                <button id="lead-clear-btn" class="btn ghost" type="button">Limpiar filtros</button>
               </div>
             </form>
 
@@ -2009,10 +2015,17 @@
     });
 
     $("lead-clear-btn").addEventListener("click", () => {
-      $("lead-search-form").reset();
-      const restaurant = document.querySelector('[data-lead-sector][value="restaurant"]');
-      if (restaurant) restaurant.checked = true;
+      $("lead-location").value = "";
+      $("lead-custom-query").value = "";
+      $("lead-campaign-name").value = "";
+      $("lead-filter").value = "";
       $("lead-radius").value = "5000";
+      document.querySelectorAll("[data-lead-sector]").forEach(input => {
+        input.checked = false;
+      });
+      $("lead-radius").value = "5000";
+      renderLeads();
+      toast("Filtros limpios. Los leads guardados se mantienen.");
     });
 
     $("lead-filter").addEventListener("input", renderLeads);
@@ -2038,8 +2051,9 @@
       const locationText = $("lead-location").value.trim();
       if (!locationText) return toast("Escribe una ubicación.");
 
+      const customQuery = $("lead-custom-query").value.trim();
       const sectors = Array.from(document.querySelectorAll("[data-lead-sector]:checked")).map(el => el.value);
-      if (!sectors.length) return toast("Elige al menos un sector.");
+      if (!sectors.length && !customQuery) return toast("Elige un sector o escribe una búsqueda personalizada.");
       if (sectors.length > 8) return toast("Elige máximo 8 sectores por búsqueda.");
 
       const btn = $("lead-search-btn");
@@ -2059,6 +2073,7 @@
             locationText,
             radiusMeters: Number($("lead-radius").value || 5000),
             sectors,
+            customQuery,
             campaignName: $("lead-campaign-name").value.trim(),
           }),
         });
@@ -2090,6 +2105,8 @@
           lead.website,
           lead.sector,
           lead.aiSummary,
+          lead.websiteReport,
+          Array.isArray(lead.socialLinks) ? lead.socialLinks.map(link => link.url).join(" ") : "",
         ].join(" ").toLowerCase();
 
         return text.includes(term);
@@ -2152,7 +2169,14 @@
             </td>
             <td>
               <span class="pill warn">${escapeHtml(lead.sector || "-")}</span>
-              <div class="mini">${escapeHtml(lead.status || "nuevo")}</div>
+              <select data-lead-status-id="${escapeHtml(lead.id)}" style="margin-top:8px;padding:8px 10px;border-radius:10px;font-size:12px">
+                <option value="nuevo" ${(lead.status || "nuevo") === "nuevo" ? "selected" : ""}>Nuevo</option>
+                <option value="contactado" ${lead.status === "contactado" ? "selected" : ""}>Contactado</option>
+                <option value="interesado" ${lead.status === "interesado" ? "selected" : ""}>Interesado</option>
+                <option value="no_interesa" ${lead.status === "no_interesa" ? "selected" : ""}>No interesa</option>
+                <option value="no_contactar" ${lead.status === "no_contactar" ? "selected" : ""}>No contactar</option>
+              </select>
+              <div class="mini">${lead.lastContactAt ? `Último contacto: ${escapeHtml(shortLeadDate(lead.lastContactAt))}` : "Sin contacto registrado"}</div>
             </td>
             <td>
               <strong>${rating ? rating.toFixed(1) : "-"}</strong>
@@ -2160,11 +2184,16 @@
             </td>
             <td>
               <div class="lead-script">${escapeHtml(lead.aiSummary || "Revisar ficha antes de contactar.")}</div>
+              ${lead.websiteReport ? `<div class="mini" style="margin-top:8px;white-space:pre-wrap">${escapeHtml(lead.websiteReport)}</div>` : ""}
             </td>
             <td>
+              <textarea data-lead-notes-id="${escapeHtml(lead.id)}" placeholder="Notas internas..." style="width:100%;min-height:68px;margin-bottom:8px;border-radius:12px;font-size:12px">${escapeHtml(lead.notes || "")}</textarea>
               <div style="display:flex;gap:6px;flex-wrap:wrap">
+                <button class="btn primary" type="button" data-mark-contacted="${escapeHtml(lead.id)}">✓ Contactado</button>
+                <button class="btn ghost" type="button" data-save-lead="${escapeHtml(lead.id)}">Guardar notas</button>
                 ${lead.googleMapsUrl ? `<a class="btn ghost" href="${escapeHtml(lead.googleMapsUrl)}" target="_blank" rel="noopener">Maps</a>` : ""}
                 ${lead.website ? `<a class="btn ghost" href="${escapeHtml(lead.website)}" target="_blank" rel="noopener">Web</a>` : ""}
+                ${Array.isArray(lead.socialLinks) ? lead.socialLinks.slice(0, 3).map(link => `<a class="btn ghost" href="${escapeHtml(link.url)}" target="_blank" rel="noopener">${escapeHtml(link.platform)}</a>`).join("") : ""}
                 ${lead.phone ? `<button class="btn ghost" type="button" data-copy-phone="${escapeHtml(lead.phone)}">Copiar teléfono</button>` : ""}
                 <button class="btn ghost" type="button" data-copy-script-id="${escapeHtml(lead.id)}">Copiar guion</button>
               </div>
@@ -2183,6 +2212,50 @@
           copyLeadText(lead?.callScript || "", "Guion copiado.");
         });
       });
+
+      document.querySelectorAll("[data-save-lead]").forEach(btn => {
+        btn.addEventListener("click", () => saveLeadFromRow(btn.dataset.saveLead));
+      });
+
+      document.querySelectorAll("[data-mark-contacted]").forEach(btn => {
+        btn.addEventListener("click", () => saveLeadFromRow(btn.dataset.markContacted, "contactado", "telefono"));
+      });
+    }
+
+    async function saveLeadFromRow(leadId, forcedStatus = "", contactChannel = "") {
+      if (!currentUser) return toast("Debes iniciar sesión.");
+
+      const statusInput = document.querySelector(`[data-lead-status-id="${leadId}"]`);
+      const notesInput = document.querySelector(`[data-lead-notes-id="${leadId}"]`);
+      const status = forcedStatus || statusInput?.value || "nuevo";
+      const notes = notesInput?.value || "";
+
+      if (forcedStatus && statusInput) statusInput.value = forcedStatus;
+
+      try {
+        const token = await currentUser.getIdToken();
+
+        const res = await fetch("/api/priv/update-lead", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            leadId,
+            status,
+            notes,
+            contactChannel,
+          }),
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || "No se pudo guardar el lead.");
+
+        toast(status === "contactado" ? "Lead marcado como contactado." : "Lead guardado.");
+      } catch (err) {
+        toast(err.message || "Error guardando lead.");
+      }
     }
 
     async function copyLeadText(text, message) {
