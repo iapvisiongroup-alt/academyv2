@@ -7,6 +7,7 @@ const CORS = {
 const DEFAULT_SECTORS = ['restaurant'];
 const MAX_RADIUS_METERS = 50000;
 const MAX_RESULTS_PER_SECTOR = 20;
+const MAX_WEBSITE_AUDITS = 40;
 
 export async function onRequest(context) {
   const { request, env } = context;
@@ -33,10 +34,11 @@ export async function onRequest(context) {
     const body = await request.json().catch(() => null);
     if (!body || typeof body !== 'object') return jsonError('Solicitud invalida', 400);
 
-    const sectors = normalizeSectors(body);
+    const customQuery = normalizeCustomQuery(body.customQuery);
+    const sectors = normalizeSectors(body, customQuery);
     const radiusMeters = normalizeRadius(body.radiusMeters);
     const campaignName = String(body.campaignName || '').trim().slice(0, 160)
-      || buildCampaignName(body.locationText, sectors);
+      || buildCampaignName(body.locationText, sectors, customQuery);
 
     let latitude = Number(body.latitude);
     let longitude = Number(body.longitude);
@@ -55,21 +57,25 @@ export async function onRequest(context) {
 
     const now = new Date().toISOString();
     const campaignId = safeDocId('campaign_' + now + '_' + campaignName);
-    const rawPlaces = await searchNearbyPlaces(env, {
+    const rawPlaces = await searchPlaces(env, {
       latitude,
       longitude,
       radiusMeters,
       sectors,
+      customQuery,
+      locationText,
     });
 
     const deduped = dedupePlaces(rawPlaces);
-    const leads = deduped.map(item => normalizeLead({
+    const baseLeads = deduped.map(item => normalizeLead({
       place: item.place,
       sector: item.sector,
       campaignId,
       staff,
       now,
+      customQuery,
     }));
+    const leads = await enrichLeadsWithWebsiteReports(baseLeads);
 
     const campaignDoc = {
       name: campaignName,
@@ -79,6 +85,7 @@ export async function onRequest(context) {
       longitude,
       radiusMeters,
       sectors,
+      customQuery,
       totalFound: leads.length,
       createdByUid: staff.uid,
       createdByEmail: staff.email,
@@ -118,6 +125,7 @@ export async function onRequest(context) {
         address: lead.address,
         googleMapsUrl: lead.googleMapsUrl,
         status: lead.status,
+        websiteScore: lead.websiteScore,
       })),
     });
   } catch (err) {
@@ -125,7 +133,7 @@ export async function onRequest(context) {
   }
 }
 
-async function searchNearbyPlaces(env, { latitude, longitude, radiusMeters, sectors }) {
+async function searchPlaces(env, { latitude, longitude, radiusMeters, sectors, customQuery, locationText }) {
   const all = [];
 
   for (const sector of sectors) {
@@ -173,7 +181,65 @@ async function searchNearbyPlaces(env, { latitude, longitude, radiusMeters, sect
     });
   }
 
+  if (customQuery) {
+    const textPlaces = await searchTextPlaces(env, {
+      latitude,
+      longitude,
+      radiusMeters,
+      customQuery,
+      locationText,
+    });
+
+    textPlaces.forEach(place => {
+      all.push({ sector: customQuery, place });
+    });
+  }
+
   return all;
+}
+
+async function searchTextPlaces(env, { latitude, longitude, radiusMeters, customQuery, locationText }) {
+  const textQuery = locationText ? `${customQuery} en ${locationText}` : customQuery;
+  const res = await fetch('https://places.googleapis.com/v1/places:searchText', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Goog-Api-Key': env.GOOGLE_MAPS_API_KEY,
+      'X-Goog-FieldMask': [
+        'places.id',
+        'places.displayName',
+        'places.formattedAddress',
+        'places.location',
+        'places.rating',
+        'places.userRatingCount',
+        'places.websiteUri',
+        'places.nationalPhoneNumber',
+        'places.internationalPhoneNumber',
+        'places.googleMapsUri',
+        'places.types',
+      ].join(','),
+    },
+    body: JSON.stringify({
+      textQuery,
+      maxResultCount: MAX_RESULTS_PER_SECTOR,
+      locationBias: {
+        circle: {
+          center: { latitude, longitude },
+          radius: radiusMeters,
+        },
+      },
+      languageCode: 'es',
+      regionCode: 'ES',
+    }),
+  });
+
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    throw new Error(data.error?.message || `Google Text Search: ${res.status}`);
+  }
+
+  return data.places || [];
 }
 
 async function geocodeLocation(env, locationText) {
@@ -197,7 +263,7 @@ async function geocodeLocation(env, locationText) {
   };
 }
 
-function normalizeLead({ place, sector, campaignId, staff, now }) {
+function normalizeLead({ place, sector, campaignId, staff, now, customQuery }) {
   const placeId = String(place.id || '').trim();
   const name = String(place.displayName?.text || place.displayName || 'Sin nombre').trim().slice(0, 220);
   const phone = String(place.nationalPhoneNumber || place.internationalPhoneNumber || '').trim().slice(0, 80);
@@ -216,6 +282,7 @@ function normalizeLead({ place, sector, campaignId, staff, now }) {
     placeId,
     name,
     sector,
+    customQuery: customQuery || '',
     status: 'nuevo',
     address,
     phone,
@@ -228,6 +295,12 @@ function normalizeLead({ place, sector, campaignId, staff, now }) {
     notes: '',
     aiSummary: buildLeadSummary(leadForScript),
     callScript: buildCallScript(leadForScript),
+    hasWebsite: !!website,
+    websiteStatus: website ? 'pending' : 'no_website',
+    websiteScore: website ? 0 : 20,
+    websiteReport: website ? 'Auditoria web pendiente.' : 'No aparece web publica en Google Places. Oportunidad: ofrecer web, ficha local, presencia digital y automatizaciones basicas.',
+    seoIssues: website ? [] : ['No aparece web publica en la ficha'],
+    socialLinks: [],
     lastContactAt: '',
     createdByUid: staff.uid,
     createdByEmail: staff.email,
@@ -236,11 +309,22 @@ function normalizeLead({ place, sector, campaignId, staff, now }) {
   };
 }
 
-function buildLeadSummary(lead) {
+function buildLeadSummary(lead, report = null) {
   const sectorText = lead.sector ? `Sector detectado: ${lead.sector}. ` : '';
   const webText = lead.website ? 'Tiene web publica, conviene revisarla antes de llamar. ' : 'No aparece web publica en la ficha. ';
   const phoneText = lead.phone ? 'Tiene telefono disponible para primer contacto humano.' : 'No aparece telefono en la ficha.';
-  return `${sectorText}${webText}${phoneText}`;
+
+  if (!report) return `${sectorText}${webText}${phoneText}`;
+
+  const scoreText = `Puntuacion web aproximada: ${report.score}/100. `;
+  const issueText = report.issues.length
+    ? `Flaquezas: ${report.issues.slice(0, 4).join(', ')}. `
+    : 'No se detectan flaquezas SEO basicas en portada. ';
+  const socialText = report.socialLinks.length
+    ? `Redes detectadas: ${report.socialLinks.map(link => link.platform).join(', ')}.`
+    : 'No se detectan redes sociales enlazadas desde la web.';
+
+  return `${sectorText}${webText}${phoneText} ${scoreText}${issueText}${socialText}`;
 }
 
 function buildCallScript(lead) {
@@ -266,12 +350,142 @@ function dedupePlaces(items) {
   return result;
 }
 
-function normalizeSectors(body) {
+async function enrichLeadsWithWebsiteReports(leads) {
+  const limited = leads.slice(0, MAX_WEBSITE_AUDITS);
+  const audited = await mapWithConcurrency(limited, 5, async lead => {
+    if (!lead.website) return lead;
+
+    const report = await analyzeWebsite(lead.website);
+    return {
+      ...lead,
+      hasWebsite: true,
+      websiteStatus: report.status,
+      websiteScore: report.score,
+      websiteReport: report.summary,
+      seoIssues: report.issues,
+      socialLinks: report.socialLinks,
+      aiSummary: buildLeadSummary(lead, report),
+    };
+  });
+
+  const auditedById = new Map(audited.map(lead => [lead.id, lead]));
+  return leads.map(lead => auditedById.get(lead.id) || lead);
+}
+
+async function analyzeWebsite(url) {
+  const started = Date.now();
+  const normalizedUrl = normalizeWebsiteUrl(url);
+
+  try {
+    const res = await fetchWithTimeout(normalizedUrl, 4500);
+    const statusCode = res.status;
+    const finalUrl = res.url || normalizedUrl;
+    const contentType = res.headers.get('content-type') || '';
+
+    if (!res.ok) {
+      return buildWebsiteReport({
+        status: 'error',
+        score: 30,
+        statusCode,
+        finalUrl,
+        loadMs: Date.now() - started,
+        issues: [`La web responde con error HTTP ${statusCode}`],
+        socialLinks: [],
+      });
+    }
+
+    if (!contentType.includes('text/html')) {
+      return buildWebsiteReport({
+        status: 'limited',
+        score: 45,
+        statusCode,
+        finalUrl,
+        loadMs: Date.now() - started,
+        issues: ['La URL no devuelve HTML revisable'],
+        socialLinks: [],
+      });
+    }
+
+    const html = await res.text();
+    const title = cleanText(extractTitle(html));
+    const description = cleanText(extractMetaContent(html, 'description'));
+    const h1 = cleanText(extractH1(html));
+    const viewport = extractMetaContent(html, 'viewport');
+    const canonical = extractCanonical(html);
+    const socialLinks = extractSocialLinks(html, finalUrl);
+    const issues = [];
+
+    if (!finalUrl.startsWith('https://')) issues.push('No carga en HTTPS');
+    if (!title) issues.push('Falta titulo SEO');
+    else if (title.length < 20) issues.push('Titulo SEO demasiado corto');
+    else if (title.length > 70) issues.push('Titulo SEO demasiado largo');
+    if (!description) issues.push('Falta meta descripcion');
+    else if (description.length < 70) issues.push('Meta descripcion demasiado corta');
+    else if (description.length > 170) issues.push('Meta descripcion demasiado larga');
+    if (!h1) issues.push('Falta encabezado H1');
+    if (!viewport) issues.push('No se detecta etiqueta viewport movil');
+    if (!canonical) issues.push('No se detecta canonical');
+    if (!socialLinks.length) issues.push('No se detectan redes sociales enlazadas');
+
+    const loadMs = Date.now() - started;
+    if (loadMs > 3500) issues.push('La portada responde lenta');
+
+    const score = Math.max(15, 100 - (issues.length * 12) - (loadMs > 3500 ? 10 : 0));
+
+    return buildWebsiteReport({
+      status: 'ok',
+      score,
+      statusCode,
+      finalUrl,
+      loadMs,
+      title,
+      description,
+      h1,
+      issues,
+      socialLinks,
+    });
+  } catch (err) {
+    return buildWebsiteReport({
+      status: 'error',
+      score: 25,
+      statusCode: 0,
+      finalUrl: normalizedUrl,
+      loadMs: Date.now() - started,
+      issues: ['No se pudo cargar la web para analizarla'],
+      socialLinks: [],
+      error: String(err.message || '').slice(0, 120),
+    });
+  }
+}
+
+function buildWebsiteReport(report) {
+  const issueText = report.issues.length ? report.issues.join('; ') : 'Sin fallos basicos detectados';
+  const socialText = report.socialLinks.length
+    ? report.socialLinks.map(link => `${link.platform}: ${link.url}`).join(' | ')
+    : 'No detectadas';
+
+  return {
+    ...report,
+    summary: [
+      `Estado web: ${report.status} (${report.statusCode || 'sin codigo'}).`,
+      `Puntuacion aproximada: ${report.score}/100.`,
+      `Carga aproximada: ${report.loadMs} ms.`,
+      report.title ? `Titulo: ${report.title}.` : '',
+      report.description ? `Descripcion: ${report.description}.` : '',
+      `Flaquezas: ${issueText}.`,
+      `Redes sociales: ${socialText}.`,
+    ].filter(Boolean).join('\n'),
+  };
+}
+
+function normalizeSectors(body, customQuery = '') {
   const raw = Array.isArray(body.sectors)
     ? body.sectors
     : body.sector
       ? [body.sector]
-      : DEFAULT_SECTORS;
+      : customQuery
+        ? []
+        : DEFAULT_SECTORS;
 
   const sectors = raw
     .map(v => String(v || '').trim().toLowerCase())
@@ -279,7 +493,15 @@ function normalizeSectors(body) {
     .filter(v => /^[a-z0-9_]+$/.test(v))
     .slice(0, 8);
 
-  return sectors.length ? [...new Set(sectors)] : DEFAULT_SECTORS;
+  if (sectors.length) return [...new Set(sectors)];
+  return customQuery ? [] : DEFAULT_SECTORS;
+}
+
+function normalizeCustomQuery(value) {
+  return String(value || '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .slice(0, 120);
 }
 
 function normalizeRadius(value) {
@@ -287,9 +509,133 @@ function normalizeRadius(value) {
   return Math.min(MAX_RADIUS_METERS, Math.max(500, radius));
 }
 
-function buildCampaignName(locationText, sectors) {
+function buildCampaignName(locationText, sectors, customQuery = '') {
   const location = String(locationText || 'zona seleccionada').trim();
-  return `${location} - ${sectors.join(', ')}`.slice(0, 160);
+  const target = customQuery || sectors.join(', ');
+  return `${location} - ${target || 'busqueda'}`.slice(0, 160);
+}
+
+async function fetchWithTimeout(url, timeoutMs) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort('timeout'), timeoutMs);
+
+  try {
+    return await fetch(url, {
+      redirect: 'follow',
+      signal: controller.signal,
+      headers: {
+        'Accept': 'text/html,application/xhtml+xml',
+      },
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function mapWithConcurrency(items, limit, mapper) {
+  const results = new Array(items.length);
+  let index = 0;
+
+  async function worker() {
+    while (index < items.length) {
+      const current = index++;
+      results[current] = await mapper(items[current], current);
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return results;
+}
+
+function normalizeWebsiteUrl(value) {
+  const url = String(value || '').trim();
+  if (!url) return '';
+  if (/^https?:\/\//i.test(url)) return url;
+  return 'https://' + url;
+}
+
+function extractTitle(html) {
+  const match = String(html || '').match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+  return match ? match[1] : '';
+}
+
+function extractMetaContent(html, name) {
+  const source = String(html || '');
+  const namePattern = new RegExp(`<meta[^>]+(?:name|property)=["']${escapeRegex(name)}["'][^>]*>`, 'i');
+  const tag = source.match(namePattern)?.[0] || '';
+  const content = tag.match(/content=["']([^"']*)["']/i);
+  return content ? content[1] : '';
+}
+
+function extractH1(html) {
+  const match = String(html || '').match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
+  return match ? stripTags(match[1]) : '';
+}
+
+function extractCanonical(html) {
+  const tag = String(html || '').match(/<link[^>]+rel=["']canonical["'][^>]*>/i)?.[0] || '';
+  const href = tag.match(/href=["']([^"']*)["']/i);
+  return href ? href[1] : '';
+}
+
+function extractSocialLinks(html, baseUrl) {
+  const links = [];
+  const seen = new Set();
+  const source = String(html || '');
+  const hrefRegex = /href=["']([^"']+)["']/gi;
+  const platforms = [
+    ['Instagram', 'instagram.com'],
+    ['Facebook', 'facebook.com'],
+    ['TikTok', 'tiktok.com'],
+    ['LinkedIn', 'linkedin.com'],
+    ['YouTube', 'youtube.com'],
+    ['X/Twitter', 'twitter.com'],
+    ['X/Twitter', 'x.com'],
+  ];
+
+  let match;
+  while ((match = hrefRegex.exec(source)) !== null) {
+    const rawUrl = normalizeHref(match[1], baseUrl);
+    const lower = rawUrl.toLowerCase();
+    const platform = platforms.find(([, domain]) => lower.includes(domain));
+    if (!platform || seen.has(rawUrl)) continue;
+    seen.add(rawUrl);
+    links.push({ platform: platform[0], url: rawUrl.slice(0, 500) });
+  }
+
+  return links.slice(0, 12);
+}
+
+function normalizeHref(href, baseUrl) {
+  try {
+    return new URL(href, baseUrl).toString();
+  } catch {
+    return String(href || '').trim();
+  }
+}
+
+function cleanText(value) {
+  return decodeHtml(stripTags(String(value || '')))
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 500);
+}
+
+function stripTags(value) {
+  return String(value || '').replace(/<[^>]+>/g, ' ');
+}
+
+function decodeHtml(value) {
+  return String(value || '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'");
+}
+
+function escapeRegex(value) {
+  return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function stripInternalId(lead) {
