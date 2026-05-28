@@ -1,18 +1,21 @@
 const HERO_VIDEOS = [
     {
         url: 'https://cdn.higgsfield.ai/user_3AvFCf0aoS6DTSHhwoX3QgsDzIR/hf_20260409_094557_c0e3952b-1ecf-4621-9b06-eb86a7fe29e8_min.mp4',
+        mode: 'KreateVideo',
         title: 'Vídeo cinematográfico generado con IA',
-        text: 'Crea escenas con movimiento, estilo visual y acabado profesional desde una idea.',
+        text: 'Crea vídeos cinematográficos, escenas con movimiento y contenido profesional para redes, campañas y marcas.',
     },
     {
         url: 'https://cdn.higgsfield.ai/user_3AvFCf0aoS6DTSHhwoX3QgsDzIR/hf_20260409_094505_e898193e-ec14-4ecc-92ed-be976174fc88_min.mp4',
-        title: 'Dirección visual con IA',
-        text: 'Genera contenido dinámico para redes, campañas, artistas y marcas.',
+        mode: 'Dirección visual IA',
+        title: 'Creatividad visual para empresas y creadores',
+        text: 'Genera piezas visuales dinámicas para anuncios, redes sociales, productos, artistas y negocios locales.',
     },
     {
         url: 'https://cdn.higgsfield.ai/user_3AvFCf0aoS6DTSHhwoX3QgsDzIR/hf_20260409_094612_2b122af8-b47a-4518-9d91-9675dd8e3f41_min.mp4',
-        title: 'Prompt a vídeo',
-        text: 'Convierte ideas en clips llamativos usando KreateVideo.',
+        mode: 'Prompt a vídeo',
+        title: 'De una idea a un clip profesional',
+        text: 'Convierte prompts, imágenes o conceptos en vídeos llamativos usando herramientas avanzadas de inteligencia artificial.',
     },
 ];
 
@@ -38,8 +41,8 @@ const PHOTO_SHOWCASE = [
     {
         type: 'image',
         url: 'https://d8j0ntlcm91z4.cloudfront.net/user_35h9Zqn0Bk5qurQOPUM7laOSfXO/hf_20260314_185419_c3b256b1-d0e0-4cd9-90bd-c9ee5b8c0878.png',
-        title: 'Fotografía para redes sociales',
-        text: 'Imágenes visualmente cuidadas para perfiles, campañas, anuncios y contenido diario.',
+        title: 'Fotografía IA para redes sociales',
+        text: 'Imágenes cuidadas para perfiles, campañas, anuncios, productos y contenido diario.',
     },
     {
         type: 'video',
@@ -48,6 +51,44 @@ const PHOTO_SHOWCASE = [
         text: 'Convierte conceptos de producto en piezas dinámicas para redes o presentación comercial.',
     },
 ];
+
+const SERVICE_CARDS = [
+    ['Imágenes con IA', 'Genera imágenes, retratos, producto, campañas, creatividad publicitaria y contenido para redes.', 'image', 'Abrir KreateImage'],
+    ['Vídeos con IA', 'Crea clips desde texto, imagen o vídeo, ajustando duración, formato, movimiento y calidad.', 'video', 'Abrir KreateVideo'],
+    ['Música con IA', 'Crea canciones, voces, letras, artistas IA, remixes y sonidos para proyectos creativos.', 'music', 'Abrir KreateMusic'],
+    ['Formación IA', 'Aprende a usar inteligencia artificial en productividad, marketing, imagen, vídeo y negocios.', 'academy', 'Ver Academia IA'],
+    ['Automatizaciones IA', 'Diseña flujos para ahorrar tiempo, responder clientes, captar leads y mejorar procesos.', 'academy', 'Aprender automatización'],
+    ['Agentes IA para empresas', 'Crea asistentes para atención al cliente, ventas, reservas, soporte y prospección comercial.', 'academy', 'Ver agentes IA'],
+];
+
+const FAQS = [
+    ['¿Qué es KreateIA Studio?', 'KreateIA Studio es una plataforma de inteligencia artificial generativa para crear imágenes, vídeos, música y contenido visual profesional desde el navegador.'],
+    ['¿Puedo usar KreateIA para mi empresa?', 'Sí. KreateIA está pensada para creadores, marcas, negocios locales, agencias, equipos de marketing y empresas que quieren producir contenido y automatizar tareas con IA.'],
+    ['¿KreateIA sirve para crear vídeos con IA?', 'Sí. Con KreateVideo puedes crear clips, escenas, piezas promocionales y contenido para redes usando prompts, imágenes o referencias visuales.'],
+    ['¿También ofrecéis formación en inteligencia artificial?', 'Sí. KreateIA combina herramientas generativas con formación práctica para aprender IA desde cero, marketing con IA, vídeo, imagen, automatizaciones y agentes para empresas.'],
+];
+
+function setLandingSeo() {
+    document.title = 'KreateIA Studio | Imágenes, vídeos, música y automatizaciones con IA';
+
+    let description = document.querySelector('meta[name="description"]');
+    if (!description) {
+        description = document.createElement('meta');
+        description.name = 'description';
+        document.head.appendChild(description);
+    }
+
+    description.content = 'KreateIA Studio es una plataforma profesional de inteligencia artificial para crear imágenes, vídeos, música, contenido visual, automatizaciones y agentes IA para empresas.';
+
+    let canonical = document.querySelector('link[rel="canonical"]');
+    if (!canonical) {
+        canonical = document.createElement('link');
+        canonical.rel = 'canonical';
+        document.head.appendChild(canonical);
+    }
+
+    canonical.href = 'https://kreateia.com/';
+}
 
 function addLandingStyles() {
     if (document.querySelector('#landing-page-styles')) return;
@@ -63,8 +104,8 @@ function addLandingStyles() {
         '.lp-hero-shade{position:absolute;inset:0;background:linear-gradient(to right,rgba(0,0,0,.92),rgba(0,0,0,.42) 48%,rgba(0,0,0,.78)),linear-gradient(to top,#050505 0%,rgba(5,5,5,.2) 52%,rgba(5,5,5,.5) 100%)}',
         '.lp-hero-content{position:relative;z-index:2;width:100%;padding:90px 0 42px}',
         '.lp-kicker{color:#f59e0b;font-size:12px;font-weight:900;text-transform:uppercase;margin:0 0 14px}',
-        '.lp-title{font-size:clamp(42px,7vw,84px);line-height:.96;font-weight:950;letter-spacing:0;max-width:820px;margin:0}',
-        '.lp-copy{color:rgba(255,255,255,.68);font-size:17px;line-height:1.65;max-width:590px;margin:22px 0 0}',
+        '.lp-title{font-size:clamp(42px,7vw,84px);line-height:.96;font-weight:950;letter-spacing:0;max-width:920px;margin:0}',
+        '.lp-copy{color:rgba(255,255,255,.72);font-size:17px;line-height:1.65;max-width:650px;margin:22px 0 0}',
         '.lp-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:30px}',
         '.lp-btn{border-radius:999px;padding:13px 22px;border:1px solid rgba(255,255,255,.16);font-size:13px;font-weight:850;cursor:pointer;transition:transform .18s ease,background .18s ease,border-color .18s ease;white-space:nowrap}',
         '.lp-btn:hover{transform:translateY(-1px)}',
@@ -79,7 +120,7 @@ function addLandingStyles() {
         '.lp-thumb-text{position:absolute;left:12px;right:12px;bottom:10px;z-index:2}',
         '.lp-section{padding:76px 0;border-bottom:1px solid rgba(255,255,255,.08)}',
         '.lp-section h2{font-size:clamp(32px,4.6vw,52px);line-height:1.05;font-weight:950;margin:0}',
-        '.lp-section p{color:rgba(255,255,255,.62);line-height:1.65}',
+        '.lp-section p{color:rgba(255,255,255,.64);line-height:1.65}',
         '.lp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin-top:30px}',
         '.lp-media-card{position:relative;min-height:380px;border-radius:8px;overflow:hidden;background:#111;border:1px solid rgba(255,255,255,.12)}',
         '.lp-media-card video,.lp-media-card img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}',
@@ -87,13 +128,14 @@ function addLandingStyles() {
         '.lp-card-text{position:absolute;left:18px;right:18px;bottom:18px}',
         '.lp-card-text h3{color:#fff;font-size:20px;line-height:1.12;font-weight:950;margin:0 0 10px}',
         '.lp-card-text p{color:rgba(255,255,255,.68);font-size:13px;line-height:1.5;margin:0}',
-        '.lp-studio-grid,.lp-pricing{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:28px}',
+        '.lp-studio-grid,.lp-pricing,.lp-faq-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:28px}',
         '.lp-pricing{grid-template-columns:repeat(4,minmax(0,1fr))}',
+        '.lp-faq-grid{grid-template-columns:repeat(2,minmax(0,1fr))}',
         '.lp-box{background:#101010;border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:22px}',
         '.lp-box h3{margin:0 0 10px;font-size:18px;font-weight:900}',
         '.lp-box p{margin:0 0 18px;font-size:13px}',
         '.lp-price strong{display:block;color:#f59e0b;font-size:18px;margin-top:6px}',
-        '@media(max-width:860px){.lp-shell{padding:0 16px}.lp-hero{min-height:92vh}.lp-copy{font-size:15px}.lp-thumbs,.lp-studio-grid,.lp-pricing{grid-template-columns:1fr}.lp-thumb{height:120px}}',
+        '@media(max-width:860px){.lp-shell{padding:0 16px}.lp-hero{min-height:92vh}.lp-copy{font-size:15px}.lp-thumbs,.lp-studio-grid,.lp-pricing,.lp-faq-grid{grid-template-columns:1fr}.lp-thumb{height:120px}}',
     ].join('\n');
 
     document.head.appendChild(style);
@@ -177,7 +219,7 @@ function makeSection(kicker, title, text, color) {
     h.textContent = title;
 
     const p = document.createElement('p');
-    p.style.cssText = 'max-width:680px;margin:16px 0 0';
+    p.style.cssText = 'max-width:720px;margin:16px 0 0';
     p.textContent = text;
 
     shell.appendChild(k);
@@ -189,6 +231,7 @@ function makeSection(kicker, title, text, color) {
 }
 
 export function LandingPage(navigate) {
+    setLandingSeo();
     addLandingStyles();
 
     const root = document.createElement('div');
@@ -200,7 +243,6 @@ export function LandingPage(navigate) {
     hero.className = 'lp-hero';
 
     const heroVideo = makeVideo(first.url, 'lp-hero-video');
-
     const heroShade = document.createElement('div');
     heroShade.className = 'lp-hero-shade';
 
@@ -216,11 +258,11 @@ export function LandingPage(navigate) {
 
     const title = document.createElement('h1');
     title.className = 'lp-title';
-    title.textContent = 'Imagen, vídeo y música creados con IA.';
+    title.textContent = 'Plataforma de IA para crear imágenes, vídeos, música y contenido profesional.';
 
     const copy = document.createElement('p');
     copy.className = 'lp-copy';
-    copy.textContent = first.text;
+    copy.textContent = 'KreateIA Studio reúne herramientas de inteligencia artificial generativa para creadores, empresas, marcas y negocios que quieren producir contenido visual, automatizar tareas y aprender IA de forma práctica.';
 
     const actions = document.createElement('div');
     actions.className = 'lp-actions';
@@ -252,7 +294,6 @@ export function LandingPage(navigate) {
 
         thumbText.appendChild(mode);
         thumbText.appendChild(thumbTitle);
-
         thumb.appendChild(video);
         thumb.appendChild(thumbText);
 
@@ -280,9 +321,9 @@ export function LandingPage(navigate) {
     root.appendChild(hero);
 
     const videos = makeSection(
-        'Showcase real',
-        'Vídeos generados con nuestras herramientas',
-        'Estos clips muestran el tipo de resultado que puedes crear en KreateVideo: escenas con movimiento, estilo visual y acabado listo para contenido digital, campañas o piezas creativas.',
+        'Generador de vídeo IA',
+        'Vídeos generados con inteligencia artificial',
+        'Crea escenas, clips promocionales, contenido para redes y piezas visuales con estética cinematográfica usando KreateVideo.',
         '#f59e0b'
     );
     videos.section.id = 'landing-videos';
@@ -296,9 +337,9 @@ export function LandingPage(navigate) {
     root.appendChild(videos.section);
 
     const photos = makeSection(
-        'KreateImage',
-        'Fotografía para redes y producto',
-        'Genera imágenes y piezas visuales para productos, marcas personales, redes sociales, campañas y contenido comercial.',
+        'Generador de imágenes IA',
+        'Fotografía, producto y creatividad para redes',
+        'Genera imágenes para campañas, marcas personales, tiendas online, anuncios, fotografía de producto y contenido social.',
         '#3b82f6'
     );
 
@@ -319,19 +360,19 @@ export function LandingPage(navigate) {
 
     const studioKicker = document.createElement('p');
     studioKicker.className = 'lp-kicker';
-    studioKicker.textContent = 'Estudios creativos';
+    studioKicker.textContent = 'Herramientas IA';
 
     const studioTitle = document.createElement('h2');
-    studioTitle.textContent = 'Todo en un solo entorno';
+    studioTitle.textContent = 'Crea, aprende y automatiza con IA';
+
+    const studioText = document.createElement('p');
+    studioText.style.cssText = 'max-width:760px;margin:16px 0 0';
+    studioText.textContent = 'KreateIA combina estudio creativo, formación y servicios de inteligencia artificial para ayudar a personas y empresas a producir mejor, ahorrar tiempo y vender con más claridad.';
 
     const studioGrid = document.createElement('div');
     studioGrid.className = 'lp-studio-grid';
 
-    [
-        ['KreateImage', 'Genera imágenes desde texto o edita referencias con diferentes formatos y resoluciones.', 'image', 'Abrir KreateImage'],
-        ['KreateVideo', 'Crea clips desde texto, imagen o vídeo, ajustando duración, formato, movimiento y calidad.', 'video', 'Abrir KreateVideo'],
-        ['KreateMusic', 'Crea artistas IA, canciones, letras, sonidos, voces, remixes y extensiones musicales.', 'music', 'Abrir KreateMusic'],
-    ].forEach(([name, text, page, buttonText]) => {
+    SERVICE_CARDS.forEach(([name, text, page, buttonText]) => {
         const card = document.createElement('article');
         card.className = 'lp-box';
 
@@ -351,14 +392,15 @@ export function LandingPage(navigate) {
 
     studioShell.appendChild(studioKicker);
     studioShell.appendChild(studioTitle);
+    studioShell.appendChild(studioText);
     studioShell.appendChild(studioGrid);
     studios.appendChild(studioShell);
     root.appendChild(studios);
 
     const academy = makeSection(
         'Academia IA',
-        'Aprende a crear mejor cada semana',
-        'Todas las semanas añadiremos nuevos vídeos con tutoriales, flujos de trabajo, prompts, ideas creativas y formas prácticas de sacar más partido a KreateImage, KreateVideo y KreateMusic.',
+        'Formación en inteligencia artificial para personas y empresas',
+        'Aprende IA desde cero, marketing con IA, creación de imágenes, vídeo, productividad, automatizaciones y agentes inteligentes aplicados a negocios reales.',
         '#f59e0b'
     );
 
@@ -380,9 +422,9 @@ export function LandingPage(navigate) {
     pricing.className = 'lp-pricing';
 
     [
-        ['Imagen', 'desde 16 créditos'],
-        ['Vídeo', 'según duración'],
-        ['Música', 'según generación'],
+        ['Imagen IA', 'desde 16 créditos'],
+        ['Vídeo IA', 'según duración'],
+        ['Música IA', 'según generación'],
         ['Artistas IA', 'perfil visual y voz'],
     ].forEach(([name, value]) => {
         const box = document.createElement('div');
@@ -402,6 +444,34 @@ export function LandingPage(navigate) {
     credits.shell.appendChild(pricing);
     root.appendChild(credits.section);
 
+    const faq = makeSection(
+        'Preguntas frecuentes',
+        'Dudas habituales sobre KreateIA',
+        'Respuestas rápidas para entender qué puedes crear, para quién sirve y cómo empezar.',
+        '#3b82f6'
+    );
+
+    const faqGrid = document.createElement('div');
+    faqGrid.className = 'lp-faq-grid';
+
+    FAQS.forEach(([question, answer]) => {
+        const box = document.createElement('article');
+        box.className = 'lp-box';
+
+        const h = document.createElement('h3');
+        h.textContent = question;
+
+        const p = document.createElement('p');
+        p.textContent = answer;
+
+        box.appendChild(h);
+        box.appendChild(p);
+        faqGrid.appendChild(box);
+    });
+
+    faq.shell.appendChild(faqGrid);
+    root.appendChild(faq.section);
+
     const finalSection = document.createElement('section');
     finalSection.style.cssText = 'padding:84px 0';
 
@@ -415,11 +485,11 @@ export function LandingPage(navigate) {
 
     const finalTitle = document.createElement('h2');
     finalTitle.style.cssText = 'font-size:clamp(32px,4.6vw,52px);line-height:1.05;font-weight:950;margin:0';
-    finalTitle.textContent = 'Empieza creando con IA profesional.';
+    finalTitle.textContent = 'Empieza a crear con inteligencia artificial profesional.';
 
     const finalText = document.createElement('p');
-    finalText.style.cssText = 'color:rgba(255,255,255,.62);max-width:560px;margin:18px auto 28px;line-height:1.65';
-    finalText.textContent = 'Entra al estudio, elige herramienta, configura tu generación y lanza tus creaciones con créditos.';
+    finalText.style.cssText = 'color:rgba(255,255,255,.64);max-width:620px;margin:18px auto 28px;line-height:1.65';
+    finalText.textContent = 'Entra al estudio, elige herramienta, configura tu generación y lanza imágenes, vídeos o música con IA desde una sola plataforma.';
 
     finalShell.appendChild(finalKicker);
     finalShell.appendChild(finalTitle);
