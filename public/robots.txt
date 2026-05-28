@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+
+Disallow: /usuariospriv/
+Disallow: /admin/
+Disallow: /api/
+
+Sitemap: https://kreateia.com/sitemap.xml
