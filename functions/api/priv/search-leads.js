@@ -1,154 +1,100 @@
-  const payload = {
-    iss: env.FIREBASE_CLIENT_EMAIL,
-    sub: env.FIREBASE_CLIENT_EMAIL,
-    aud: 'https://oauth2.googleapis.com/token',
-    iat: now,
-    exp: now + 3600,
-    scope,
-  };
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+};
 
-  const jwt = await signJWT(payload, env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'));
-  const res = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`,
-  });
+const DEFAULT_SECTORS = ['restaurant'];
+const MAX_RADIUS_METERS = 50000;
+const MAX_RESULTS_PER_SECTOR = 20;
 
-  if (!res.ok) throw new Error('No se pudo obtener token de Google');
-  return (await res.json()).access_token;
-}
+export async function onRequest(context) {
+  const { request, env } = context;
+  if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
+  if (request.method !== 'POST') return jsonError('Metodo no permitido', 405);
 
-async function signJWT(payload, pemKey) {
-  const unsigned = `${b64uJson({ alg: 'RS256', typ: 'JWT' })}.${b64uJson(payload)}`;
-  const pemBody = pemKey
-    .replace('-----BEGIN PRIVATE KEY-----', '')
-    .replace('-----END PRIVATE KEY-----', '')
-    .replace(/\s/g, '');
+  try {
+    requireEnv(env, [
+      'FIREBASE_API_KEY',
+      'FIREBASE_PROJECT_ID',
+      'FIREBASE_CLIENT_EMAIL',
+      'FIREBASE_PRIVATE_KEY',
+      'GOOGLE_MAPS_API_KEY',
+    ]);
 
-  const der = Uint8Array.from(atob(pemBody), c => c.charCodeAt(0));
-  const key = await crypto.subtle.importKey(
-    'pkcs8',
-    der.buffer,
-    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
+    const idToken = getBearerToken(request);
+    if (!idToken) return jsonError('No autenticado', 401);
 
-  const sig = await crypto.subtle.sign('RSASSA-PKCS1-v1_5', key, new TextEncoder().encode(unsigned));
-  return `${unsigned}.${b64uBytes(new Uint8Array(sig))}`;
-}
+    const staff = await verifyFirebaseToken(idToken, env.FIREBASE_API_KEY);
+    const accessToken = await getServiceAccountToken(env, 'https://www.googleapis.com/auth/datastore');
+    const allowed = await isAllowedStaff(env.FIREBASE_PROJECT_ID, accessToken, staff.email);
+    if (!allowed) return jsonError('Email no autorizado', 403);
 
-function b64uJson(obj) {
-  return b64uBytes(new TextEncoder().encode(JSON.stringify(obj)));
-}
+    const body = await request.json().catch(() => null);
+    if (!body || typeof body !== 'object') return jsonError('Solicitud invalida', 400);
 
-function b64uBytes(bytes) {
-  let bin = '';
-  for (let i = 0; i < bytes.length; i += 0x8000) {
-    bin += String.fromCharCode(...bytes.slice(i, i + 0x8000));
-  }
-  return btoa(bin).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-}
+    const sectors = normalizeSectors(body);
+    const radiusMeters = normalizeRadius(body.radiusMeters);
+    const campaignName = String(body.campaignName || '').trim().slice(0, 160)
+      || buildCampaignName(body.locationText, sectors);
 
-async function getDoc(projectId, path, accessToken, allowMissing = false) {
-  const res = await fetch(`${firestoreBase(projectId)}/${encodePath(path)}`, {
-    headers: { 'Authorization': `Bearer ${accessToken}` },
-  });
+    let latitude = Number(body.latitude);
+    let longitude = Number(body.longitude);
+    const locationText = String(body.locationText || '').trim().slice(0, 220);
 
-  if (res.status === 404 && allowMissing) return { exists: false, data: {}, updateTime: null };
-  if (!res.ok) throw new Error(`No se pudo leer ${path}`);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      if (!locationText) return jsonError('Falta ubicacion o coordenadas', 400);
+      const geocoded = await geocodeLocation(env, locationText);
+      latitude = geocoded.latitude;
+      longitude = geocoded.longitude;
+    }
 
-  const raw = await res.json();
-  return {
-    exists: true,
-    data: fromFields(raw.fields || {}),
-    updateTime: raw.updateTime || null,
-  };
-}
+    if (!isValidCoordinate(latitude, longitude)) {
+      return jsonError('Coordenadas invalidas', 400);
+    }
 
-async function commitWrites(projectId, accessToken, writes) {
-  const res = await fetch(firestoreBase(projectId) + ':commit', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ writes }),
-  });
+    const now = new Date().toISOString();
+    const campaignId = safeDocId('campaign_' + now + '_' + campaignName);
+    const rawPlaces = await searchNearbyPlaces(env, {
+      latitude,
+      longitude,
+      radiusMeters,
+      sectors,
+    });
 
-  if (!res.ok) throw new Error(`Firestore commit: ${res.status} ${(await res.text()).slice(0, 180)}`);
-}
+    const deduped = dedupePlaces(rawPlaces);
+    const leads = deduped.map(item => normalizeLead({
+      place: item.place,
+      sector: item.sector,
+      campaignId,
+      staff,
+      now,
+    }));
 
-function firestoreBase(projectId) {
-  return `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
-}
+    const campaignDoc = {
+      name: campaignName,
+      status: 'created',
+      locationText,
+      latitude,
+      longitude,
+      radiusMeters,
+      sectors,
+      totalFound: leads.length,
+      createdByUid: staff.uid,
+      createdByEmail: staff.email,
+      createdAt: now,
+      updatedAt: now,
+    };
 
-function docName(projectId, path) {
-  return `projects/${projectId}/databases/(default)/documents/${path}`;
-}
-
-function encodePath(path) {
-  return path.split('/').map(encodeURIComponent).join('/');
-}
-
-function toFields(obj) {
-  const fields = {};
-  Object.entries(obj).forEach(([k, v]) => {
-    fields[k] = toValue(v);
-  });
-  return fields;
-}
-
-function toValue(v) {
-  if (v === null || v === undefined) return { nullValue: null };
-  if (typeof v === 'boolean') return { booleanValue: v };
-  if (typeof v === 'number') return Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
-  if (Array.isArray(v)) return { arrayValue: { values: v.map(toValue) } };
-  if (typeof v === 'object') return { mapValue: { fields: toFields(v) } };
-  return { stringValue: String(v) };
-}
-
-function fromFields(fields) {
-  const obj = {};
-  Object.entries(fields).forEach(([k, v]) => {
-    obj[k] = fromValue(v);
-  });
-  return obj;
-}
-
-function fromValue(v) {
-  if ('stringValue' in v) return v.stringValue;
-  if ('integerValue' in v) return Number(v.integerValue);
-  if ('doubleValue' in v) return Number(v.doubleValue);
-  if ('booleanValue' in v) return Boolean(v.booleanValue);
-  if ('timestampValue' in v) return v.timestampValue;
-  if ('nullValue' in v) return null;
-  if ('arrayValue' in v) return (v.arrayValue.values || []).map(fromValue);
-  if ('mapValue' in v) return fromFields(v.mapValue.fields || {});
-  return null;
-}
-
-function getBearerToken(request) {
-  const auth = request.headers.get('Authorization') || request.headers.get('authorization') || '';
-  return auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
-}
-
-function normalizeEmail(email) {
-  return String(email || '').trim().toLowerCase();
-}
-
-function requireEnv(env, keys) {
-  const missing = keys.filter(k => !env[k]);
-  if (missing.length) throw new Error('Faltan variables: ' + missing.join(', '));
-}
-
-function json(data, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: { ...CORS, 'Content-Type': 'application/json' },
-  });
-}
-
-function jsonError(error, status = 400) {
-  return json({ ok: false, error }, status);
-}
+    const writes = [
+      {
+        update: {
+          name: docName(env.FIREBASE_PROJECT_ID, `private_lead_campaigns/${campaignId}`),
+          fields: toFields(campaignDoc),
+        },
+      },
+      ...leads.map(lead => ({
+        update: {
+          name: docName(env.FIREBASE_PROJECT_ID, `private_leads/${lead.id}`),
+          fields: toFields(stripInternalId(lead)),
+        },
