@@ -2,16 +2,66 @@
 <html lang="es">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/png" href="/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    
+
+    <link rel="icon" type="image/png" href="/favicon.ico" />
+
     <!-- REGLA DE SEGURIDAD RELAJADA PARA PERMITIR FIREBASE Y LA IA -->
-    <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;">
-    
-    <meta name="description" content="KreateIA Studio — Tu plataforma profesional de IA Generativa. Genera imágenes, vídeos y contenido cinematográfico con nuestras herramientas." />
-    <meta name="keywords" content="kreateia, saas ia, generador de imagenes, flux ai, ia video, muapi" />
-    <title>KreateIA Studio</title>
+    <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;" />
+
+    <title>KreateIA Studio | Plataforma de IA para crear imágenes, vídeos y contenido</title>
+
+    <meta
+      name="description"
+      content="KreateIA Studio es una plataforma profesional de inteligencia artificial para crear imágenes, vídeos, contenido visual y herramientas generativas para empresas, creadores y equipos."
+    />
+
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://kreateia.com/" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="KreateIA" />
+    <meta property="og:title" content="KreateIA Studio | Plataforma profesional de IA generativa" />
+    <meta
+      property="og:description"
+      content="Crea imágenes, vídeos y contenido visual con herramientas profesionales de inteligencia artificial en KreateIA Studio."
+    />
+    <meta property="og:url" content="https://kreateia.com/" />
+    <meta property="og:image" content="https://kreateia.com/og-image.jpg" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="KreateIA Studio | Plataforma profesional de IA generativa" />
+    <meta
+      name="twitter:description"
+      content="Genera imágenes, vídeos y contenido visual con herramientas profesionales de inteligencia artificial."
+    />
+    <meta name="twitter:image" content="https://kreateia.com/og-image.jpg" />
+
+    <meta name="theme-color" content="#0f172a" />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "KreateIA Studio",
+        "applicationCategory": "MultimediaApplication",
+        "operatingSystem": "Web",
+        "url": "https://kreateia.com/",
+        "description": "Plataforma profesional de inteligencia artificial para crear imágenes, vídeos y contenido visual generativo.",
+        "creator": {
+          "@type": "Organization",
+          "name": "KreateIA",
+          "url": "https://kreateia.com/"
+        },
+        "offers": {
+          "@type": "Offer",
+          "priceCurrency": "EUR",
+          "availability": "https://schema.org/InStock"
+        }
+      }
+    </script>
   </head>
+
   <body>
     <div id="app"></div>
     <script type="module" src="/src/main.js"></script>
