@@ -51,10 +51,10 @@ export async function onRequest(context) {
   try {
     requireEnv(env, ['FIREBASE_API_KEY']);
 
-    const stripeSecret = env.STRIPE_SECRET_KEY || env.STRIPE_SECRET;
+    const stripeSecret = env.STRIPE_SECRET_KEY || env.STRIPE_API_KEY || env.STRIPE_SECRET;
 
     if (!stripeSecret) {
-      throw new Error('Falta STRIPE_SECRET_KEY en Cloudflare');
+      throw new Error('Falta STRIPE_API_KEY o STRIPE_SECRET_KEY en Cloudflare');
     }
 
     const idToken = getBearerToken(request);
