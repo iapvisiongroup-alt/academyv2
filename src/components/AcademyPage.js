@@ -51,6 +51,7 @@ function addAcademyStyles() {
         .ac-annual-price{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;margin-top:20px}
         .ac-annual-price strong{font-size:48px;line-height:.9;color:#fff}
         .ac-annual-price span{color:#f59e0b;font-size:13px;font-weight:950;text-transform:uppercase}
+        .ac-annual-old-price{color:rgba(255,255,255,.42);font-size:24px;font-weight:950;text-decoration:line-through;text-decoration-thickness:2px;text-decoration-color:#ef4444;line-height:1}
         .ac-annual-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:20px}
         .ac-annual-feature{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:13px}
         .ac-annual-feature strong{display:block;font-size:13px;margin-bottom:5px}
@@ -238,13 +239,14 @@ export function AcademyPage(navigate) {
                     </p>
 
                     <div class="ac-annual-price">
+                        <em class="ac-annual-old-price">1.400€</em>
                         <strong>890€</strong>
                         <span>Pago único · grupo online por Zoom</span>
                     </div>
 
                     <div class="ac-annual-grid">
                         <div class="ac-annual-feature"><strong>Horario fijo</strong><span>Viernes de 17:00 a 20:00 por Zoom. No tienes que elegir agenda.</span></div>
-                        <div class="ac-annual-feature"><strong>Inicio del grupo</strong><span>Viernes 11 de septiembre. Plaza reservada al completar el pago.</span></div>
+                        <div class="ac-annual-feature"><strong>Inicio del grupo</strong><span>Viernes 11 de septiembre de 2026. Plaza reservada al completar el pago hasta el último viernes de junio.</span></div>
                         <div class="ac-annual-feature"><strong>Acompañamiento real</strong><span>Podrás preguntar en clase, practicar y recibir orientación clara cada semana.</span></div>
                         <div class="ac-annual-feature"><strong>Enfoque práctico</strong><span>Contenido, imagen, vídeo, automatizaciones, asistentes y proyectos reales.</span></div>
                     </div>
