@@ -4,6 +4,16 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { AuthModal } from './AuthModal.js';
 import { ACADEMY_COURSES } from '../lib/academyCourses.js';
 
+const ANNUAL_COURSE = {
+    id: 'ia-anual-presencial-viernes',
+    name: 'Curso Anual IA Presencial · Grupo Viernes',
+    priceLabel: '890€',
+    stripePriceId: 'price_1TduMHQ4M7vfTU0L1Kd6zaQO',
+    schedule: 'Viernes de 17:00 a 20:00',
+    startDate: 'Viernes 11 de septiembre',
+    badge: 'Oferta estrella',
+};
+
 function addAcademyStyles() {
     if (document.querySelector('#academy-page-styles')) return;
 
@@ -24,6 +34,26 @@ function addAcademyStyles() {
         .ac-support{margin-top:22px;background:#0d1510;border:1px solid rgba(34,197,94,.22);border-radius:8px;padding:20px}
         .ac-support h2{font-size:24px;margin:0 0 8px}
         .ac-support p{color:rgba(255,255,255,.66);line-height:1.6;margin:0}
+        .ac-annual{position:relative;overflow:hidden;margin-top:28px;border:1px solid rgba(245,158,11,.35);border-radius:10px;background:linear-gradient(135deg,#171006,#0b0b0b 46%,#08111b);box-shadow:0 28px 90px rgba(245,158,11,.12)}
+        .ac-annual:before{content:"";position:absolute;inset:auto -20% -42% 45%;height:280px;background:radial-gradient(circle,rgba(245,158,11,.3),transparent 64%);pointer-events:none}
+        .ac-annual-inner{position:relative;z-index:1;display:grid;grid-template-columns:1.1fr .9fr;gap:22px;padding:28px}
+        .ac-annual-badge{display:inline-flex;width:max-content;background:#f59e0b;color:#111827;border-radius:999px;padding:7px 12px;font-size:11px;font-weight:950;text-transform:uppercase;margin-bottom:16px}
+        .ac-annual h2{font-size:clamp(31px,4vw,54px);line-height:1;margin:0;font-weight:950;letter-spacing:0}
+        .ac-annual-copy{color:rgba(255,255,255,.72);font-size:16px;line-height:1.62;margin:18px 0 0;max-width:650px}
+        .ac-annual-price{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;margin-top:20px}
+        .ac-annual-price strong{font-size:48px;line-height:.9;color:#fff}
+        .ac-annual-price span{color:#f59e0b;font-size:13px;font-weight:950;text-transform:uppercase}
+        .ac-annual-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:20px}
+        .ac-annual-feature{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:13px}
+        .ac-annual-feature strong{display:block;font-size:13px;margin-bottom:5px}
+        .ac-annual-feature span{display:block;color:rgba(255,255,255,.62);font-size:12px;line-height:1.45}
+        .ac-annual-side{background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:20px;display:flex;flex-direction:column;justify-content:space-between;gap:18px}
+        .ac-annual-gift{border:1px solid rgba(34,197,94,.28);background:rgba(34,197,94,.08);border-radius:8px;padding:15px}
+        .ac-annual-gift strong{display:block;color:#22c55e;font-size:16px;margin-bottom:8px}
+        .ac-annual-gift p{margin:0;color:rgba(255,255,255,.68);font-size:13px;line-height:1.5}
+        .ac-annual-points{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+        .ac-annual-points li{color:rgba(255,255,255,.7);font-size:13px;line-height:1.4;display:flex;gap:8px}
+        .ac-annual-points li:before{content:"✓";color:#f59e0b;font-weight:950}
         .ac-courses{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:28px}
         .ac-card{background:#101010;border:1px solid rgba(255,255,255,.1);border-radius:8px;overflow:hidden;display:flex;flex-direction:column}
         .ac-card-head{padding:20px;border-bottom:1px solid rgba(255,255,255,.08)}
@@ -47,6 +77,7 @@ function addAcademyStyles() {
         .ac-btn:hover{transform:translateY(-1px)}
         .ac-btn:disabled{opacity:.6;cursor:not-allowed;transform:none}
         .ac-btn.paid{background:#16a34a;color:#fff}
+        .ac-btn.dark{background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.14)}
         .ac-note{color:rgba(255,255,255,.45);font-size:11px;line-height:1.45;text-align:center;margin:0}
         .ac-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:130;background:#fff;color:#111827;border-radius:999px;padding:12px 16px;font-size:13px;font-weight:900;box-shadow:0 20px 60px rgba(0,0,0,.35)}
         .ac-modal{position:fixed;inset:0;z-index:125;background:rgba(0,0,0,.72);backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:center;padding:18px}
@@ -76,7 +107,7 @@ function addAcademyStyles() {
         .ac-time:disabled{opacity:.35;cursor:not-allowed}
         .ac-empty{border:1px dashed rgba(255,255,255,.14);border-radius:8px;padding:16px;color:rgba(255,255,255,.55);font-size:13px;text-align:center}
         .ac-modal-actions{padding:18px 20px;border-top:1px solid rgba(255,255,255,.08);display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap}
-        @media(max-width:860px){.ac-flow,.ac-courses{grid-template-columns:1fr}.ac-title{font-size:40px}.ac-shell{padding:22px 14px 70px}.ac-calendar{grid-template-columns:repeat(2,1fr)}.ac-times{grid-template-columns:repeat(2,1fr)}}
+        @media(max-width:860px){.ac-flow,.ac-courses,.ac-annual-inner{grid-template-columns:1fr}.ac-title{font-size:40px}.ac-shell{padding:22px 14px 70px}.ac-calendar{grid-template-columns:repeat(2,1fr)}.ac-times{grid-template-columns:repeat(2,1fr)}.ac-annual-inner{padding:20px}.ac-annual-grid{grid-template-columns:1fr}.ac-annual-price strong{font-size:42px}}
     `;
 
     document.head.appendChild(style);
@@ -133,6 +164,97 @@ export function AcademyPage(navigate) {
     let bookingLoading = false;
     let availabilityLoading = false;
     let availabilityDays = [];
+    let groupStatus = { loaded: false, soldOut: false };
+
+    function isPaidCourse(courseId) {
+        const status = String(purchases[courseId]?.status || '').toLowerCase();
+        return status === 'paid' || status === 'active' || status === 'enrolled' || status === 'paid_manual_review';
+    }
+
+    function annualButtonText() {
+        if (isPaidCourse(ANNUAL_COURSE.id)) return 'Plaza reservada · Grupo Viernes';
+        if (loadingCourseId === ANNUAL_COURSE.id) return 'Abriendo pago...';
+        if (groupStatus.soldOut) return 'Grupo completo';
+        return 'Reservar plaza anual';
+    }
+
+    function renderAnnualCourse(shell) {
+        const paid = isPaidCourse(ANNUAL_COURSE.id);
+        const disabled = (!paid && groupStatus.soldOut) || loadingCourseId === ANNUAL_COURSE.id;
+        const annual = document.createElement('section');
+        annual.className = 'ac-annual';
+
+        annual.innerHTML = `
+            <div class="ac-annual-inner">
+                <div>
+                    <span class="ac-annual-badge">Promoción de lanzamiento</span>
+                    <h2>Curso Anual IA Presencial con portátil de regalo</h2>
+                    <p class="ac-annual-copy">
+                        Un año completo aprendiendo inteligencia artificial de forma práctica, en grupo reducido y con horario fijo.
+                        Ideal para alumnos, adultos, autónomos y personas que quieren dominar herramientas de IA sin perderse.
+                    </p>
+
+                    <div class="ac-annual-price">
+                        <strong>890€</strong>
+                        <span>Pago único · grupo presencial</span>
+                    </div>
+
+                    <div class="ac-annual-grid">
+                        <div class="ac-annual-feature"><strong>Horario fijo</strong><span>Viernes de 17:00 a 20:00. No tienes que elegir agenda.</span></div>
+                        <div class="ac-annual-feature"><strong>Inicio del grupo</strong><span>Viernes 11 de septiembre. Plaza reservada al completar el pago.</span></div>
+                        <div class="ac-annual-feature"><strong>Grupo reducido</strong><span>Plazas limitadas. No mostramos plazas restantes públicamente.</span></div>
+                        <div class="ac-annual-feature"><strong>Enfoque práctico</strong><span>Contenido, imagen, vídeo, automatizaciones, asistentes y proyectos reales.</span></div>
+                    </div>
+                </div>
+
+                <aside class="ac-annual-side">
+                    <div class="ac-annual-gift">
+                        <strong>Portátil de regalo promocional</strong>
+                        <p>
+                            Promoción para las primeras matrículas. Es un regalo sin coste adicional para apoyar el aprendizaje.
+                            Modelo sujeto a disponibilidad.
+                        </p>
+                    </div>
+
+                    <ul class="ac-annual-points">
+                        <li>Acceso a KreateIA Studio durante el curso</li>
+                        <li>Soporte por WhatsApp para dudas</li>
+                        <li>Proyectos reales para redes, negocio y productividad</li>
+                        <li>Certificado KreateIA al finalizar el programa</li>
+                    </ul>
+
+                    <div>
+                        <button class="ac-btn ${paid ? 'paid' : ''}" type="button" data-annual-course-action ${disabled ? 'disabled' : ''}>
+                            ${escapeHtml(annualButtonText())}
+                        </button>
+                        <p class="ac-note" style="margin-top:10px">
+                            ${paid
+                                ? 'Tu plaza está reservada en el grupo de viernes de 17:00 a 20:00.'
+                                : groupStatus.soldOut
+                                    ? 'Este grupo ya no acepta nuevas matrículas online.'
+                                    : 'Al comprar, quedas inscrito en el grupo anual. No hace falta agendar clase.'}
+                        </p>
+                    </div>
+                </aside>
+            </div>
+        `;
+
+        shell.appendChild(annual);
+
+        annual.querySelector('[data-annual-course-action]').addEventListener('click', () => {
+            if (paid) {
+                toast(root, 'Tu plaza ya está reservada en el grupo de viernes.');
+                return;
+            }
+
+            if (groupStatus.soldOut) {
+                toast(root, 'Este grupo ya está completo.');
+                return;
+            }
+
+            startCheckout(ANNUAL_COURSE.id);
+        });
+    }
 
     function render() {
         root.innerHTML = '';
@@ -143,14 +265,15 @@ export function AcademyPage(navigate) {
         shell.innerHTML = `
             <section class="ac-hero">
                 <p class="ac-kicker">Academia IA KreateIA</p>
-                <h1 class="ac-title">Cursos online de inteligencia artificial, explicados paso a paso.</h1>
+                <h1 class="ac-title">Cursos de inteligencia artificial, explicados paso a paso.</h1>
                 <p class="ac-copy">
-                    Aprende IA sin tecnicismos raros. Clases por Zoom, acceso a KreateIA Studio y acompañamiento por WhatsApp para resolver dudas mientras aplicas lo aprendido.
+                    Aprende IA sin tecnicismos raros. Puedes elegir formación online 1 a 1 o un curso anual presencial en grupo.
+                    En ambos casos tendrás acceso a KreateIA Studio y acompañamiento para aplicar lo aprendido.
                 </p>
                 <div class="ac-flow">
-                    <div class="ac-step"><strong>1. Elige curso</strong><span>Escoge el nivel que encaja contigo: diagnóstico, express, creador o profesional.</span></div>
+                    <div class="ac-step"><strong>1. Elige curso</strong><span>Escoge una formación 1 a 1 o el grupo anual presencial.</span></div>
                     <div class="ac-step"><strong>2. Paga seguro</strong><span>El pago se realiza con Stripe. Al volver, tu curso aparecerá como pagado.</span></div>
-                    <div class="ac-step"><strong>3. Agenda clase</strong><span>Te mostraremos horarios disponibles para reservar tu sesión online.</span></div>
+                    <div class="ac-step"><strong>3. Agenda o reserva plaza</strong><span>Los cursos 1 a 1 tienen agenda. El curso anual tiene horario fijo.</span></div>
                     <div class="ac-step"><strong>4. Aprende con soporte</strong><span>Después de clase puedes resolver dudas por WhatsApp según el curso contratado.</span></div>
                 </div>
             </section>
@@ -163,61 +286,65 @@ export function AcademyPage(navigate) {
             </section>
         `;
 
+        renderAnnualCourse(shell);
+
         const grid = document.createElement('section');
         grid.className = 'ac-courses';
 
-        ACADEMY_COURSES.forEach(course => {
-            const paid = purchases[course.id]?.status === 'paid';
-            const courseBookings = bookings[course.id] || [];
-            const card = document.createElement('article');
-            card.className = 'ac-card';
+        ACADEMY_COURSES
+            .filter(course => course.id !== ANNUAL_COURSE.id)
+            .forEach(course => {
+                const paid = isPaidCourse(course.id);
+                const courseBookings = bookings[course.id] || [];
+                const card = document.createElement('article');
+                card.className = 'ac-card';
 
-            const bookingText = courseBookings.length
-                ? `${courseBookings.length} clase${courseBookings.length === 1 ? '' : 's'} agendada${courseBookings.length === 1 ? '' : 's'}`
-                : 'Después del pago podrás elegir día y hora desde la propia web.';
+                const bookingText = courseBookings.length
+                    ? `${courseBookings.length} clase${courseBookings.length === 1 ? '' : 's'} agendada${courseBookings.length === 1 ? '' : 's'}`
+                    : 'Después del pago podrás elegir día y hora desde la propia web.';
 
-            card.innerHTML = `
-                <div class="ac-card-head">
-                    <span class="ac-badge">${escapeHtml(course.badge)}</span>
-                    <h2>${escapeHtml(course.name)}</h2>
-                    <p class="ac-price">${escapeHtml(course.priceLabel)}</p>
-                    <p class="ac-desc">${escapeHtml(course.shortDescription)}</p>
-                    <div class="ac-meta">
-                        <div>${escapeHtml(course.duration)}</div>
-                        <div>${escapeHtml(course.format)}</div>
-                        <div>${escapeHtml(course.whatsappSupport)}</div>
-                    </div>
-                </div>
-
-                <div class="ac-body">
-                    <div>
-                        <p class="ac-section-title">Qué se da en clase</p>
-                        ${course.lessons.map(lesson => `
-                            <div class="ac-lesson">
-                                <strong>${escapeHtml(lesson.title)}</strong>
-                                <p>${escapeHtml(lesson.text)}</p>
-                            </div>
-                        `).join('')}
+                card.innerHTML = `
+                    <div class="ac-card-head">
+                        <span class="ac-badge">${escapeHtml(course.badge)}</span>
+                        <h2>${escapeHtml(course.name)}</h2>
+                        <p class="ac-price">${escapeHtml(course.priceLabel)}</p>
+                        <p class="ac-desc">${escapeHtml(course.shortDescription)}</p>
+                        <div class="ac-meta">
+                            <div>${escapeHtml(course.duration)}</div>
+                            <div>${escapeHtml(course.format)}</div>
+                            <div>${escapeHtml(course.whatsappSupport)}</div>
+                        </div>
                     </div>
 
-                    <div>
-                        <p class="ac-section-title">Qué incluye</p>
-                        <ul class="ac-list">
-                            ${course.includes.map(item => `<li>${escapeHtml(item)}</li>`).join('')}
-                        </ul>
+                    <div class="ac-body">
+                        <div>
+                            <p class="ac-section-title">Qué se da en clase</p>
+                            ${course.lessons.map(lesson => `
+                                <div class="ac-lesson">
+                                    <strong>${escapeHtml(lesson.title)}</strong>
+                                    <p>${escapeHtml(lesson.text)}</p>
+                                </div>
+                            `).join('')}
+                        </div>
+
+                        <div>
+                            <p class="ac-section-title">Qué incluye</p>
+                            <ul class="ac-list">
+                                ${course.includes.map(item => `<li>${escapeHtml(item)}</li>`).join('')}
+                            </ul>
+                        </div>
                     </div>
-                </div>
 
-                <div class="ac-actions">
-                    <button class="ac-btn ${paid ? 'paid' : ''}" data-course-action="${escapeHtml(course.id)}">
-                        ${paid ? 'Pagado · Agendar clase' : loadingCourseId === course.id ? 'Abriendo pago...' : 'Comprar ' + escapeHtml(course.name)}
-                    </button>
-                    <p class="ac-note">${escapeHtml(paid ? bookingText : 'Después del pago podrás elegir día y hora desde la propia web.')}</p>
-                </div>
-            `;
+                    <div class="ac-actions">
+                        <button class="ac-btn ${paid ? 'paid' : ''}" data-course-action="${escapeHtml(course.id)}">
+                            ${paid ? 'Pagado · Agendar clase' : loadingCourseId === course.id ? 'Abriendo pago...' : 'Comprar ' + escapeHtml(course.name)}
+                        </button>
+                        <p class="ac-note">${escapeHtml(paid ? bookingText : 'Después del pago podrás elegir día y hora desde la propia web.')}</p>
+                    </div>
+                `;
 
-            grid.appendChild(card);
-        });
+                grid.appendChild(card);
+            });
 
         shell.appendChild(grid);
         root.appendChild(shell);
@@ -225,7 +352,7 @@ export function AcademyPage(navigate) {
         root.querySelectorAll('[data-course-action]').forEach(button => {
             button.addEventListener('click', () => {
                 const courseId = button.dataset.courseAction;
-                const paid = purchases[courseId]?.status === 'paid';
+                const paid = isPaidCourse(courseId);
 
                 if (paid) {
                     openBookingModal(courseId);
@@ -397,6 +524,23 @@ export function AcademyPage(navigate) {
         availabilityDays = Array.isArray(data.days) ? data.days : [];
     }
 
+    async function loadGroupStatus() {
+        try {
+            const res = await fetch('/api/academy/group-status');
+            const data = await res.json().catch(() => ({}));
+
+            if (res.ok && data.ok) {
+                groupStatus = {
+                    loaded: true,
+                    soldOut: data.soldOut === true,
+                };
+                render();
+            }
+        } catch (err) {
+            console.warn('[Academy] No se pudo cargar estado de grupo:', err.message);
+        }
+    }
+
     async function loadPurchasesAndBookings(user) {
         purchases = {};
         bookings = {};
@@ -415,12 +559,13 @@ export function AcademyPage(navigate) {
             const bookingsSnap = await getDocs(collection(db, 'artifacts', APP_ID, 'public', 'data', 'users', user.uid, 'academy_bookings'));
             bookingsSnap.forEach(d => {
                 const data = { id: d.id, ...d.data() };
+                if (String(data.status || '').toLowerCase() === 'cancelled') return;
                 if (!bookings[data.courseId]) bookings[data.courseId] = [];
                 bookings[data.courseId].push(data);
             });
 
             Object.keys(bookings).forEach(courseId => {
-                bookings[courseId].sort((a, b) => String(a.startAt || '').localeCompare(String(b.startAt || '')));
+                bookings[courseId].sort((a, b) => String(a.startAt || a.date || '').localeCompare(String(b.startAt || b.date || '')));
             });
         } catch (err) {
             console.warn('[Academy] No se pudieron cargar compras o reservas:', err.message);
@@ -472,6 +617,9 @@ export function AcademyPage(navigate) {
 
         try {
             const token = await auth.currentUser.getIdToken();
+            const course = ACADEMY_COURSES.find(item => item.id === bookingCourseId);
+            const courseBookings = bookings[bookingCourseId] || [];
+            const classNumber = Math.min(courseBookings.length + 1, Math.max(1, course?.lessons?.length || 1));
 
             const res = await fetch(`${window.location.origin}/api/academy/book-class`, {
                 method: 'POST',
@@ -483,6 +631,7 @@ export function AcademyPage(navigate) {
                     courseId: bookingCourseId,
                     date: bookingDate,
                     time: bookingTime,
+                    classNumber,
                 }),
             });
 
@@ -506,10 +655,12 @@ export function AcademyPage(navigate) {
     onAuthStateChanged(auth, user => {
         currentUser = user || null;
         loadPurchasesAndBookings(currentUser);
+        loadGroupStatus();
     });
 
     render();
     loadPurchasesAndBookings(currentUser);
+    loadGroupStatus();
 
     return root;
 }
