@@ -16,6 +16,7 @@ const ANNUAL_COURSE = {
 
 const LEGACY_ANNUAL_COURSE_ID = 'ia-anual-presencial-viernes';
 const ANNUAL_COURSE_IDS = [ANNUAL_COURSE.id, LEGACY_ANNUAL_COURSE_ID];
+const ACADEMY_HERO_VIDEO_URL = 'https://d8j0ntlcm91z4.cloudfront.net/user_3Bu8kApHUBmQcoBNUYoyCcOGJne/hf_20260414_232148_e856f696-c60e-4c40-921e-3fc3ac60224f.mp4';
 
 function addAcademyStyles() {
     if (document.querySelector('#academy-page-styles')) return;
@@ -26,12 +27,16 @@ function addAcademyStyles() {
         #academy-root *{box-sizing:border-box}
         #academy-root{width:100%;height:100%;overflow-y:auto;overflow-x:hidden;background:#050505;color:#fff;font-family:Inter,-apple-system,BlinkMacSystemFont,"SF Pro Display",sans-serif}
         .ac-shell{width:min(1180px,100%);margin:0 auto;padding:34px 18px 80px}
-        .ac-hero{padding:48px 0 28px;border-bottom:1px solid rgba(255,255,255,.08)}
+        .ac-hero{position:relative;overflow:hidden;min-height:520px;padding:52px 26px 30px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:#050505;display:flex;flex-direction:column;justify-content:flex-end}
+        .ac-hero-media{position:absolute;inset:0;z-index:0;background:#050505}
+        .ac-hero-media video{display:block;width:100%;height:100%;object-fit:cover;opacity:.72;filter:saturate(1.08) contrast(1.05)}
+        .ac-hero-media:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(5,5,5,.96),rgba(5,5,5,.74) 42%,rgba(5,5,5,.22)),linear-gradient(180deg,rgba(0,0,0,.14),rgba(0,0,0,.9));pointer-events:none}
+        .ac-hero-content{position:relative;z-index:1}
         .ac-kicker{color:#f59e0b;font-size:12px;font-weight:950;text-transform:uppercase;margin:0 0 14px}
         .ac-title{font-size:clamp(38px,6vw,78px);line-height:.96;font-weight:950;letter-spacing:0;margin:0;max-width:920px}
         .ac-copy{color:rgba(255,255,255,.68);font-size:17px;line-height:1.65;max-width:720px;margin:20px 0 0}
         .ac-flow{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:28px}
-        .ac-step{background:#101010;border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:16px}
+        .ac-step{background:rgba(16,16,16,.76);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:16px;backdrop-filter:blur(14px)}
         .ac-step strong{display:block;font-size:14px;margin-bottom:6px}
         .ac-step span{display:block;color:rgba(255,255,255,.58);font-size:12px;line-height:1.45}
         .ac-support{margin-top:22px;background:#0d1510;border:1px solid rgba(34,197,94,.22);border-radius:8px;padding:20px}
@@ -316,17 +321,23 @@ export function AcademyPage(navigate) {
 
         shell.innerHTML = `
             <section class="ac-hero">
-                <p class="ac-kicker">Academia IA KreateIA</p>
-                <h1 class="ac-title">Cursos de inteligencia artificial, explicados paso a paso.</h1>
-                <p class="ac-copy">
-                    Aprende IA sin tecnicismos raros. Puedes elegir formación online 1 a 1 o un curso anual online por Zoom en grupo.
-                    En ambos casos tendrás acceso a KreateIA Studio y acompañamiento para aplicar lo aprendido.
-                </p>
-                <div class="ac-flow">
-                    <div class="ac-step"><strong>1. Elige curso</strong><span>Escoge una formación 1 a 1 o el grupo anual online por Zoom.</span></div>
-                    <div class="ac-step"><strong>2. Paga seguro</strong><span>El pago se realiza con Stripe. Al volver, tu curso aparecerá como pagado.</span></div>
-                    <div class="ac-step"><strong>3. Agenda o reserva plaza</strong><span>Los cursos 1 a 1 tienen agenda. El curso anual tiene horario fijo.</span></div>
-                    <div class="ac-step"><strong>4. Aprende con soporte</strong><span>Después de clase puedes resolver dudas por WhatsApp según el curso contratado.</span></div>
+                <div class="ac-hero-media" aria-hidden="true">
+                    <video src="${ACADEMY_HERO_VIDEO_URL}" autoplay muted loop playsinline preload="metadata"></video>
+                </div>
+
+                <div class="ac-hero-content">
+                    <p class="ac-kicker">Academia IA KreateIA</p>
+                    <h1 class="ac-title">Cursos de inteligencia artificial, explicados paso a paso.</h1>
+                    <p class="ac-copy">
+                        Aprende IA sin tecnicismos raros. Puedes elegir formación online 1 a 1 o un curso anual online por Zoom en grupo.
+                        En ambos casos tendrás acceso a KreateIA Studio y acompañamiento para aplicar lo aprendido.
+                    </p>
+                    <div class="ac-flow">
+                        <div class="ac-step"><strong>1. Elige curso</strong><span>Escoge una formación 1 a 1 o el grupo anual online por Zoom.</span></div>
+                        <div class="ac-step"><strong>2. Paga seguro</strong><span>El pago se realiza con Stripe. Al volver, tu curso aparecerá como pagado.</span></div>
+                        <div class="ac-step"><strong>3. Agenda o reserva plaza</strong><span>Los cursos 1 a 1 tienen agenda. El curso anual tiene horario fijo.</span></div>
+                        <div class="ac-step"><strong>4. Aprende con soporte</strong><span>Después de clase puedes resolver dudas por WhatsApp según el curso contratado.</span></div>
+                    </div>
                 </div>
             </section>
 
