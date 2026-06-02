@@ -4,6 +4,8 @@ const CORS = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
+const ACADEMY_APPOINTMENT_TIMES = new Set(['10:00', '12:00', '17:00', '19:00']);
+
 export async function onRequest(context) {
   const { request, env } = context;
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
@@ -126,6 +128,9 @@ function normalizeAppointment(value, serviceType) {
   if (!date || !time) return null;
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
   if (!/^\d{2}:\d{2}$/.test(time)) return null;
+  if (!ACADEMY_APPOINTMENT_TIMES.has(time)) {
+    throw new Error('La hora de Academia debe ser 10:00, 12:00, 17:00 o 19:00.');
+  }
 
   const startAt = `${date}T${time}:00${madridOffsetForDate(date)}`;
   const reminderDueAt = new Date(new Date(startAt).getTime() - 24 * 60 * 60 * 1000).toISOString();
