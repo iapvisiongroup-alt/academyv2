@@ -64,6 +64,7 @@ export async function onRequest(context) {
     ]);
 
     const idToken = getBearerToken(request);
+
     if (!idToken) {
       return json({ ok: false, error: 'Debes iniciar sesión para agendar clase.' }, 401);
     }
@@ -121,6 +122,7 @@ export async function onRequest(context) {
 
     const bookingNumber = courseBookings.length + 1;
     const bookingId = `${course.id}_clase_${bookingNumber}`;
+    const internalBookingId = `${date}_${time.replace(':', '')}_${user.uid}_${course.id}`;
     const now = new Date().toISOString();
     const startAt = `${date}T${time}:00${madridOffsetForDate(date)}`;
 
@@ -143,6 +145,18 @@ export async function onRequest(context) {
       updatedAt: now,
     };
 
+    const internalBooking = {
+      ...booking,
+      id: internalBookingId,
+      userBookingId: bookingId,
+      source: 'academy_web',
+      customerName: String(purchaseDoc.data.customerName || ''),
+      customerPhone: String(purchaseDoc.data.customerPhone || ''),
+      adminStatus: 'pending_zoom',
+      adminNotes: '',
+      notifiedAt: null,
+    };
+
     const slot = {
       id: globalSlotId,
       uid: user.uid,
@@ -150,6 +164,7 @@ export async function onRequest(context) {
       courseId: course.id,
       courseName: course.name,
       bookingId,
+      internalBookingId,
       date,
       time,
       timezone: 'Europe/Madrid',
@@ -164,6 +179,12 @@ export async function onRequest(context) {
         update: {
           name: docName(env.FIREBASE_PROJECT_ID, `${userBasePath}/academy_bookings/${bookingId}`),
           fields: toFields(booking),
+        },
+      },
+      {
+        update: {
+          name: docName(env.FIREBASE_PROJECT_ID, `private_academy_bookings/${internalBookingId}`),
+          fields: toFields(internalBooking),
         },
       },
       {
