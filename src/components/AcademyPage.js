@@ -163,6 +163,7 @@ function firstAvailableTime(day) {
 function handleAcademyImageError(img) {
     const urls = [
         '/assets/academy/curso-anual-zoom.png',
+        'https://raw.githubusercontent.com/iapvisiongroup-alt/academyv2/main/public/assets/academy/curso-anual-zoom.png',
         './assets/academy/curso-anual-zoom.png',
         '/public/assets/academy/curso-anual-zoom.png',
         './public/assets/academy/curso-anual-zoom.png',
