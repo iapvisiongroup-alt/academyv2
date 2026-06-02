@@ -1334,7 +1334,13 @@
               </div>
               <div class="field" style="margin-bottom:0">
                 <label>Hora</label>
-                <input id="appointmentTime" type="time" />
+                <select id="appointmentTime">
+                  <option value="">Sin hora asignada</option>
+                  <option value="10:00">10:00</option>
+                  <option value="12:00">12:00</option>
+                  <option value="17:00">17:00</option>
+                  <option value="19:00">19:00</option>
+                </select>
               </div>
             </div>
 
@@ -2469,6 +2475,39 @@
       }
     }
 
+    async function cancelAcademyBooking(bookingId) {
+      if (!bookingId) return toast("No se encontró la reserva.");
+      if (!confirm("¿Cancelar esta reserva y liberar la hora para que otro alumno pueda reservarla?")) return;
+
+      try {
+        const token = await currentUser.getIdToken();
+
+        const res = await fetch("/api/academy/manage-booking", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            action: "admin_cancel",
+            bookingId,
+            reason: "Cancelada desde usuariospriv",
+          }),
+        });
+
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok || data.ok === false) {
+          throw new Error(data.error || "No se pudo cancelar la reserva.");
+        }
+
+        toast("Reserva cancelada y hora liberada.");
+        await loadAcademyAgenda();
+      } catch (err) {
+        toast(err.message || "Error cancelando reserva.");
+      }
+    }
+
     function normalizeAgendaRows(rows) {
       if (!Array.isArray(rows)) return [];
 
@@ -2623,6 +2662,9 @@
               </div>
               ${booking.studentName ? `<div class="agenda-reason">${escapeHtml(booking.studentName)}</div>` : ""}
               ${booking.notes ? `<div class="agenda-reason">${escapeHtml(booking.notes)}</div>` : ""}
+              <div>
+                <button class="btn danger" type="button" data-cancel-academy-booking="${escapeHtml(booking.id || booking.bookingId || "")}">Cancelar y liberar hora</button>
+              </div>
             </article>
           `).join("")
         : `<div class="muted">Todavía no hay reservas.</div>`;
@@ -2650,6 +2692,10 @@
 
       document.querySelectorAll("[data-unblock-agenda]").forEach(btn => {
         btn.addEventListener("click", () => unblockAcademyAgenda(btn.dataset.unblockAgenda));
+      });
+
+      document.querySelectorAll("[data-cancel-academy-booking]").forEach(btn => {
+        btn.addEventListener("click", () => cancelAcademyBooking(btn.dataset.cancelAcademyBooking));
       });
     }
 
