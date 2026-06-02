@@ -14,6 +14,9 @@ const ANNUAL_COURSE = {
     badge: 'Oferta estrella',
 };
 
+const LEGACY_ANNUAL_COURSE_ID = 'ia-anual-presencial-viernes';
+const ANNUAL_COURSE_IDS = [ANNUAL_COURSE.id, LEGACY_ANNUAL_COURSE_ID];
+
 function addAcademyStyles() {
     if (document.querySelector('#academy-page-styles')) return;
 
@@ -49,6 +52,9 @@ function addAcademyStyles() {
         .ac-annual-feature span{display:block;color:rgba(255,255,255,.62);font-size:12px;line-height:1.45}
         .ac-annual-side{background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:20px;display:flex;flex-direction:column;justify-content:space-between;gap:18px}
         .ac-annual-photo{position:relative;overflow:hidden;border-radius:8px;border:1px solid rgba(255,255,255,.12);min-height:230px;background:#050505;margin:0}
+        .ac-annual-photo.fallback{background:radial-gradient(circle at 26% 22%,rgba(245,158,11,.28),transparent 30%),radial-gradient(circle at 78% 28%,rgba(59,130,246,.28),transparent 32%),linear-gradient(135deg,#0b1220,#111827 44%,#1f1306)}
+        .ac-annual-photo.fallback:before{content:"";position:absolute;left:10%;right:10%;top:18%;height:48%;border:1px solid rgba(255,255,255,.16);border-radius:8px;background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.02));box-shadow:0 22px 70px rgba(0,0,0,.38)}
+        .ac-annual-photo.fallback .ac-annual-screen{position:absolute;left:16%;right:16%;top:28%;height:24%;border-radius:6px;background:linear-gradient(90deg,rgba(245,158,11,.72),rgba(59,130,246,.72));opacity:.9}
         .ac-annual-photo img{display:block;width:100%;height:100%;min-height:230px;object-fit:cover;filter:saturate(1.08) contrast(1.04)}
         .ac-annual-photo:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 45%,rgba(0,0,0,.72));pointer-events:none}
         .ac-annual-photo-label{position:absolute;left:14px;right:14px;bottom:14px;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:10px}
@@ -154,6 +160,27 @@ function firstAvailableTime(day) {
     return (day?.slots || []).find(slot => slot.available)?.time || '';
 }
 
+function handleAcademyImageError(img) {
+    const urls = [
+        '/assets/academy/curso-anual-zoom.png',
+        './assets/academy/curso-anual-zoom.png',
+        '/public/assets/academy/curso-anual-zoom.png',
+        './public/assets/academy/curso-anual-zoom.png',
+    ];
+
+    const nextIndex = Number(img.dataset.fallbackIndex || 0) + 1;
+    img.dataset.fallbackIndex = String(nextIndex);
+
+    if (urls[nextIndex]) {
+        img.src = urls[nextIndex];
+        return;
+    }
+
+    img.remove();
+    const photo = img.closest('.ac-annual-photo');
+    if (photo) photo.classList.add('fallback');
+}
+
 export function AcademyPage(navigate) {
     addAcademyStyles();
 
@@ -173,8 +200,12 @@ export function AcademyPage(navigate) {
     let groupStatus = { loaded: false, soldOut: false };
 
     function isPaidCourse(courseId) {
-        const status = String(purchases[courseId]?.status || '').toLowerCase();
-        return status === 'paid' || status === 'active' || status === 'enrolled' || status === 'paid_manual_review';
+        const ids = courseId === ANNUAL_COURSE.id ? ANNUAL_COURSE_IDS : [courseId];
+
+        return ids.some(id => {
+            const status = String(purchases[id]?.status || '').toLowerCase();
+            return status === 'paid' || status === 'active' || status === 'enrolled' || status === 'paid_manual_review';
+        });
     }
 
     function annualButtonText() {
@@ -196,7 +227,7 @@ export function AcademyPage(navigate) {
                     <span class="ac-annual-badge">Promoción de lanzamiento</span>
                     <h2>Curso Anual IA Online por Zoom con portátil de regalo</h2>
                     <p class="ac-annual-copy">
-                        Un año completo aprendiendo inteligencia artificial de forma práctica, en grupo reducido y con horario fijo.
+                        Un año completo aprendiendo inteligencia artificial de forma práctica, con clases online en directo y seguimiento cercano.
                         Ideal para alumnos, adultos, autónomos y personas que quieren dominar herramientas de IA sin perderse.
                     </p>
 
@@ -208,14 +239,15 @@ export function AcademyPage(navigate) {
                     <div class="ac-annual-grid">
                         <div class="ac-annual-feature"><strong>Horario fijo</strong><span>Viernes de 17:00 a 20:00 por Zoom. No tienes que elegir agenda.</span></div>
                         <div class="ac-annual-feature"><strong>Inicio del grupo</strong><span>Viernes 11 de septiembre. Plaza reservada al completar el pago.</span></div>
-                        <div class="ac-annual-feature"><strong>Grupo reducido</strong><span>Plazas limitadas. No mostramos plazas restantes públicamente.</span></div>
+                        <div class="ac-annual-feature"><strong>Acompañamiento real</strong><span>Podrás preguntar en clase, practicar y recibir orientación clara cada semana.</span></div>
                         <div class="ac-annual-feature"><strong>Enfoque práctico</strong><span>Contenido, imagen, vídeo, automatizaciones, asistentes y proyectos reales.</span></div>
                     </div>
                 </div>
 
                 <aside class="ac-annual-side">
                     <figure class="ac-annual-photo">
-                        <img src="/assets/academy/curso-anual-zoom.png" alt="Curso anual online de inteligencia artificial por Zoom" loading="lazy" decoding="async" onerror="this.closest('.ac-annual-photo').style.display='none'">
+                        <span class="ac-annual-screen" aria-hidden="true"></span>
+                        <img src="/assets/academy/curso-anual-zoom.png" data-academy-annual-image data-fallback-index="0" alt="Curso anual online de inteligencia artificial por Zoom" loading="lazy" decoding="async">
                         <figcaption class="ac-annual-photo-label">
                             <strong>Clases online en directo desde casa</strong>
                             <span>Zoom</span>
@@ -252,6 +284,11 @@ export function AcademyPage(navigate) {
                 </aside>
             </div>
         `;
+
+        const annualImage = annual.querySelector('[data-academy-annual-image]');
+        if (annualImage) {
+            annualImage.addEventListener('error', () => handleAcademyImageError(annualImage));
+        }
 
         shell.appendChild(annual);
 
@@ -306,7 +343,7 @@ export function AcademyPage(navigate) {
         grid.className = 'ac-courses';
 
         ACADEMY_COURSES
-            .filter(course => course.id !== ANNUAL_COURSE.id)
+            .filter(course => !ANNUAL_COURSE_IDS.includes(course.id))
             .forEach(course => {
                 const paid = isPaidCourse(course.id);
                 const courseBookings = bookings[course.id] || [];
@@ -567,15 +604,23 @@ export function AcademyPage(navigate) {
         try {
             const purchasesSnap = await getDocs(collection(db, 'artifacts', APP_ID, 'public', 'data', 'users', user.uid, 'academy_purchases'));
             purchasesSnap.forEach(d => {
-                purchases[d.id] = { id: d.id, ...d.data() };
+                const purchase = { id: d.id, ...d.data() };
+                purchases[d.id] = purchase;
+
+                if (d.id === LEGACY_ANNUAL_COURSE_ID) {
+                    purchases[ANNUAL_COURSE.id] = purchase;
+                }
             });
 
             const bookingsSnap = await getDocs(collection(db, 'artifacts', APP_ID, 'public', 'data', 'users', user.uid, 'academy_bookings'));
             bookingsSnap.forEach(d => {
                 const data = { id: d.id, ...d.data() };
                 if (String(data.status || '').toLowerCase() === 'cancelled') return;
-                if (!bookings[data.courseId]) bookings[data.courseId] = [];
-                bookings[data.courseId].push(data);
+
+                const bookingCourseId = data.courseId === LEGACY_ANNUAL_COURSE_ID ? ANNUAL_COURSE.id : data.courseId;
+
+                if (!bookings[bookingCourseId]) bookings[bookingCourseId] = [];
+                bookings[bookingCourseId].push({ ...data, courseId: bookingCourseId });
             });
 
             Object.keys(bookings).forEach(courseId => {
@@ -586,6 +631,25 @@ export function AcademyPage(navigate) {
         }
 
         render();
+    }
+
+    async function requestCheckoutSession(courseId, token) {
+        const res = await fetch('/api/academy/create-checkout', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: 'Bearer ' + token,
+            },
+            body: JSON.stringify({ courseId }),
+        });
+
+        const data = await res.json().catch(() => ({}));
+
+        return { res, data };
+    }
+
+    function isInvalidCourseResponse(res, data) {
+        return res.status === 400 && String(data.error || '').toLowerCase().includes('curso no');
     }
 
     async function startCheckout(courseId) {
@@ -599,17 +663,14 @@ export function AcademyPage(navigate) {
 
         try {
             const token = await auth.currentUser.getIdToken();
+            let { res, data } = await requestCheckoutSession(courseId, token);
 
-            const res = await fetch('/api/academy/create-checkout', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Authorization: 'Bearer ' + token,
-                },
-                body: JSON.stringify({ courseId }),
-            });
-
-            const data = await res.json().catch(() => ({}));
+            if (
+                courseId === ANNUAL_COURSE.id
+                && isInvalidCourseResponse(res, data)
+            ) {
+                ({ res, data } = await requestCheckoutSession(LEGACY_ANNUAL_COURSE_ID, token));
+            }
 
             if (!res.ok || !data.checkoutUrl) {
                 throw new Error(data.error || 'No se pudo abrir el pago.');
