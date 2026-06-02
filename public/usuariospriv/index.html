@@ -344,7 +344,7 @@
 
     .view-tabs {
       display: grid;
-      grid-template-columns: repeat(6, minmax(128px, 1fr));
+      grid-template-columns: repeat(7, minmax(118px, 1fr));
       gap: 8px;
     }
 
@@ -946,6 +946,204 @@
       line-height: 1.55;
     }
 
+    .agenda-panel {
+      padding: 18px;
+      display: grid;
+      gap: 14px;
+      border-bottom: 1px solid var(--line);
+      background: #fff;
+    }
+
+    .agenda-form-grid {
+      display: grid;
+      grid-template-columns: 1fr .8fr .8fr 1fr;
+      gap: 12px;
+      align-items: end;
+    }
+
+    .agenda-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .agenda-stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(140px, 1fr));
+      gap: 10px;
+    }
+
+    .agenda-stat {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 12px;
+      background: #f8fafc;
+    }
+
+    .agenda-stat span {
+      display: block;
+      color: var(--muted);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      font-weight: 900;
+    }
+
+    .agenda-stat strong {
+      display: block;
+      margin-top: 4px;
+      font-size: 20px;
+      letter-spacing: -.04em;
+    }
+
+    .agenda-calendar {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 10px;
+      padding: 18px;
+      background: #f8fafc;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .agenda-day {
+      position: relative;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 12px;
+      background: #fff;
+      min-height: 188px;
+      display: grid;
+      gap: 9px;
+      overflow: hidden;
+    }
+
+    .agenda-day.unavailable {
+      background: #fff1f2;
+      border-color: #fecdd3;
+    }
+
+    .agenda-day.unavailable::after {
+      content: "X";
+      position: absolute;
+      right: 12px;
+      top: 8px;
+      color: rgba(220, 38, 38, .18);
+      font-size: 68px;
+      line-height: 1;
+      font-weight: 1000;
+      pointer-events: none;
+    }
+
+    .agenda-day-head {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    .agenda-day-head strong {
+      display: block;
+      font-size: 18px;
+      letter-spacing: -.04em;
+    }
+
+    .agenda-day-head span {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 850;
+      text-transform: uppercase;
+    }
+
+    .agenda-slot-list {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      gap: 6px;
+    }
+
+    .agenda-slot {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 7px 8px;
+      border-radius: 10px;
+      background: #ecfdf5;
+      color: #065f46;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .agenda-slot.busy {
+      background: #fee2e2;
+      color: #991b1b;
+      text-decoration: line-through;
+    }
+
+    .agenda-list-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      padding: 18px;
+      background: #fff;
+    }
+
+    .agenda-list-card {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: #f8fafc;
+      overflow: hidden;
+    }
+
+    .agenda-list-card h3 {
+      margin: 0;
+      padding: 14px 16px;
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+      font-size: 15px;
+      letter-spacing: -.02em;
+    }
+
+    .agenda-list-body {
+      display: grid;
+      gap: 8px;
+      padding: 12px;
+      max-height: 420px;
+      overflow: auto;
+    }
+
+    .agenda-item {
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 11px 12px;
+      background: #fff;
+      display: grid;
+      gap: 5px;
+    }
+
+    .agenda-item-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .agenda-item-top strong {
+      font-size: 13px;
+      line-height: 1.25;
+    }
+
+    .agenda-reason {
+      color: #475569;
+      font-size: 12px;
+      line-height: 1.4;
+      white-space: pre-wrap;
+    }
+
     @media (max-width: 1120px) {
       main { grid-template-columns: 1fr; }
       .table-scroll { max-height: none; }
@@ -958,7 +1156,10 @@
       .grid2,
       .choice-row,
       .form-actions,
-      .invoice-boxes { grid-template-columns: 1fr; }
+      .invoice-boxes,
+      .agenda-form-grid,
+      .agenda-stats,
+      .agenda-list-grid { grid-template-columns: 1fr; }
       .panel-top,
       .panel-help { align-items: stretch; flex-direction: column; }
       .view-tabs { grid-template-columns: 1fr; }
@@ -1216,6 +1417,10 @@
               <strong>Facturas Academia</strong>
               <span>Cursos exentos de IVA</span>
             </button>
+            <button id="tab-academy-agenda" class="tab" type="button">
+              <strong>Agenda Academia</strong>
+              <span>Bloquear días y horas</span>
+            </button>
             <button id="tab-services-invoices" class="tab" type="button">
               <strong>Facturas Servicios IA</strong>
               <span>Servicios sujetos a IVA</span>
@@ -1297,6 +1502,82 @@
               <tr><td colspan="9" class="muted">Cargando presupuestos...</td></tr>
             </tbody>
           </table>
+        </div>
+
+        <div id="academy-agenda-view" class="table-scroll hidden">
+          <div class="agenda-panel no-print">
+            <div class="agenda-form-grid">
+              <div class="field" style="margin-bottom:0">
+                <label>Fecha</label>
+                <input id="academy-agenda-date" type="date" />
+              </div>
+              <div class="field" style="margin-bottom:0">
+                <label>Hora concreta</label>
+                <select id="academy-agenda-time">
+                  <option value="">Día completo</option>
+                  <option value="10:00">10:00</option>
+                  <option value="12:00">12:00</option>
+                  <option value="17:00">17:00</option>
+                  <option value="19:00">19:00</option>
+                </select>
+              </div>
+              <div class="field" style="margin-bottom:0">
+                <label>Tipo</label>
+                <select id="academy-agenda-type">
+                  <option value="blocked">No disponible</option>
+                  <option value="meeting">Reunión</option>
+                  <option value="personal">Personal</option>
+                  <option value="holiday">Festivo / vacaciones</option>
+                </select>
+              </div>
+              <div class="field" style="margin-bottom:0">
+                <label>Título interno</label>
+                <input id="academy-agenda-title" placeholder="Ej. Reunión, médico, clase presencial..." />
+              </div>
+            </div>
+
+            <div class="field" style="margin-bottom:0">
+              <label>Motivo visible en agenda interna</label>
+              <input id="academy-agenda-reason" placeholder="Ej. Reunión con cliente, cita personal, festivo local..." />
+            </div>
+
+            <div class="agenda-actions">
+              <button id="agenda-block-day-btn" class="btn danger" type="button">Bloquear día completo</button>
+              <button id="agenda-block-slot-btn" class="btn primary" type="button">Bloquear solo esa hora</button>
+              <button id="agenda-refresh-btn" class="btn ghost" type="button">Actualizar agenda</button>
+            </div>
+
+            <div class="lead-note">
+              Cuando bloquees un día u hora, en la web pública aparecerá como no disponible con una X y nadie podrá reservar ese hueco.
+            </div>
+
+            <div class="agenda-stats">
+              <div class="agenda-stat"><span>Reservas</span><strong id="agenda-stat-bookings">0</strong></div>
+              <div class="agenda-stat"><span>Bloqueos</span><strong id="agenda-stat-blocks">0</strong></div>
+              <div class="agenda-stat"><span>Días visibles</span><strong id="agenda-stat-days">0</strong></div>
+              <div class="agenda-stat"><span>Próxima clase</span><strong id="agenda-stat-next">-</strong></div>
+            </div>
+          </div>
+
+          <div id="agenda-calendar" class="agenda-calendar">
+            <div class="muted">Cargando agenda...</div>
+          </div>
+
+          <div class="agenda-list-grid">
+            <section class="agenda-list-card">
+              <h3>Reservas de alumnos</h3>
+              <div id="agenda-bookings-list" class="agenda-list-body">
+                <div class="muted">Todavía no hay reservas.</div>
+              </div>
+            </section>
+
+            <section class="agenda-list-card">
+              <h3>Bloqueos y reuniones</h3>
+              <div id="agenda-blocks-list" class="agenda-list-body">
+                <div class="muted">Todavía no hay bloqueos.</div>
+              </div>
+            </section>
+          </div>
         </div>
 
         <div id="leads-view" class="table-scroll hidden">
@@ -1579,6 +1860,16 @@
         clientView: false,
         serviceType: "Academia",
       },
+      academyAgenda: {
+        title: "Agenda de Academia",
+        description: "Control interno de reservas, reuniones y huecos no disponibles para las clases online 1 a 1.",
+        helpTitle: "Estás gestionando la agenda",
+        helpText: "Bloquea días completos u horas concretas. En la web pública aparecerán tachados con X y no podrán reservarse.",
+        clientView: false,
+        quoteView: false,
+        agendaView: true,
+        serviceType: "Academia",
+      },
       servicesInvoices: {
         title: "Facturas de Servicios IA",
         description: "Facturas de servicios profesionales IA. Se emiten con los datos fiscales de Servicios IA y aplican IVA.",
@@ -1619,6 +1910,9 @@
     let invoices = [];
     let quotes = [];
     let leads = [];
+    let academyBookings = [];
+    let academyBlocks = [];
+    let academyAvailabilityDays = [];
     let unsubscribeInvoices = null;
     let unsubscribeClients = null;
     let unsubscribeQuotes = null;
@@ -1968,7 +2262,9 @@
           ? filteredQuotesForView().length
           : cfg.leadView
             ? leads.length
-            : filteredInvoicesForView().length;
+            : cfg.agendaView
+              ? academyBookings.length + academyBlocks.length
+              : filteredInvoicesForView().length;
 
       $("panel-title").textContent = cfg.title;
       $("panel-description").textContent = cfg.description;
@@ -1983,31 +2279,379 @@
 
       document.body.classList.toggle("lead-mode", !!cfg.leadView);
       $("clients-view").classList.toggle("hidden", !cfg.clientView);
-      $("invoices-view").classList.toggle("hidden", cfg.clientView || cfg.quoteView || cfg.leadView);
+      $("invoices-view").classList.toggle("hidden", cfg.clientView || cfg.quoteView || cfg.leadView || cfg.agendaView);
       $("quotes-view").classList.toggle("hidden", !cfg.quoteView);
       $("leads-view").classList.toggle("hidden", !cfg.leadView);
+      $("academy-agenda-view").classList.toggle("hidden", !cfg.agendaView);
 
       $("tab-academy-clients").classList.toggle("active", view === "academyClients");
       $("tab-services-clients").classList.toggle("active", view === "servicesClients");
       $("tab-academy-invoices").classList.toggle("active", view === "academyInvoices");
+      $("tab-academy-agenda").classList.toggle("active", view === "academyAgenda");
       $("tab-services-invoices").classList.toggle("active", view === "servicesInvoices");
       $("tab-services-quotes").classList.toggle("active", view === "servicesQuotes");
       $("tab-lead-prospecting").classList.toggle("active", view === "leadProspecting");
 
       if (cfg.leadView) subscribeLeads();
+      if (cfg.agendaView) loadAcademyAgenda();
       renderClients();
       renderInvoices();
       renderQuotes();
       renderLeads();
+      renderAcademyAgenda();
       updatePanelHeader();
     }
 
     $("tab-academy-clients").addEventListener("click", () => setView("academyClients"));
     $("tab-services-clients").addEventListener("click", () => setView("servicesClients"));
     $("tab-academy-invoices").addEventListener("click", () => setView("academyInvoices"));
+    $("tab-academy-agenda").addEventListener("click", () => setView("academyAgenda"));
     $("tab-services-invoices").addEventListener("click", () => setView("servicesInvoices"));
     $("tab-services-quotes").addEventListener("click", () => setView("servicesQuotes"));
     $("tab-lead-prospecting").addEventListener("click", () => setView("leadProspecting"));
+
+    $("academy-agenda-date").value = academyTodayInputValue();
+
+    $("agenda-block-day-btn").addEventListener("click", () => blockAcademyAgenda("day"));
+    $("agenda-block-slot-btn").addEventListener("click", () => blockAcademyAgenda("slot"));
+    $("agenda-refresh-btn").addEventListener("click", loadAcademyAgenda);
+
+    function academyTodayInputValue() {
+      return new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Europe/Madrid",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(new Date());
+    }
+
+    async function academyAgendaRequest(payload) {
+      if (!currentUser) throw new Error("Debes iniciar sesión.");
+
+      const token = await currentUser.getIdToken();
+
+      const res = await fetch("/api/academy/manage-availability", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || data.ok === false) {
+        throw new Error(data.error || "No se pudo actualizar la agenda.");
+      }
+
+      return data;
+    }
+
+    async function loadAcademyAgenda() {
+      if (!currentUser) return;
+
+      $("agenda-refresh-btn").disabled = true;
+      $("agenda-refresh-btn").textContent = "Actualizando...";
+
+      try {
+        const token = await currentUser.getIdToken();
+
+        const [manageRes, availabilityRes] = await Promise.all([
+          fetch("/api/academy/manage-availability", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`,
+            },
+            body: JSON.stringify({ action: "list" }),
+          }),
+          fetch("/api/academy/availability", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`,
+            },
+            body: JSON.stringify({}),
+          }),
+        ]);
+
+        const manageData = await manageRes.json().catch(() => ({}));
+        const availabilityData = await availabilityRes.json().catch(() => ({}));
+
+        if (!manageRes.ok || manageData.ok === false) {
+          throw new Error(manageData.error || "No se pudo cargar la agenda interna.");
+        }
+
+        if (!availabilityRes.ok || availabilityData.ok === false) {
+          throw new Error(availabilityData.error || "No se pudo cargar la disponibilidad pública.");
+        }
+
+        academyBlocks = normalizeAgendaRows(
+          manageData.blocks
+          || manageData.availabilityBlocks
+          || manageData.data?.blocks
+          || []
+        ).filter(block => String(block.status || "blocked").toLowerCase() !== "cancelled");
+
+        academyBookings = normalizeAgendaRows(
+          manageData.bookings
+          || manageData.privateBookings
+          || manageData.data?.bookings
+          || []
+        ).filter(booking => String(booking.status || "booked").toLowerCase() !== "cancelled");
+
+        academyAvailabilityDays = Array.isArray(availabilityData.days) ? availabilityData.days : [];
+
+        renderAcademyAgenda();
+        updatePanelHeader();
+      } catch (err) {
+        toast(err.message || "Error cargando agenda.");
+        $("agenda-calendar").innerHTML = `<div class="muted">No se pudo cargar la agenda.</div>`;
+      } finally {
+        $("agenda-refresh-btn").disabled = false;
+        $("agenda-refresh-btn").textContent = "Actualizar agenda";
+      }
+    }
+
+    async function blockAcademyAgenda(scope) {
+      if (!currentUser) return toast("Debes iniciar sesión.");
+
+      const date = $("academy-agenda-date").value;
+      const time = $("academy-agenda-time").value;
+      const type = $("academy-agenda-type").value;
+      const title = $("academy-agenda-title").value.trim();
+      const reason = $("academy-agenda-reason").value.trim();
+
+      if (!date) return toast("Elige una fecha.");
+      if (scope === "slot" && !time) return toast("Elige una hora concreta.");
+
+      const btn = scope === "day" ? $("agenda-block-day-btn") : $("agenda-block-slot-btn");
+      btn.disabled = true;
+      btn.textContent = scope === "day" ? "Bloqueando día..." : "Bloqueando hora...";
+
+      try {
+        await academyAgendaRequest({
+          action: scope === "day" ? "block_day" : "block_slot",
+          date,
+          time: scope === "slot" ? time : "",
+          type,
+          title: title || agendaTypeLabel(type),
+          reason: reason || title || agendaTypeLabel(type),
+        });
+
+        $("academy-agenda-title").value = "";
+        $("academy-agenda-reason").value = "";
+        toast(scope === "day" ? "Día bloqueado en la agenda." : "Hora bloqueada en la agenda.");
+        await loadAcademyAgenda();
+      } catch (err) {
+        toast(err.message || "No se pudo bloquear la agenda.");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = scope === "day" ? "Bloquear día completo" : "Bloquear solo esa hora";
+      }
+    }
+
+    async function unblockAcademyAgenda(blockId) {
+      if (!blockId) return toast("No se encontró el bloqueo.");
+      if (!confirm("¿Liberar este bloqueo para que vuelva a estar disponible?")) return;
+
+      try {
+        await academyAgendaRequest({
+          action: "unblock",
+          blockId,
+        });
+
+        toast("Bloqueo liberado.");
+        await loadAcademyAgenda();
+      } catch (err) {
+        toast(err.message || "No se pudo liberar el bloqueo.");
+      }
+    }
+
+    function normalizeAgendaRows(rows) {
+      if (!Array.isArray(rows)) return [];
+
+      return rows.map(row => {
+        if (row && row.fields) {
+          return {
+            id: row.id || String(row.name || "").split("/").pop(),
+            ...readFirestoreFields(row.fields),
+          };
+        }
+
+        return row || {};
+      });
+    }
+
+    function readFirestoreFields(fields) {
+      const out = {};
+
+      Object.entries(fields || {}).forEach(([key, value]) => {
+        out[key] = readFirestoreValue(value);
+      });
+
+      return out;
+    }
+
+    function readFirestoreValue(value) {
+      if (!value || typeof value !== "object") return null;
+      if ("stringValue" in value) return value.stringValue;
+      if ("integerValue" in value) return Number(value.integerValue);
+      if ("doubleValue" in value) return Number(value.doubleValue);
+      if ("booleanValue" in value) return Boolean(value.booleanValue);
+      if ("timestampValue" in value) return value.timestampValue;
+      if ("nullValue" in value) return null;
+
+      if ("arrayValue" in value) {
+        return (value.arrayValue.values || []).map(readFirestoreValue);
+      }
+
+      if ("mapValue" in value) {
+        return readFirestoreFields(value.mapValue.fields || {});
+      }
+
+      return null;
+    }
+
+    function agendaTypeLabel(type) {
+      const labels = {
+        blocked: "No disponible",
+        meeting: "Reunión",
+        personal: "Personal",
+        holiday: "Festivo / vacaciones",
+      };
+
+      return labels[type] || "No disponible";
+    }
+
+    function agendaDateLabel(dateText) {
+      try {
+        const [year, month, day] = String(dateText || "").split("-").map(Number);
+        const date = new Date(year, month - 1, day);
+
+        return new Intl.DateTimeFormat("es-ES", {
+          weekday: "short",
+          day: "2-digit",
+          month: "short",
+        }).format(date);
+      } catch {
+        return dateText || "-";
+      }
+    }
+
+    function agendaFullDateTimeLabel(dateText, timeText) {
+      return `${agendaDateLabel(dateText)}${timeText ? ` · ${timeText}` : ""}`;
+    }
+
+    function renderAcademyAgenda() {
+      if (!$("agenda-calendar")) return;
+
+      const sortedBookings = [...academyBookings].sort((a, b) => {
+        return String(`${a.date || ""} ${a.time || ""}`).localeCompare(String(`${b.date || ""} ${b.time || ""}`));
+      });
+
+      const sortedBlocks = [...academyBlocks].sort((a, b) => {
+        return String(`${a.date || ""} ${a.time || ""}`).localeCompare(String(`${b.date || ""} ${b.time || ""}`));
+      });
+
+      $("agenda-stat-bookings").textContent = String(sortedBookings.length);
+      $("agenda-stat-blocks").textContent = String(sortedBlocks.length);
+      $("agenda-stat-days").textContent = String(academyAvailabilityDays.length);
+
+      const nextBooking = sortedBookings.find(booking => String(booking.date || "") >= academyTodayInputValue());
+      $("agenda-stat-next").textContent = nextBooking
+        ? agendaFullDateTimeLabel(nextBooking.date, nextBooking.time)
+        : "-";
+
+      if (!academyAvailabilityDays.length) {
+        $("agenda-calendar").innerHTML = `<div class="muted">Pulsa “Actualizar agenda” para cargar disponibilidad.</div>`;
+      } else {
+        $("agenda-calendar").innerHTML = academyAvailabilityDays.map(day => {
+          const unavailable = day.unavailable || !day.available;
+          const dayTitle = `${day.weekdayLabel || ""} ${day.dayNumber || ""} ${day.monthLabel || ""}`.trim();
+          const reason = day.blockReason || day.unavailableReason || "";
+
+          const slots = Array.isArray(day.slots) ? day.slots : [];
+
+          return `
+            <article class="agenda-day ${unavailable ? "unavailable" : ""}">
+              <div class="agenda-day-head">
+                <div>
+                  <span>${escapeHtml(day.date || "")}</span>
+                  <strong>${escapeHtml(dayTitle || agendaDateLabel(day.date))}</strong>
+                </div>
+                <span class="pill ${unavailable ? "warn" : ""}">${unavailable ? "No disponible" : "Libre"}</span>
+              </div>
+              ${reason ? `<div class="mini" style="position:relative;z-index:1">${escapeHtml(reason)}</div>` : ""}
+              <div class="agenda-slot-list">
+                ${slots.map(slot => {
+                  const busy = !slot.available;
+                  const label = slot.booked
+                    ? "Reservado"
+                    : slot.blocked
+                      ? "Bloqueado"
+                      : slot.past
+                        ? "Pasado"
+                        : busy
+                          ? "No disponible"
+                          : "Libre";
+
+                  return `
+                    <div class="agenda-slot ${busy ? "busy" : ""}">
+                      <span>${escapeHtml(slot.time || "")}</span>
+                      <span>${escapeHtml(label)}</span>
+                    </div>
+                  `;
+                }).join("")}
+              </div>
+            </article>
+          `;
+        }).join("");
+      }
+
+      $("agenda-bookings-list").innerHTML = sortedBookings.length
+        ? sortedBookings.map(booking => `
+            <article class="agenda-item">
+              <div class="agenda-item-top">
+                <strong>${escapeHtml(booking.courseName || booking.courseId || "Curso Academia")}</strong>
+                <span class="pill">${escapeHtml(agendaFullDateTimeLabel(booking.date, booking.time))}</span>
+              </div>
+              <div class="mini">
+                ${escapeHtml(booking.customerEmail || booking.email || "")}
+                ${booking.classNumber ? ` · Clase ${escapeHtml(booking.classNumber)} de ${escapeHtml(booking.totalClasses || "")}` : ""}
+              </div>
+              ${booking.studentName ? `<div class="agenda-reason">${escapeHtml(booking.studentName)}</div>` : ""}
+              ${booking.notes ? `<div class="agenda-reason">${escapeHtml(booking.notes)}</div>` : ""}
+            </article>
+          `).join("")
+        : `<div class="muted">Todavía no hay reservas.</div>`;
+
+      $("agenda-blocks-list").innerHTML = sortedBlocks.length
+        ? sortedBlocks.map(block => {
+            const blockId = block.id || block.blockId || `${block.date || ""}_${String(block.time || "day").replace(":", "")}`;
+            const isDay = (block.scope || "").toLowerCase() === "day" || !block.time;
+
+            return `
+              <article class="agenda-item">
+                <div class="agenda-item-top">
+                  <strong>${escapeHtml(block.title || agendaTypeLabel(block.type) || "No disponible")}</strong>
+                  <span class="pill warn">${escapeHtml(isDay ? "Día completo" : block.time)}</span>
+                </div>
+                <div class="mini">${escapeHtml(agendaFullDateTimeLabel(block.date, isDay ? "" : block.time))} · ${escapeHtml(agendaTypeLabel(block.type))}</div>
+                ${block.reason ? `<div class="agenda-reason">${escapeHtml(block.reason)}</div>` : ""}
+                <div>
+                  <button class="btn ghost" type="button" data-unblock-agenda="${escapeHtml(blockId)}">Liberar</button>
+                </div>
+              </article>
+            `;
+          }).join("")
+        : `<div class="muted">Todavía no hay bloqueos.</div>`;
+
+      document.querySelectorAll("[data-unblock-agenda]").forEach(btn => {
+        btn.addEventListener("click", () => unblockAcademyAgenda(btn.dataset.unblockAgenda));
+      });
+    }
 
     $("lead-search-form").addEventListener("submit", async (e) => {
       e.preventDefault();
