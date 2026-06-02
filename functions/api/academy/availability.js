@@ -4,8 +4,9 @@ const CORS = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
+const APP_ID = 'appiapvision';
 const ALLOWED_TIMES = ['10:00', '12:00', '17:00', '19:00'];
-const MAX_DAYS = 30;
+const DAYS_TO_SHOW = 21;
 
 export async function onRequest(context) {
   const { request, env } = context;
@@ -39,157 +40,158 @@ export async function onRequest(context) {
     const idToken = getBearerToken(request);
 
     if (!idToken) {
-      return json({ ok: false, error: 'Debes iniciar sesión para consultar disponibilidad.' }, 401);
+      return json({ ok: false, error: 'Debes iniciar sesión para ver la agenda.' }, 401);
     }
 
     await verifyFirebaseToken(idToken, env.FIREBASE_API_KEY);
 
-    const body = await request.json().catch(() => ({}));
-    const daysRequested = Math.min(Math.max(Number(body.days || 21), 7), MAX_DAYS);
+    const accessToken = await getFirebaseAccessToken(env);
+    const today = startOfMadridDay(new Date());
 
-    const dates = buildMadridDates(daysRequested);
+    const dates = [];
+
+    for (let i = 0; i < DAYS_TO_SHOW; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() + i);
+      dates.push(formatDate(date));
+    }
+
     const slotIds = [];
 
-    dates.forEach(day => {
+    dates.forEach(date => {
       ALLOWED_TIMES.forEach(time => {
-        slotIds.push(`${day.date}_${time.replace(':', '')}`);
+        slotIds.push(slotDocId(date, time));
       });
     });
 
-    const accessToken = await getServiceAccountToken(env, 'https://www.googleapis.com/auth/datastore');
-    const bookedSlots = await batchGetBookedSlots(env.FIREBASE_PROJECT_ID, accessToken, slotIds);
+    const blockIds = [];
 
-    const availability = dates.map(day => {
-      const isWorkDay = day.weekday >= 1 && day.weekday <= 5;
+    dates.forEach(date => {
+      blockIds.push(dayBlockDocId(date));
+
+      ALLOWED_TIMES.forEach(time => {
+        blockIds.push(slotBlockDocId(date, time));
+      });
+    });
+
+    const bookedMap = await batchGetDocuments(env, accessToken, 'academy_slots', slotIds);
+    const blockMap = await batchGetDocuments(env, accessToken, 'academy_availability_blocks', blockIds);
+
+    const now = new Date();
+
+    const days = dates.map(date => {
+      const dateObj = parseMadridDate(date);
+      const weekday = dateObj.getDay();
+      const isWeekend = weekday === 0 || weekday === 6;
+      const dayBlock = activeBlock(blockMap[dayBlockDocId(date)]);
 
       const slots = ALLOWED_TIMES.map(time => {
-        const slotId = `${day.date}_${time.replace(':', '')}`;
-        const slotBooked = bookedSlots.has(slotId);
-        const future = isFutureMadridSlot(day.date, time);
+        const booked = !!bookedMap[slotDocId(date, time)];
+        const slotBlock = activeBlock(blockMap[slotBlockDocId(date, time)]);
+        const slotDate = parseMadridDateTime(date, time);
+        const past = slotDate.getTime() <= now.getTime();
+
+        const blocked = !!dayBlock || !!slotBlock;
+        const blockReason = dayBlock?.reason || dayBlock?.title || slotBlock?.reason || slotBlock?.title || '';
 
         return {
           time,
-          available: isWorkDay && future && !slotBooked,
-          booked: slotBooked,
-          past: !future,
+          available: !isWeekend && !past && !booked && !blocked,
+          booked,
+          blocked,
+          past,
+          blockReason,
         };
       });
 
-      const availableCount = slots.filter(slot => slot.available).length;
+      const hasAvailableSlot = slots.some(slot => slot.available);
+      const unavailableReason = dayBlock
+        ? (dayBlock.reason || dayBlock.title || 'Día bloqueado')
+        : isWeekend
+          ? 'No disponible'
+          : hasAvailableSlot
+            ? ''
+            : 'Completo';
 
       return {
-        date: day.date,
-        dayNumber: day.dayNumber,
-        monthLabel: day.monthLabel,
-        weekdayLabel: day.weekdayLabel,
-        available: availableCount > 0,
-        unavailableReason: !isWorkDay ? 'Cerrado' : availableCount === 0 ? 'Sin huecos' : '',
+        date,
+        dayNumber: dateObj.getDate(),
+        monthLabel: new Intl.DateTimeFormat('es-ES', { month: 'short' }).format(dateObj),
+        weekdayLabel: new Intl.DateTimeFormat('es-ES', { weekday: 'short' }).format(dateObj),
+        available: hasAvailableSlot,
+        unavailable: !hasAvailableSlot,
+        blocked: !!dayBlock,
+        blockReason: dayBlock?.reason || dayBlock?.title || '',
+        unavailableReason,
         slots,
       };
     });
 
     return json({
       ok: true,
-      days: availability,
       times: ALLOWED_TIMES,
+      days,
     });
   } catch (err) {
     return json({
       ok: false,
-      error: err.message || 'Error consultando disponibilidad',
+      error: err.message || 'Error cargando disponibilidad',
     }, 500);
   }
 }
 
-function buildMadridDates(days) {
-  const result = [];
-  const formatter = new Intl.DateTimeFormat('es-ES', {
-    timeZone: 'Europe/Madrid',
-    weekday: 'short',
-    day: '2-digit',
-    month: 'short',
-  });
+function activeBlock(doc) {
+  if (!doc) return null;
 
-  const base = new Date();
+  const data = doc.fields ? fromFirestoreFields(doc.fields) : doc;
 
-  for (let i = 0; i < days; i++) {
-    const date = new Date(base.getTime());
-    date.setDate(base.getDate() + i);
+  if (!data) return null;
+  if (data.status && data.status !== 'blocked') return null;
 
-    const madridDate = toMadridDate(date);
-    const localDate = new Date(`${madridDate}T12:00:00Z`);
-    const weekday = localDate.getUTCDay() === 0 ? 7 : localDate.getUTCDay();
-    const parts = formatter.formatToParts(date);
-    const map = {};
-
-    parts.forEach(part => {
-      map[part.type] = part.value;
-    });
-
-    result.push({
-      date: madridDate,
-      weekday,
-      weekdayLabel: capitalize(String(map.weekday || '').replace('.', '')),
-      dayNumber: String(map.day || ''),
-      monthLabel: capitalize(String(map.month || '').replace('.', '')),
-    });
-  }
-
-  return result;
+  return data;
 }
 
-function toMadridDate(date) {
-  const parts = new Intl.DateTimeFormat('en-CA', {
+function slotDocId(date, time) {
+  return `${date}_${String(time || '').replace(':', '')}`;
+}
+
+function dayBlockDocId(date) {
+  return `${date}_day`;
+}
+
+function slotBlockDocId(date, time) {
+  return `${date}_${String(time || '').replace(':', '')}`;
+}
+
+function startOfMadridDay(date) {
+  const madridDate = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Europe/Madrid',
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
-  }).formatToParts(date);
+  }).format(date);
 
-  const map = {};
-  parts.forEach(part => {
-    map[part.type] = part.value;
-  });
-
-  return `${map.year}-${map.month}-${map.day}`;
+  return parseMadridDate(madridDate);
 }
 
-async function batchGetBookedSlots(projectId, accessToken, slotIds) {
-  if (!slotIds.length) return new Set();
+function formatDate(date) {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Madrid',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
+}
 
-  const documents = slotIds.map(slotId => {
-    return docName(projectId, `academy_slots/${slotId}`);
-  });
+function parseMadridDate(dateText) {
+  const [year, month, day] = String(dateText || '').split('-').map(Number);
+  return new Date(year, month - 1, day, 0, 0, 0);
+}
 
-  const res = await fetch(`${firestoreBase(projectId)}:batchGet`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ documents }),
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`No se pudo consultar disponibilidad: ${res.status} ${text.slice(0, 120)}`);
-  }
-
-  const raw = await res.json().catch(() => []);
-  const booked = new Set();
-
-  raw.forEach(item => {
-    if (!item.found || !item.found.name) return;
-
-    const id = String(item.found.name).split('/').pop();
-    const fields = fromFields(item.found.fields || {});
-
-    if (fields.status === 'booked') {
-      booked.add(id);
-    }
-  });
-
-  return booked;
+function parseMadridDateTime(dateText, timeText) {
+  const [year, month, day] = String(dateText || '').split('-').map(Number);
+  const [hour, minute] = String(timeText || '').split(':').map(Number);
+  return new Date(year, month - 1, day, hour || 0, minute || 0, 0);
 }
 
 async function verifyFirebaseToken(idToken, firebaseApiKey) {
@@ -201,7 +203,9 @@ async function verifyFirebaseToken(idToken, firebaseApiKey) {
     body: JSON.stringify({ idToken }),
   });
 
-  if (!res.ok) throw new Error('Token inválido o expirado');
+  if (!res.ok) {
+    throw new Error('Token inválido o expirado');
+  }
 
   const data = await res.json();
   const user = data.users?.[0];
@@ -212,139 +216,192 @@ async function verifyFirebaseToken(idToken, firebaseApiKey) {
 
   return {
     uid: user.localId,
-    email: String(user.email || '').trim().toLowerCase(),
+    email: normalizeEmail(user.email),
   };
 }
 
-async function getServiceAccountToken(env, scope) {
+async function batchGetDocuments(env, accessToken, collectionName, ids) {
+  if (!ids.length) return {};
+
+  const documents = ids.map(id => {
+    return firestoreDocumentPath(env, collectionName, id);
+  });
+
+  const res = await fetch(
+    `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents:batchGet`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ documents }),
+    }
+  );
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`No se pudo leer disponibilidad: ${text || res.status}`);
+  }
+
+  const data = await res.json();
+  const out = {};
+
+  (data || []).forEach(item => {
+    if (!item.found) return;
+
+    const id = item.found.name.split('/').pop();
+    out[id] = item.found;
+  });
+
+  return out;
+}
+
+function firestoreDocumentPath(env, collectionName, docId) {
+  return `projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/${collectionName}/${docId}`;
+}
+
+async function getFirebaseAccessToken(env) {
   const now = Math.floor(Date.now() / 1000);
+
+  const header = {
+    alg: 'RS256',
+    typ: 'JWT',
+  };
 
   const payload = {
     iss: env.FIREBASE_CLIENT_EMAIL,
-    sub: env.FIREBASE_CLIENT_EMAIL,
+    scope: 'https://www.googleapis.com/auth/datastore',
     aud: 'https://oauth2.googleapis.com/token',
     iat: now,
     exp: now + 3600,
-    scope,
   };
 
-  const privateKey = env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n');
-  const jwt = await signJWT(payload, privateKey);
+  const jwt = await signJwt(header, payload, env.FIREBASE_PRIVATE_KEY);
 
   const res = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
-    body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`,
+    body: new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion: jwt,
+    }),
   });
 
-  if (!res.ok) throw new Error('No se pudo obtener token de Google');
+  const data = await res.json().catch(() => ({}));
 
-  return (await res.json()).access_token;
+  if (!res.ok || !data.access_token) {
+    throw new Error(data.error_description || 'No se pudo autenticar con Firebase');
+  }
+
+  return data.access_token;
 }
 
-async function signJWT(payload, pemKey) {
-  const unsigned = `${b64uJson({ alg: 'RS256', typ: 'JWT' })}.${b64uJson(payload)}`;
+async function signJwt(header, payload, privateKey) {
+  const enc = new TextEncoder();
 
-  const pemBody = pemKey
-    .replace('-----BEGIN PRIVATE KEY-----', '')
-    .replace('-----END PRIVATE KEY-----', '')
-    .replace(/\s/g, '');
-
-  const der = Uint8Array.from(atob(pemBody), c => c.charCodeAt(0));
+  const encodedHeader = base64Url(JSON.stringify(header));
+  const encodedPayload = base64Url(JSON.stringify(payload));
+  const unsigned = `${encodedHeader}.${encodedPayload}`;
 
   const key = await crypto.subtle.importKey(
     'pkcs8',
-    der.buffer,
-    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    pemToArrayBuffer(privateKey),
+    {
+      name: 'RSASSA-PKCS1-v1_5',
+      hash: 'SHA-256',
+    },
     false,
     ['sign']
   );
 
-  const sig = await crypto.subtle.sign(
+  const signature = await crypto.subtle.sign(
     'RSASSA-PKCS1-v1_5',
     key,
-    new TextEncoder().encode(unsigned)
+    enc.encode(unsigned)
   );
 
-  return `${unsigned}.${b64uBytes(new Uint8Array(sig))}`;
+  return `${unsigned}.${base64Url(signature)}`;
 }
 
-function b64uJson(obj) {
-  return b64uBytes(new TextEncoder().encode(JSON.stringify(obj)));
-}
+function pemToArrayBuffer(pem) {
+  const clean = String(pem || '')
+    .replace(/\\n/g, '\n')
+    .replace('-----BEGIN PRIVATE KEY-----', '')
+    .replace('-----END PRIVATE KEY-----', '')
+    .replace(/\s/g, '');
 
-function b64uBytes(bytes) {
-  let bin = '';
+  const binary = atob(clean);
+  const bytes = new Uint8Array(binary.length);
 
-  for (let i = 0; i < bytes.length; i += 0x8000) {
-    bin += String.fromCharCode(...bytes.slice(i, i + 0x8000));
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
   }
 
-  return btoa(bin)
-    .replace(/=/g, '')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_');
+  return bytes.buffer;
 }
 
-function firestoreBase(projectId) {
-  return `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
-}
+function base64Url(input) {
+  let bytes;
 
-function docName(projectId, path) {
-  return `projects/${projectId}/databases/(default)/documents/${path}`;
-}
+  if (typeof input === 'string') {
+    bytes = new TextEncoder().encode(input);
+  } else {
+    bytes = new Uint8Array(input);
+  }
 
-function fromFields(fields) {
-  const obj = {};
+  let binary = '';
 
-  Object.entries(fields || {}).forEach(([key, value]) => {
-    obj[key] = fromValue(value);
+  bytes.forEach(byte => {
+    binary += String.fromCharCode(byte);
   });
 
-  return obj;
+  return btoa(binary)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
 }
 
-function fromValue(value) {
+function fromFirestoreFields(fields) {
+  const out = {};
+
+  Object.entries(fields || {}).forEach(([key, value]) => {
+    out[key] = fromFirestoreValue(value);
+  });
+
+  return out;
+}
+
+function fromFirestoreValue(value) {
+  if (!value || typeof value !== 'object') return null;
+
   if ('stringValue' in value) return value.stringValue;
   if ('integerValue' in value) return Number(value.integerValue);
   if ('doubleValue' in value) return Number(value.doubleValue);
   if ('booleanValue' in value) return Boolean(value.booleanValue);
   if ('timestampValue' in value) return value.timestampValue;
   if ('nullValue' in value) return null;
-  if ('arrayValue' in value) return (value.arrayValue.values || []).map(fromValue);
-  if ('mapValue' in value) return fromFields(value.mapValue.fields || {});
+
+  if ('arrayValue' in value) {
+    return (value.arrayValue.values || []).map(fromFirestoreValue);
+  }
+
+  if ('mapValue' in value) {
+    return fromFirestoreFields(value.mapValue.fields || {});
+  }
+
   return null;
-}
-
-function isFutureMadridSlot(date, time) {
-  const startAt = `${date}T${time}:00${madridOffsetForDate(date)}`;
-  return new Date(startAt).getTime() > Date.now() + 30 * 60 * 1000;
-}
-
-function madridOffsetForDate(date) {
-  const [year, month, day] = date.split('-').map(Number);
-  const current = Date.UTC(year, month - 1, day);
-  const dstStart = Date.UTC(year, 2, lastSunday(year, 2));
-  const dstEnd = Date.UTC(year, 9, lastSunday(year, 9));
-
-  return current >= dstStart && current < dstEnd ? '+02:00' : '+01:00';
-}
-
-function lastSunday(year, monthIndex) {
-  const last = new Date(Date.UTC(year, monthIndex + 1, 0));
-  return last.getUTCDate() - last.getUTCDay();
-}
-
-function capitalize(value) {
-  const text = String(value || '');
-  return text ? text.charAt(0).toUpperCase() + text.slice(1) : '';
 }
 
 function getBearerToken(request) {
   const header = request.headers.get('Authorization') || request.headers.get('authorization') || '';
   return header.startsWith('Bearer ') ? header.slice(7).trim() : '';
+}
+
+function normalizeEmail(email) {
+  return String(email || '').trim().toLowerCase();
 }
 
 function requireEnv(env, keys) {
