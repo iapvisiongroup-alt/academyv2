@@ -1562,6 +1562,7 @@
               <div class="agenda-stat"><span>Bloqueos</span><strong id="agenda-stat-blocks">0</strong></div>
               <div class="agenda-stat"><span>Días visibles</span><strong id="agenda-stat-days">0</strong></div>
               <div class="agenda-stat"><span>Próxima clase</span><strong id="agenda-stat-next">-</strong></div>
+              <div class="agenda-stat"><span>Grupo anual</span><strong id="agenda-stat-annual">0 / 12</strong></div>
             </div>
           </div>
 
@@ -1919,6 +1920,7 @@
     let academyBookings = [];
     let academyBlocks = [];
     let academyAvailabilityDays = [];
+    let academyGroupStats = null;
     let unsubscribeInvoices = null;
     let unsubscribeClients = null;
     let unsubscribeQuotes = null;
@@ -2408,6 +2410,7 @@
         ).filter(booking => String(booking.status || "booked").toLowerCase() !== "cancelled");
 
         academyAvailabilityDays = Array.isArray(availabilityData.days) ? availabilityData.days : [];
+        academyGroupStats = manageData.groupStats || null;
 
         renderAcademyAgenda();
         updatePanelHeader();
@@ -2597,6 +2600,9 @@
       $("agenda-stat-bookings").textContent = String(sortedBookings.length);
       $("agenda-stat-blocks").textContent = String(sortedBlocks.length);
       $("agenda-stat-days").textContent = String(academyAvailabilityDays.length);
+      $("agenda-stat-annual").textContent = academyGroupStats
+        ? `${Number(academyGroupStats.annualEnrolled || 0)} / ${Number(academyGroupStats.annualCapacity || 12)}${academyGroupStats.annualSoldOut ? " · completo" : ""}`
+        : "0 / 12";
 
       const nextBooking = sortedBookings.find(booking => String(booking.date || "") >= academyTodayInputValue());
       $("agenda-stat-next").textContent = nextBooking
