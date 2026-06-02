@@ -4,8 +4,6 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { AuthModal } from './AuthModal.js';
 import { ACADEMY_COURSES } from '../lib/academyCourses.js';
 
-const BOOKING_TIMES = ['10:00', '12:00', '17:00', '19:00'];
-
 function addAcademyStyles() {
     if (document.querySelector('#academy-page-styles')) return;
 
@@ -52,22 +50,33 @@ function addAcademyStyles() {
         .ac-note{color:rgba(255,255,255,.45);font-size:11px;line-height:1.45;text-align:center;margin:0}
         .ac-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:130;background:#fff;color:#111827;border-radius:999px;padding:12px 16px;font-size:13px;font-weight:900;box-shadow:0 20px 60px rgba(0,0,0,.35)}
         .ac-modal{position:fixed;inset:0;z-index:125;background:rgba(0,0,0,.72);backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:center;padding:18px}
-        .ac-modal-card{width:min(680px,100%);max-height:86vh;overflow:auto;background:#101010;border:1px solid rgba(255,255,255,.14);border-radius:10px;box-shadow:0 30px 100px rgba(0,0,0,.55)}
+        .ac-modal-card{width:min(760px,100%);max-height:88vh;overflow:auto;background:#101010;border:1px solid rgba(255,255,255,.14);border-radius:10px;box-shadow:0 30px 100px rgba(0,0,0,.55)}
         .ac-modal-head{padding:18px 20px;border-bottom:1px solid rgba(255,255,255,.08);display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
         .ac-modal-head strong{display:block;font-size:20px;line-height:1.15}
         .ac-modal-head span{display:block;color:rgba(255,255,255,.52);font-size:12px;line-height:1.45;margin-top:6px}
         .ac-close{border:0;background:rgba(255,255,255,.08);color:#fff;border-radius:999px;width:34px;height:34px;cursor:pointer;font-size:20px;line-height:1}
-        .ac-modal-body{padding:20px;display:grid;gap:16px}
-        .ac-field label{display:block;color:rgba(255,255,255,.7);font-size:12px;font-weight:900;margin-bottom:8px}
-        .ac-field input{width:100%;background:#050505;border:1px solid rgba(255,255,255,.14);border-radius:8px;color:#fff;padding:13px 14px;font-size:14px;outline:none}
-        .ac-time-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
-        .ac-time{border:1px solid rgba(255,255,255,.12);background:#050505;color:#fff;border-radius:8px;padding:12px 8px;font-size:13px;font-weight:950;cursor:pointer}
-        .ac-time.active{background:#f59e0b;color:#111827;border-color:#f59e0b}
+        .ac-modal-body{padding:20px;display:grid;gap:18px}
         .ac-booking-list{background:#050505;border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:14px;display:grid;gap:8px}
         .ac-booking-item{display:flex;justify-content:space-between;gap:12px;color:rgba(255,255,255,.72);font-size:13px;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:8px}
         .ac-booking-item:last-child{border-bottom:0;padding-bottom:0}
+        .ac-calendar{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}
+        .ac-day{min-height:84px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:#050505;color:#fff;padding:10px 8px;cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;position:relative;text-align:left}
+        .ac-day:hover{border-color:rgba(245,158,11,.6)}
+        .ac-day.active{border-color:#f59e0b;background:rgba(245,158,11,.12)}
+        .ac-day.unavailable{opacity:.45;cursor:not-allowed;background:#090909}
+        .ac-day-week{font-size:11px;font-weight:950;color:rgba(255,255,255,.48);text-transform:uppercase}
+        .ac-day-number{font-size:22px;font-weight:950;color:#fff;line-height:1}
+        .ac-day-month{font-size:11px;color:rgba(255,255,255,.44);font-weight:800}
+        .ac-day-status{font-size:10px;font-weight:950;border-radius:999px;padding:4px 7px;background:rgba(34,197,94,.14);color:#22c55e}
+        .ac-day.unavailable .ac-day-status{background:rgba(239,68,68,.12);color:#ef4444}
+        .ac-day-x{position:absolute;right:8px;top:8px;color:#ef4444;font-size:16px;font-weight:950}
+        .ac-times{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+        .ac-time{border:1px solid rgba(255,255,255,.12);background:#050505;color:#fff;border-radius:8px;padding:13px 8px;font-size:13px;font-weight:950;cursor:pointer}
+        .ac-time.active{background:#f59e0b;color:#111827;border-color:#f59e0b}
+        .ac-time:disabled{opacity:.35;cursor:not-allowed}
+        .ac-empty{border:1px dashed rgba(255,255,255,.14);border-radius:8px;padding:16px;color:rgba(255,255,255,.55);font-size:13px;text-align:center}
         .ac-modal-actions{padding:18px 20px;border-top:1px solid rgba(255,255,255,.08);display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap}
-        @media(max-width:860px){.ac-flow,.ac-courses{grid-template-columns:1fr}.ac-title{font-size:40px}.ac-shell{padding:22px 14px 70px}.ac-time-grid{grid-template-columns:repeat(2,1fr)}}
+        @media(max-width:860px){.ac-flow,.ac-courses{grid-template-columns:1fr}.ac-title{font-size:40px}.ac-shell{padding:22px 14px 70px}.ac-calendar{grid-template-columns:repeat(2,1fr)}.ac-times{grid-template-columns:repeat(2,1fr)}}
     `;
 
     document.head.appendChild(style);
@@ -95,25 +104,17 @@ function escapeHtml(value) {
     }[m]));
 }
 
-function todayMadridDate() {
-    const parts = new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'Europe/Madrid',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-    }).formatToParts(new Date());
-
-    const map = {};
-    parts.forEach(part => {
-        map[part.type] = part.value;
-    });
-
-    return `${map.year}-${map.month}-${map.day}`;
-}
-
 function formatBookingDate(date, time) {
     if (!date) return '';
     return `${date}${time ? ' · ' + time : ''}`;
+}
+
+function firstAvailableDay(days) {
+    return days.find(day => day.available) || days[0] || null;
+}
+
+function firstAvailableTime(day) {
+    return (day?.slots || []).find(slot => slot.available)?.time || '';
 }
 
 export function AcademyPage(navigate) {
@@ -127,9 +128,11 @@ export function AcademyPage(navigate) {
     let bookings = {};
     let loadingCourseId = '';
     let bookingCourseId = '';
-    let bookingDate = todayMadridDate();
-    let bookingTime = BOOKING_TIMES[0];
+    let bookingDate = '';
+    let bookingTime = '';
     let bookingLoading = false;
+    let availabilityLoading = false;
+    let availabilityDays = [];
 
     function render() {
         root.innerHTML = '';
@@ -241,6 +244,9 @@ export function AcademyPage(navigate) {
         if (!course) return;
 
         const courseBookings = bookings[course.id] || [];
+        const selectedDay = availabilityDays.find(day => day.date === bookingDate) || firstAvailableDay(availabilityDays);
+        const selectedSlots = selectedDay?.slots || [];
+
         const modal = document.createElement('div');
         modal.className = 'ac-modal';
 
@@ -249,7 +255,7 @@ export function AcademyPage(navigate) {
                 <div class="ac-modal-head">
                     <div>
                         <strong>Agendar clase</strong>
-                        <span>${escapeHtml(course.name)} · Elige un día y una hora disponible. Recibirás confirmación y después añadiremos el enlace de Zoom.</span>
+                        <span>${escapeHtml(course.name)} · Elige un día disponible y después una hora libre. Los días sin huecos aparecen marcados con X.</span>
                     </div>
                     <button class="ac-close" type="button" data-close-booking>×</button>
                 </div>
@@ -269,27 +275,47 @@ export function AcademyPage(navigate) {
                         </div>
                     ` : ''}
 
-                    <div class="ac-field">
-                        <label>Día de la clase</label>
-                        <input id="academy-booking-date" type="date" min="${todayMadridDate()}" value="${escapeHtml(bookingDate)}">
+                    <div>
+                        <p class="ac-section-title">Días disponibles</p>
+                        ${availabilityLoading ? `
+                            <div class="ac-empty">Cargando disponibilidad...</div>
+                        ` : `
+                            <div class="ac-calendar">
+                                ${availabilityDays.map(day => `
+                                    <button class="ac-day ${day.available ? '' : 'unavailable'} ${day.date === bookingDate ? 'active' : ''}" type="button" data-booking-day="${escapeHtml(day.date)}" ${day.available ? '' : 'disabled'}>
+                                        ${day.available ? '' : '<span class="ac-day-x">×</span>'}
+                                        <span class="ac-day-week">${escapeHtml(day.weekdayLabel)}</span>
+                                        <span class="ac-day-number">${escapeHtml(day.dayNumber)}</span>
+                                        <span class="ac-day-month">${escapeHtml(day.monthLabel)}</span>
+                                        <span class="ac-day-status">${escapeHtml(day.available ? 'Disponible' : day.unavailableReason || 'No disponible')}</span>
+                                    </button>
+                                `).join('')}
+                            </div>
+                        `}
                     </div>
 
                     <div>
-                        <p class="ac-section-title">Hora disponible</p>
-                        <div class="ac-time-grid">
-                            ${BOOKING_TIMES.map(time => `
-                                <button class="ac-time ${time === bookingTime ? 'active' : ''}" type="button" data-booking-time="${escapeHtml(time)}">${escapeHtml(time)}</button>
-                            `).join('')}
-                        </div>
+                        <p class="ac-section-title">Horas libres ${selectedDay ? 'para ' + escapeHtml(selectedDay.date) : ''}</p>
+                        ${selectedSlots.length ? `
+                            <div class="ac-times">
+                                ${selectedSlots.map(slot => `
+                                    <button class="ac-time ${slot.time === bookingTime ? 'active' : ''}" type="button" data-booking-time="${escapeHtml(slot.time)}" ${slot.available ? '' : 'disabled'}>
+                                        ${escapeHtml(slot.time)}
+                                    </button>
+                                `).join('')}
+                            </div>
+                        ` : `
+                            <div class="ac-empty">Selecciona un día disponible para ver horas.</div>
+                        `}
                     </div>
 
                     <p class="ac-note">
-                        Si un horario aparece disponible pero alguien lo reserva antes, el sistema te avisará y tendrás que elegir otro.
+                        Si otro alumno reserva el mismo hueco justo antes, el sistema te avisará para elegir otro horario.
                     </p>
                 </div>
 
                 <div class="ac-modal-actions">
-                    <button class="ac-btn" type="button" data-confirm-booking ${bookingLoading ? 'disabled' : ''}>
+                    <button class="ac-btn" type="button" data-confirm-booking ${bookingLoading || !bookingDate || !bookingTime ? 'disabled' : ''}>
                         ${bookingLoading ? 'Guardando...' : 'Confirmar reserva'}
                     </button>
                 </div>
@@ -303,8 +329,15 @@ export function AcademyPage(navigate) {
             render();
         });
 
-        modal.querySelector('#academy-booking-date').addEventListener('change', (e) => {
-            bookingDate = e.target.value;
+        modal.querySelectorAll('[data-booking-day]').forEach(button => {
+            button.addEventListener('click', () => {
+                const day = availabilityDays.find(item => item.date === button.dataset.bookingDay);
+                if (!day || !day.available) return;
+
+                bookingDate = day.date;
+                bookingTime = firstAvailableTime(day);
+                render();
+            });
         });
 
         modal.querySelectorAll('[data-booking-time]').forEach(button => {
@@ -317,11 +350,51 @@ export function AcademyPage(navigate) {
         modal.querySelector('[data-confirm-booking]').addEventListener('click', confirmBooking);
     }
 
-    function openBookingModal(courseId) {
+    async function openBookingModal(courseId) {
         bookingCourseId = courseId;
-        bookingDate = todayMadridDate();
-        bookingTime = BOOKING_TIMES[0];
+        bookingDate = '';
+        bookingTime = '';
+        availabilityDays = [];
+        availabilityLoading = true;
         render();
+
+        try {
+            await loadAvailability();
+            const firstDay = firstAvailableDay(availabilityDays);
+
+            if (firstDay?.available) {
+                bookingDate = firstDay.date;
+                bookingTime = firstAvailableTime(firstDay);
+            }
+        } catch (err) {
+            toast(root, err.message || 'No se pudo cargar la disponibilidad.');
+        } finally {
+            availabilityLoading = false;
+            render();
+        }
+    }
+
+    async function loadAvailability() {
+        if (!auth.currentUser) throw new Error('Debes iniciar sesión.');
+
+        const token = await auth.currentUser.getIdToken();
+
+        const res = await fetch(`${window.location.origin}/api/academy/availability`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: 'Bearer ' + token,
+            },
+            body: JSON.stringify({ days: 21 }),
+        });
+
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok || !data.ok) {
+            throw new Error(data.error || 'No se pudo consultar disponibilidad.');
+        }
+
+        availabilityDays = Array.isArray(data.days) ? data.days : [];
     }
 
     async function loadPurchasesAndBookings(user) {
@@ -400,7 +473,7 @@ export function AcademyPage(navigate) {
         try {
             const token = await auth.currentUser.getIdToken();
 
-            const res = await fetch('/api/academy/book-class', {
+            const res = await fetch(`${window.location.origin}/api/academy/book-class`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
