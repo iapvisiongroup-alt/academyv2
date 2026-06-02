@@ -65,14 +65,9 @@ function navigate(page) {
         contentArea.appendChild(div);
 
     } else if (page === 'academy') {
-        const academyDiv = document.createElement('div');
-        academyDiv.className = 'flex-1 flex flex-col items-center justify-center bg-[#050505] w-full h-full p-8';
-        academyDiv.innerHTML = `
-            <div class="text-6xl mb-4">🎓</div>
-            <h2 class="text-3xl font-black text-white mb-2">Academia de IA</h2>
-            <p class="text-white/50">Cursos avanzados para empresas y creadores. Disponible próximamente.</p>
-        `;
-        contentArea.appendChild(academyDiv);
+        import('./components/AcademyPage.js').then(({ AcademyPage }) => {
+            if (token === navToken) contentArea.appendChild(AcademyPage(navigate));
+        });
 
     } else {
         contentArea.appendChild(LandingPage(navigate));
