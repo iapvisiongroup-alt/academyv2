@@ -4,35 +4,31 @@ const CORS = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
+const APP_ID = 'appiapvision';
+const ALLOWED_TIMES = ['10:00', '12:00', '17:00', '19:00'];
+
 const COURSES = {
   'diagnostico-ia': {
     id: 'diagnostico-ia',
     name: 'Diagnóstico IA 1 a 1',
-    maxBookings: 1,
+    totalClasses: 1,
   },
   'ia-express-1a1': {
     id: 'ia-express-1a1',
     name: 'Curso IA Express 1 a 1',
-    maxBookings: 1,
+    totalClasses: 1,
   },
   'ia-creador': {
     id: 'ia-creador',
     name: 'Curso IA Creador',
-    maxBookings: 3,
+    totalClasses: 3,
   },
   'ia-profesional': {
     id: 'ia-profesional',
     name: 'Curso IA Profesional',
-    maxBookings: 3,
+    totalClasses: 3,
   },
 };
-
-const ALLOWED_TIMES = new Set([
-  '10:00',
-  '12:00',
-  '17:00',
-  '19:00',
-]);
 
 export async function onRequest(context) {
   const { request, env } = context;
@@ -66,161 +62,279 @@ export async function onRequest(context) {
     const idToken = getBearerToken(request);
 
     if (!idToken) {
-      return json({ ok: false, error: 'Debes iniciar sesión para agendar clase.' }, 401);
+      return json({ ok: false, error: 'Debes iniciar sesión para agendar una clase.' }, 401);
     }
 
     const user = await verifyFirebaseToken(idToken, env.FIREBASE_API_KEY);
-
     const body = await request.json().catch(() => null);
-    const courseId = normalizeCourseId(body?.courseId);
-    const date = String(body?.date || '').trim();
-    const time = String(body?.time || '').trim();
 
+    const courseId = String(body?.courseId || '').trim();
     const course = COURSES[courseId];
 
-    if (!course) throw new Error('Curso no válido');
-    if (!isValidDate(date)) throw new Error('Fecha no válida');
-    if (!ALLOWED_TIMES.has(time)) throw new Error('Hora no válida');
-    if (!isFutureMadridSlot(date, time)) throw new Error('El horario elegido ya ha pasado');
+    if (!course) {
+      return json({ ok: false, error: 'Curso no válido.' }, 400);
+    }
 
-    const accessToken = await getServiceAccountToken(env, 'https://www.googleapis.com/auth/datastore');
-    const appId = String(env.APP_ID || 'appiapvision').trim();
-    const userBasePath = `artifacts/${appId}/public/data/users/${user.uid}`;
+    const date = String(body?.date || body?.slot?.date || '').trim();
+    const time = String(body?.time || body?.slot?.time || '').trim();
+    const classNumber = Math.max(1, Math.floor(Number(body?.classNumber || body?.lessonNumber || 1)));
 
-    const purchaseDoc = await getDoc(
-      env.FIREBASE_PROJECT_ID,
-      `${userBasePath}/academy_purchases/${course.id}`,
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return json({ ok: false, error: 'Fecha no válida.' }, 400);
+    }
+
+    if (!ALLOWED_TIMES.includes(time)) {
+      return json({ ok: false, error: 'Horario no válido.' }, 400);
+    }
+
+    if (classNumber > course.totalClasses) {
+      return json({ ok: false, error: 'Número de clase no válido para este curso.' }, 400);
+    }
+
+    if (isWeekendDate(date)) {
+      return json({ ok: false, error: 'Ese día no está disponible.' }, 400);
+    }
+
+    if (isPastMadridSlot(date, time)) {
+      return json({ ok: false, error: 'No puedes reservar una hora pasada.' }, 400);
+    }
+
+    const accessToken = await getFirebaseAccessToken(env);
+
+    const purchasePath = userSubDocPath(env, user.uid, 'academy_purchases', courseId);
+    const purchaseDoc = await getFirestoreDoc(env, accessToken, purchasePath);
+
+    if (!purchaseDoc) {
+      return json({ ok: false, error: 'Este curso todavía no aparece como pagado en tu cuenta.' }, 403);
+    }
+
+    const purchase = fromFirestoreFields(purchaseDoc.fields || {});
+    const purchaseStatus = String(purchase.status || purchase.paymentStatus || '').toLowerCase();
+
+    if (['cancelled', 'canceled', 'refunded', 'reembolsado'].includes(purchaseStatus)) {
+      return json({ ok: false, error: 'Esta compra no está activa.' }, 403);
+    }
+
+    const slotId = slotDocId(date, time);
+    const bookingId = safeDocId(`${user.uid}_${courseId}_${classNumber}`);
+
+    const dayBlockDoc = await getFirestoreDoc(
+      env,
       accessToken,
-      true
+      collectionDocPath(env, 'academy_availability_blocks', dayBlockDocId(date))
     );
 
-    if (!purchaseDoc.exists || purchaseDoc.data.status !== 'paid') {
-      throw new Error('Este curso no está pagado todavía');
-    }
-
-    const currentBookings = await listDocs(
-      env.FIREBASE_PROJECT_ID,
-      `${userBasePath}/academy_bookings`,
-      accessToken
+    const slotBlockDoc = await getFirestoreDoc(
+      env,
+      accessToken,
+      collectionDocPath(env, 'academy_availability_blocks', slotBlockDocId(date, time))
     );
 
-    const courseBookings = currentBookings.filter(item => {
-      return item.data.courseId === course.id && item.data.status !== 'cancelled';
-    });
+    const dayBlock = activeBlock(dayBlockDoc);
+    const slotBlock = activeBlock(slotBlockDoc);
 
-    if (courseBookings.length >= course.maxBookings) {
-      throw new Error('Ya tienes todas las clases agendadas para este curso');
+    if (dayBlock) {
+      return json({
+        ok: false,
+        error: dayBlock.reason || dayBlock.title || 'Ese día está bloqueado en la agenda.',
+      }, 409);
     }
 
-    const globalSlotId = `${date}_${time.replace(':', '')}`;
-    const globalSlotPath = `academy_slots/${globalSlotId}`;
-    const globalSlot = await getDoc(env.FIREBASE_PROJECT_ID, globalSlotPath, accessToken, true);
-
-    if (globalSlot.exists && globalSlot.data.status === 'booked') {
-      throw new Error('Ese horario ya no está disponible');
+    if (slotBlock) {
+      return json({
+        ok: false,
+        error: slotBlock.reason || slotBlock.title || 'Ese horario está bloqueado en la agenda.',
+      }, 409);
     }
 
-    const bookingNumber = courseBookings.length + 1;
-    const bookingId = `${course.id}_clase_${bookingNumber}`;
-    const internalBookingId = `${date}_${time.replace(':', '')}_${user.uid}_${course.id}`;
-    const now = new Date().toISOString();
-    const startAt = `${date}T${time}:00${madridOffsetForDate(date)}`;
+    const existingBooking = await getFirestoreDoc(
+      env,
+      accessToken,
+      userSubDocPath(env, user.uid, 'academy_bookings', bookingId)
+    );
 
-    const booking = {
+    if (existingBooking) {
+      const data = fromFirestoreFields(existingBooking.fields || {});
+
+      if (String(data.status || '').toLowerCase() !== 'cancelled') {
+        return json({ ok: false, error: 'Ya tienes esta clase agendada.' }, 409);
+      }
+    }
+
+    const existingSlot = await getFirestoreDoc(
+      env,
+      accessToken,
+      collectionDocPath(env, 'academy_slots', slotId)
+    );
+
+    if (existingSlot) {
+      const data = fromFirestoreFields(existingSlot.fields || {});
+
+      if (String(data.status || '').toLowerCase() !== 'cancelled') {
+        return json({ ok: false, error: 'Ese horario acaba de ser reservado. Elige otro hueco.' }, 409);
+      }
+    }
+
+    const now = new Date();
+    const studentName = String(body?.studentName || body?.name || user.displayName || '').trim();
+    const contactPhone = String(body?.phone || body?.contactPhone || '').trim();
+    const notes = String(body?.notes || body?.message || '').trim().slice(0, 800);
+
+    const bookingData = {
       id: bookingId,
       uid: user.uid,
       email: user.email,
-      courseId: course.id,
+      courseId,
       courseName: course.name,
-      classNumber: bookingNumber,
-      totalClasses: course.maxBookings,
+      classNumber,
+      totalClasses: course.totalClasses,
       date,
       time,
+      slotId,
       timezone: 'Europe/Madrid',
-      startAt,
       status: 'booked',
-      zoomUrl: '',
-      notes: '',
+      studentName,
+      contactPhone,
+      notes,
       createdAt: now,
+      createdAtIso: now.toISOString(),
       updatedAt: now,
+      updatedAtIso: now.toISOString(),
+      source: 'web',
     };
 
-    const internalBooking = {
-      ...booking,
-      id: internalBookingId,
-      userBookingId: bookingId,
-      source: 'academy_web',
-      customerName: String(purchaseDoc.data.customerName || ''),
-      customerPhone: String(purchaseDoc.data.customerPhone || ''),
-      adminStatus: 'pending_zoom',
+    const internalBookingData = {
+      ...bookingData,
+      customerUid: user.uid,
+      customerEmail: user.email,
+      internalStatus: 'pending_review',
       adminNotes: '',
-      notifiedAt: null,
     };
 
-    const slot = {
-      id: globalSlotId,
+    const slotData = {
+      id: slotId,
+      date,
+      time,
+      status: 'booked',
       uid: user.uid,
       email: user.email,
-      courseId: course.id,
+      courseId,
       courseName: course.name,
+      classNumber,
       bookingId,
-      internalBookingId,
-      date,
-      time,
-      timezone: 'Europe/Madrid',
-      startAt,
-      status: 'booked',
       createdAt: now,
+      createdAtIso: now.toISOString(),
+    };
+
+    const purchaseUpdate = {
+      bookingStatus: course.totalClasses > 1 ? 'class_booked' : 'booked',
+      lastBookingDate: date,
+      lastBookingTime: time,
+      lastBookedClassNumber: classNumber,
+      lastBookingAt: now,
       updatedAt: now,
     };
 
-    await commitWrites(env.FIREBASE_PROJECT_ID, accessToken, [
-      {
-        update: {
-          name: docName(env.FIREBASE_PROJECT_ID, `${userBasePath}/academy_bookings/${bookingId}`),
-          fields: toFields(booking),
-        },
-      },
-      {
-        update: {
-          name: docName(env.FIREBASE_PROJECT_ID, `private_academy_bookings/${internalBookingId}`),
-          fields: toFields(internalBooking),
-        },
-      },
-      {
-        update: {
-          name: docName(env.FIREBASE_PROJECT_ID, globalSlotPath),
-          fields: toFields(slot),
-        },
-        currentDocument: {
-          exists: false,
-        },
-      },
-      {
-        update: {
-          name: docName(env.FIREBASE_PROJECT_ID, `${userBasePath}/academy_purchases/${course.id}`),
-          fields: toFields({
-            bookingStatus: bookingNumber >= course.maxBookings ? 'complete' : 'partial',
-            lastBookingAt: now,
-            updatedAt: now,
-          }),
-        },
-        updateMask: {
-          fieldPaths: ['bookingStatus', 'lastBookingAt', 'updatedAt'],
-        },
-      },
+    await commitWrites(env, accessToken, [
+      createWrite(collectionDocPath(env, 'academy_slots', slotId), slotData),
+      createWrite(userSubDocPath(env, user.uid, 'academy_bookings', bookingId), bookingData),
+      createWrite(collectionDocPath(env, 'private_academy_bookings', bookingId), internalBookingData),
+      updateWrite(purchasePath, purchaseUpdate),
     ]);
 
     return json({
       ok: true,
-      booking,
+      booking: {
+        id: bookingId,
+        courseId,
+        courseName: course.name,
+        classNumber,
+        totalClasses: course.totalClasses,
+        date,
+        time,
+        status: 'booked',
+      },
     });
   } catch (err) {
+    const status = err.status || 500;
+
     return json({
       ok: false,
-      error: err.message || 'Error agendando clase',
-    }, 500);
+      error: err.message || 'Error agendando clase.',
+    }, status);
   }
+}
+
+function activeBlock(doc) {
+  if (!doc) return null;
+
+  const data = fromFirestoreFields(doc.fields || {});
+
+  if (!data) return null;
+
+  const status = String(data.status || 'blocked').toLowerCase();
+
+  if (status !== 'blocked') return null;
+
+  return data;
+}
+
+function slotDocId(date, time) {
+  return `${date}_${String(time || '').replace(':', '')}`;
+}
+
+function dayBlockDocId(date) {
+  return `${date}_day`;
+}
+
+function slotBlockDocId(date, time) {
+  return `${date}_${String(time || '').replace(':', '')}`;
+}
+
+function isWeekendDate(dateText) {
+  const [year, month, day] = String(dateText || '').split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  const weekday = date.getUTCDay();
+
+  return weekday === 0 || weekday === 6;
+}
+
+function isPastMadridSlot(dateText, timeText) {
+  const now = getMadridNowParts();
+  const minutes = timeToMinutes(timeText);
+
+  if (dateText < now.date) return true;
+  if (dateText > now.date) return false;
+
+  return minutes <= now.minutes;
+}
+
+function getMadridNowParts() {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Madrid',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(new Date());
+
+  const map = {};
+
+  parts.forEach(part => {
+    if (part.type !== 'literal') map[part.type] = part.value;
+  });
+
+  return {
+    date: `${map.year}-${map.month}-${map.day}`,
+    minutes: Number(map.hour || 0) * 60 + Number(map.minute || 0),
+  };
+}
+
+function timeToMinutes(timeText) {
+  const [hour, minute] = String(timeText || '').split(':').map(Number);
+  return (hour || 0) * 60 + (minute || 0);
 }
 
 async function verifyFirebaseToken(idToken, firebaseApiKey) {
@@ -232,7 +346,9 @@ async function verifyFirebaseToken(idToken, firebaseApiKey) {
     body: JSON.stringify({ idToken }),
   });
 
-  if (!res.ok) throw new Error('Token inválido o expirado');
+  if (!res.ok) {
+    throw new Error('Token inválido o expirado');
+  }
 
   const data = await res.json();
   const user = data.users?.[0];
@@ -244,186 +360,218 @@ async function verifyFirebaseToken(idToken, firebaseApiKey) {
   return {
     uid: user.localId,
     email: normalizeEmail(user.email),
+    displayName: user.displayName || '',
   };
 }
 
-async function getServiceAccountToken(env, scope) {
+async function getFirestoreDoc(env, accessToken, documentPath) {
+  const res = await fetch(`https://firestore.googleapis.com/v1/${documentPath}`, {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (res.status === 404) return null;
+
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    throw new Error(data.error?.message || 'No se pudo leer Firestore');
+  }
+
+  return data;
+}
+
+async function commitWrites(env, accessToken, writes) {
+  const res = await fetch(
+    `https://firestore.googleapis.com/v1/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents:commit`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ writes }),
+    }
+  );
+
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    const message = data.error?.message || 'No se pudo guardar la reserva.';
+
+    if (message.includes('already exists') || message.includes('ALREADY_EXISTS')) {
+      throw new HttpError('Ese horario acaba de ser reservado. Elige otro hueco.', 409);
+    }
+
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+function createWrite(documentPath, data) {
+  return {
+    update: {
+      name: documentPath,
+      fields: toFirestoreFields(data),
+    },
+    currentDocument: {
+      exists: false,
+    },
+  };
+}
+
+function updateWrite(documentPath, data) {
+  return {
+    update: {
+      name: documentPath,
+      fields: toFirestoreFields(data),
+    },
+    updateMask: {
+      fieldPaths: Object.keys(data),
+    },
+  };
+}
+
+function userSubDocPath(env, uid, subcollection, docId) {
+  return `projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/artifacts/${APP_ID}/public/data/users/${uid}/${subcollection}/${docId}`;
+}
+
+function collectionDocPath(env, collectionName, docId) {
+  return `projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/${collectionName}/${docId}`;
+}
+
+async function getFirebaseAccessToken(env) {
   const now = Math.floor(Date.now() / 1000);
+
+  const header = {
+    alg: 'RS256',
+    typ: 'JWT',
+  };
 
   const payload = {
     iss: env.FIREBASE_CLIENT_EMAIL,
-    sub: env.FIREBASE_CLIENT_EMAIL,
+    scope: 'https://www.googleapis.com/auth/datastore',
     aud: 'https://oauth2.googleapis.com/token',
     iat: now,
     exp: now + 3600,
-    scope,
   };
 
-  const privateKey = env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n');
-  const jwt = await signJWT(payload, privateKey);
+  const jwt = await signJwt(header, payload, env.FIREBASE_PRIVATE_KEY);
 
   const res = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
-    body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`,
+    body: new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion: jwt,
+    }),
   });
 
-  if (!res.ok) throw new Error('No se pudo obtener token de Google');
+  const data = await res.json().catch(() => ({}));
 
-  return (await res.json()).access_token;
+  if (!res.ok || !data.access_token) {
+    throw new Error(data.error_description || 'No se pudo autenticar con Firebase');
+  }
+
+  return data.access_token;
 }
 
-async function signJWT(payload, pemKey) {
-  const unsigned = `${b64uJson({ alg: 'RS256', typ: 'JWT' })}.${b64uJson(payload)}`;
+async function signJwt(header, payload, privateKey) {
+  const enc = new TextEncoder();
 
-  const pemBody = pemKey
-    .replace('-----BEGIN PRIVATE KEY-----', '')
-    .replace('-----END PRIVATE KEY-----', '')
-    .replace(/\s/g, '');
-
-  const der = Uint8Array.from(atob(pemBody), c => c.charCodeAt(0));
+  const encodedHeader = base64Url(JSON.stringify(header));
+  const encodedPayload = base64Url(JSON.stringify(payload));
+  const unsigned = `${encodedHeader}.${encodedPayload}`;
 
   const key = await crypto.subtle.importKey(
     'pkcs8',
-    der.buffer,
-    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
+    pemToArrayBuffer(privateKey),
+    {
+      name: 'RSASSA-PKCS1-v1_5',
+      hash: 'SHA-256',
+    },
     false,
     ['sign']
   );
 
-  const sig = await crypto.subtle.sign(
+  const signature = await crypto.subtle.sign(
     'RSASSA-PKCS1-v1_5',
     key,
-    new TextEncoder().encode(unsigned)
+    enc.encode(unsigned)
   );
 
-  return `${unsigned}.${b64uBytes(new Uint8Array(sig))}`;
+  return `${unsigned}.${base64Url(signature)}`;
 }
 
-function b64uJson(obj) {
-  return b64uBytes(new TextEncoder().encode(JSON.stringify(obj)));
-}
+function pemToArrayBuffer(pem) {
+  const clean = String(pem || '')
+    .replace(/\\n/g, '\n')
+    .replace('-----BEGIN PRIVATE KEY-----', '')
+    .replace('-----END PRIVATE KEY-----', '')
+    .replace(/\s/g, '');
 
-function b64uBytes(bytes) {
-  let bin = '';
+  const binary = atob(clean);
+  const bytes = new Uint8Array(binary.length);
 
-  for (let i = 0; i < bytes.length; i += 0x8000) {
-    bin += String.fromCharCode(...bytes.slice(i, i + 0x8000));
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
   }
 
-  return btoa(bin)
-    .replace(/=/g, '')
+  return bytes.buffer;
+}
+
+function base64Url(input) {
+  let bytes;
+
+  if (typeof input === 'string') {
+    bytes = new TextEncoder().encode(input);
+  } else {
+    bytes = new Uint8Array(input);
+  }
+
+  let binary = '';
+
+  bytes.forEach(byte => {
+    binary += String.fromCharCode(byte);
+  });
+
+  return btoa(binary)
     .replace(/\+/g, '-')
-    .replace(/\//g, '_');
+    .replace(/\//g, '_')
+    .replace(/=+$/g, '');
 }
 
-async function getDoc(projectId, path, accessToken, allowMissing = false) {
-  const res = await fetch(`${firestoreBase(projectId)}/${encodePath(path)}`, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
-
-  if (res.status === 404 && allowMissing) {
-    return { exists: false, data: {}, updateTime: null };
-  }
-
-  if (!res.ok) {
-    throw new Error(`No se pudo leer ${path}`);
-  }
-
-  const raw = await res.json();
-
-  return {
-    exists: true,
-    data: fromFields(raw.fields || {}),
-    updateTime: raw.updateTime || null,
-  };
-}
-
-async function listDocs(projectId, path, accessToken) {
-  const res = await fetch(`${firestoreBase(projectId)}/${encodePath(path)}`, {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
-
-  if (res.status === 404) return [];
-
-  if (!res.ok) {
-    throw new Error(`No se pudo listar ${path}`);
-  }
-
-  const raw = await res.json();
-
-  return (raw.documents || []).map(doc => {
-    const nameParts = String(doc.name || '').split('/');
-    return {
-      id: nameParts[nameParts.length - 1],
-      data: fromFields(doc.fields || {}),
-    };
-  });
-}
-
-async function commitWrites(projectId, accessToken, writes) {
-  const res = await fetch(firestoreBase(projectId) + ':commit', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ writes }),
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-
-    if (text.includes('current document does not exist') || text.includes('FAILED_PRECONDITION')) {
-      throw new Error('Ese horario ya no está disponible');
-    }
-
-    throw new Error(`Firestore commit: ${res.status} ${text.slice(0, 180)}`);
-  }
-}
-
-function firestoreBase(projectId) {
-  return `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
-}
-
-function docName(projectId, path) {
-  return `projects/${projectId}/databases/(default)/documents/${path}`;
-}
-
-function encodePath(path) {
-  return path.split('/').map(encodeURIComponent).join('/');
-}
-
-function toFields(obj) {
+function toFirestoreFields(data) {
   const fields = {};
 
-  Object.entries(obj).forEach(([key, value]) => {
-    fields[key] = toValue(value);
+  Object.entries(data || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      fields[key] = toFirestoreValue(value);
+    }
   });
 
   return fields;
 }
 
-function toValue(value) {
-  if (value === null || value === undefined) return { nullValue: null };
+function toFirestoreValue(value) {
+  if (value === null) return { nullValue: null };
+  if (value instanceof Date) return { timestampValue: value.toISOString() };
+  if (typeof value === 'string') return { stringValue: value };
   if (typeof value === 'boolean') return { booleanValue: value };
 
   if (typeof value === 'number') {
-    return Number.isInteger(value)
-      ? { integerValue: String(value) }
-      : { doubleValue: value };
+    if (Number.isInteger(value)) return { integerValue: String(value) };
+    return { doubleValue: value };
   }
 
   if (Array.isArray(value)) {
     return {
       arrayValue: {
-        values: value.map(toValue),
+        values: value.map(toFirestoreValue),
       },
     };
   }
@@ -431,7 +579,7 @@ function toValue(value) {
   if (typeof value === 'object') {
     return {
       mapValue: {
-        fields: toFields(value),
+        fields: toFirestoreFields(value),
       },
     };
   }
@@ -439,52 +587,35 @@ function toValue(value) {
   return { stringValue: String(value) };
 }
 
-function fromFields(fields) {
-  const obj = {};
+function fromFirestoreFields(fields) {
+  const out = {};
 
   Object.entries(fields || {}).forEach(([key, value]) => {
-    obj[key] = fromValue(value);
+    out[key] = fromFirestoreValue(value);
   });
 
-  return obj;
+  return out;
 }
 
-function fromValue(value) {
+function fromFirestoreValue(value) {
+  if (!value || typeof value !== 'object') return null;
+
   if ('stringValue' in value) return value.stringValue;
   if ('integerValue' in value) return Number(value.integerValue);
   if ('doubleValue' in value) return Number(value.doubleValue);
   if ('booleanValue' in value) return Boolean(value.booleanValue);
   if ('timestampValue' in value) return value.timestampValue;
   if ('nullValue' in value) return null;
-  if ('arrayValue' in value) return (value.arrayValue.values || []).map(fromValue);
-  if ('mapValue' in value) return fromFields(value.mapValue.fields || {});
+
+  if ('arrayValue' in value) {
+    return (value.arrayValue.values || []).map(fromFirestoreValue);
+  }
+
+  if ('mapValue' in value) {
+    return fromFirestoreFields(value.mapValue.fields || {});
+  }
+
   return null;
-}
-
-function isValidDate(value) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ''))) return false;
-
-  const date = new Date(`${value}T00:00:00Z`);
-  return !Number.isNaN(date.getTime());
-}
-
-function isFutureMadridSlot(date, time) {
-  const startAt = `${date}T${time}:00${madridOffsetForDate(date)}`;
-  return new Date(startAt).getTime() > Date.now() + 30 * 60 * 1000;
-}
-
-function madridOffsetForDate(date) {
-  const [year, month, day] = date.split('-').map(Number);
-  const current = Date.UTC(year, month - 1, day);
-  const dstStart = Date.UTC(year, 2, lastSunday(year, 2));
-  const dstEnd = Date.UTC(year, 9, lastSunday(year, 9));
-
-  return current >= dstStart && current < dstEnd ? '+02:00' : '+01:00';
-}
-
-function lastSunday(year, monthIndex) {
-  const last = new Date(Date.UTC(year, monthIndex + 1, 0));
-  return last.getUTCDate() - last.getUTCDay();
 }
 
 function getBearerToken(request) {
@@ -496,9 +627,8 @@ function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
 }
 
-function normalizeCourseId(value) {
-  const clean = String(value || '').trim();
-  return /^[a-z0-9_-]{3,80}$/.test(clean) ? clean : '';
+function safeDocId(value) {
+  return String(value || '').replace(/[^\w.-]/g, '_');
 }
 
 function requireEnv(env, keys) {
@@ -517,4 +647,11 @@ function json(data, status = 200) {
       'Content-Type': 'application/json',
     },
   });
+}
+
+class HttpError extends Error {
+  constructor(message, status) {
+    super(message);
+    this.status = status;
+  }
 }
