@@ -5,11 +5,11 @@ import { AuthModal } from './AuthModal.js';
 import { ACADEMY_COURSES } from '../lib/academyCourses.js';
 
 const ANNUAL_COURSE = {
-    id: 'ia-anual-presencial-viernes',
-    name: 'Curso Anual IA Presencial · Grupo Viernes',
+    id: 'ia-anual-online-viernes',
+    name: 'Curso Anual IA Online · Grupo Viernes',
     priceLabel: '890€',
     stripePriceId: 'price_1TduMHQ4M7vfTU0L1Kd6zaQO',
-    schedule: 'Viernes de 17:00 a 20:00',
+    schedule: 'Viernes de 17:00 a 20:00 por Zoom',
     startDate: 'Viernes 11 de septiembre',
     badge: 'Oferta estrella',
 };
@@ -48,6 +48,12 @@ function addAcademyStyles() {
         .ac-annual-feature strong{display:block;font-size:13px;margin-bottom:5px}
         .ac-annual-feature span{display:block;color:rgba(255,255,255,.62);font-size:12px;line-height:1.45}
         .ac-annual-side{background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:20px;display:flex;flex-direction:column;justify-content:space-between;gap:18px}
+        .ac-annual-photo{position:relative;overflow:hidden;border-radius:8px;border:1px solid rgba(255,255,255,.12);min-height:230px;background:#050505;margin:0}
+        .ac-annual-photo img{display:block;width:100%;height:100%;min-height:230px;object-fit:cover;filter:saturate(1.08) contrast(1.04)}
+        .ac-annual-photo:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 45%,rgba(0,0,0,.72));pointer-events:none}
+        .ac-annual-photo-label{position:absolute;left:14px;right:14px;bottom:14px;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:10px}
+        .ac-annual-photo-label strong{font-size:13px;line-height:1.2}
+        .ac-annual-photo-label span{background:rgba(245,158,11,.92);color:#111827;border-radius:999px;padding:6px 10px;font-size:10px;font-weight:950;text-transform:uppercase;white-space:nowrap}
         .ac-annual-gift{border:1px solid rgba(34,197,94,.28);background:rgba(34,197,94,.08);border-radius:8px;padding:15px}
         .ac-annual-gift strong{display:block;color:#22c55e;font-size:16px;margin-bottom:8px}
         .ac-annual-gift p{margin:0;color:rgba(255,255,255,.68);font-size:13px;line-height:1.5}
@@ -172,7 +178,7 @@ export function AcademyPage(navigate) {
     }
 
     function annualButtonText() {
-        if (isPaidCourse(ANNUAL_COURSE.id)) return 'Plaza reservada · Grupo Viernes';
+        if (isPaidCourse(ANNUAL_COURSE.id)) return 'Plaza reservada · Zoom viernes';
         if (loadingCourseId === ANNUAL_COURSE.id) return 'Abriendo pago...';
         if (groupStatus.soldOut) return 'Grupo completo';
         return 'Reservar plaza anual';
@@ -188,7 +194,7 @@ export function AcademyPage(navigate) {
             <div class="ac-annual-inner">
                 <div>
                     <span class="ac-annual-badge">Promoción de lanzamiento</span>
-                    <h2>Curso Anual IA Presencial con portátil de regalo</h2>
+                    <h2>Curso Anual IA Online por Zoom con portátil de regalo</h2>
                     <p class="ac-annual-copy">
                         Un año completo aprendiendo inteligencia artificial de forma práctica, en grupo reducido y con horario fijo.
                         Ideal para alumnos, adultos, autónomos y personas que quieren dominar herramientas de IA sin perderse.
@@ -196,11 +202,11 @@ export function AcademyPage(navigate) {
 
                     <div class="ac-annual-price">
                         <strong>890€</strong>
-                        <span>Pago único · grupo presencial</span>
+                        <span>Pago único · grupo online por Zoom</span>
                     </div>
 
                     <div class="ac-annual-grid">
-                        <div class="ac-annual-feature"><strong>Horario fijo</strong><span>Viernes de 17:00 a 20:00. No tienes que elegir agenda.</span></div>
+                        <div class="ac-annual-feature"><strong>Horario fijo</strong><span>Viernes de 17:00 a 20:00 por Zoom. No tienes que elegir agenda.</span></div>
                         <div class="ac-annual-feature"><strong>Inicio del grupo</strong><span>Viernes 11 de septiembre. Plaza reservada al completar el pago.</span></div>
                         <div class="ac-annual-feature"><strong>Grupo reducido</strong><span>Plazas limitadas. No mostramos plazas restantes públicamente.</span></div>
                         <div class="ac-annual-feature"><strong>Enfoque práctico</strong><span>Contenido, imagen, vídeo, automatizaciones, asistentes y proyectos reales.</span></div>
@@ -208,6 +214,14 @@ export function AcademyPage(navigate) {
                 </div>
 
                 <aside class="ac-annual-side">
+                    <figure class="ac-annual-photo">
+                        <img src="/assets/academy/curso-anual-zoom.png" alt="Curso anual online de inteligencia artificial por Zoom" loading="lazy" decoding="async" onerror="this.closest('.ac-annual-photo').style.display='none'">
+                        <figcaption class="ac-annual-photo-label">
+                            <strong>Clases online en directo desde casa</strong>
+                            <span>Zoom</span>
+                        </figcaption>
+                    </figure>
+
                     <div class="ac-annual-gift">
                         <strong>Portátil de regalo promocional</strong>
                         <p>
@@ -229,10 +243,10 @@ export function AcademyPage(navigate) {
                         </button>
                         <p class="ac-note" style="margin-top:10px">
                             ${paid
-                                ? 'Tu plaza está reservada en el grupo de viernes de 17:00 a 20:00.'
+                                ? 'Tu plaza está reservada en el grupo online de viernes de 17:00 a 20:00 por Zoom.'
                                 : groupStatus.soldOut
                                     ? 'Este grupo ya no acepta nuevas matrículas online.'
-                                    : 'Al comprar, quedas inscrito en el grupo anual. No hace falta agendar clase.'}
+                                    : 'Al comprar, quedas inscrito en el grupo anual online. No hace falta agendar clase.'}
                         </p>
                     </div>
                 </aside>
@@ -267,11 +281,11 @@ export function AcademyPage(navigate) {
                 <p class="ac-kicker">Academia IA KreateIA</p>
                 <h1 class="ac-title">Cursos de inteligencia artificial, explicados paso a paso.</h1>
                 <p class="ac-copy">
-                    Aprende IA sin tecnicismos raros. Puedes elegir formación online 1 a 1 o un curso anual presencial en grupo.
+                    Aprende IA sin tecnicismos raros. Puedes elegir formación online 1 a 1 o un curso anual online por Zoom en grupo.
                     En ambos casos tendrás acceso a KreateIA Studio y acompañamiento para aplicar lo aprendido.
                 </p>
                 <div class="ac-flow">
-                    <div class="ac-step"><strong>1. Elige curso</strong><span>Escoge una formación 1 a 1 o el grupo anual presencial.</span></div>
+                    <div class="ac-step"><strong>1. Elige curso</strong><span>Escoge una formación 1 a 1 o el grupo anual online por Zoom.</span></div>
                     <div class="ac-step"><strong>2. Paga seguro</strong><span>El pago se realiza con Stripe. Al volver, tu curso aparecerá como pagado.</span></div>
                     <div class="ac-step"><strong>3. Agenda o reserva plaza</strong><span>Los cursos 1 a 1 tienen agenda. El curso anual tiene horario fijo.</span></div>
                     <div class="ac-step"><strong>4. Aprende con soporte</strong><span>Después de clase puedes resolver dudas por WhatsApp según el curso contratado.</span></div>
