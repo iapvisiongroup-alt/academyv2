@@ -66,7 +66,7 @@ export async function onRequest(context) {
     if (classNumber > course.totalClasses) return json({ ok: false, error: 'Número de clase no válido para este curso.' }, 400);
     if (isWeekendDate(date)) return json({ ok: false, error: 'Ese día no está disponible.' }, 400);
     if (NATIONAL_HOLIDAYS[date]) return json({ ok: false, error: `Ese día es festivo nacional: ${NATIONAL_HOLIDAYS[date]}.` }, 400);
-    if (isAnnualGroupSlot(date, time)) return json({ ok: false, error: 'Ese viernes por la tarde está reservado para el Curso Anual IA Presencial.' }, 409);
+    if (isAnnualGroupSlot(date, time)) return json({ ok: false, error: 'Ese viernes por la tarde está reservado para el Curso Anual IA Online por Zoom.' }, 409);
     if (isPastMadridSlot(date, time)) return json({ ok: false, error: 'No puedes reservar una hora pasada.' }, 400);
 
     const accessToken = await getFirebaseAccessToken(env);
@@ -82,7 +82,7 @@ export async function onRequest(context) {
     if (dayBlock) return json({ ok: false, error: dayBlock.reason || dayBlock.title || 'Ese día está bloqueado.' }, 409);
     if (slotBlock) return json({ ok: false, error: slotBlock.reason || slotBlock.title || 'Ese horario está bloqueado.' }, 409);
 
-    const existingSlot = await getFirestoreDoc(env, accessToken, collectionDocPath(env, 'academy_slots', slotId));
+    const existingSlot = activeSlot(await getFirestoreDoc(env, accessToken, collectionDocPath(env, 'academy_slots', slotId)));
     if (existingSlot) return json({ ok: false, error: 'Ese horario acaba de ser reservado. Elige otro hueco.' }, 409);
 
     const now = new Date();
@@ -152,6 +152,14 @@ function activeBlock(doc) {
   if (!doc) return null;
   const data = fromFields(doc.fields || {});
   return String(data.status || 'blocked').toLowerCase() === 'blocked' ? data : null;
+}
+
+function activeSlot(doc) {
+  if (!doc) return null;
+  const data = fromFields(doc.fields || {});
+  const status = String(data.status || 'booked').toLowerCase();
+  if (['cancelled', 'canceled', 'released', 'deleted'].includes(status)) return null;
+  return data;
 }
 
 function slotDocId(date, time) {
@@ -342,5 +350,5 @@ function requireEnv(env, keys) {
 }
 
 function json(data, status = 200) {
-  return new Response(JSON.stringify(data), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
+  return new Response(JSON.stringify(data), { status, headers: { ...CORS, 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
 }

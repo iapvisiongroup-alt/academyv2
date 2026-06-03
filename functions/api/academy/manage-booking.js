@@ -7,6 +7,31 @@ const CORS = {
 const APP_ID = 'appiapvision';
 const ALLOWED_TIMES = ['10:00', '12:00', '17:00', '19:00'];
 const CHANGE_LIMIT_HOURS = 24;
+const ANNUAL_GROUP_START = '2026-09-11';
+const ANNUAL_GROUP_END = '2027-06-25';
+const ANNUAL_GROUP_TIMES = new Set(['17:00', '19:00']);
+const NATIONAL_HOLIDAYS = {
+  '2026-01-01': 'Año Nuevo',
+  '2026-01-06': 'Epifanía del Señor',
+  '2026-04-03': 'Viernes Santo',
+  '2026-05-01': 'Fiesta del Trabajo',
+  '2026-08-15': 'Asunción de la Virgen',
+  '2026-10-12': 'Fiesta Nacional de España',
+  '2026-11-01': 'Todos los Santos',
+  '2026-12-06': 'Día de la Constitución',
+  '2026-12-08': 'Inmaculada Concepción',
+  '2026-12-25': 'Navidad',
+  '2027-01-01': 'Año Nuevo',
+  '2027-01-06': 'Epifanía del Señor',
+  '2027-03-26': 'Viernes Santo',
+  '2027-05-01': 'Fiesta del Trabajo',
+  '2027-08-15': 'Asunción de la Virgen',
+  '2027-10-12': 'Fiesta Nacional de España',
+  '2027-11-01': 'Todos los Santos',
+  '2027-12-06': 'Día de la Constitución',
+  '2027-12-08': 'Inmaculada Concepción',
+  '2027-12-25': 'Navidad',
+};
 
 export async function onRequest(context) {
   const { request, env } = context;
@@ -162,6 +187,14 @@ async function rescheduleBooking({ env, accessToken, user, bookingId, body, isAd
     return json({ ok: false, error: 'Ese día no está disponible.' }, 400);
   }
 
+  if (NATIONAL_HOLIDAYS[newDate]) {
+    return json({ ok: false, error: `Ese día es festivo nacional: ${NATIONAL_HOLIDAYS[newDate]}.` }, 400);
+  }
+
+  if (isAnnualGroupSlot(newDate, newTime)) {
+    return json({ ok: false, error: 'Ese viernes por la tarde está reservado para el Curso Anual IA Online por Zoom.' }, 409);
+  }
+
   const oldSlotId = booking.slotId || slotDocId(booking.date, booking.time);
   const newSlotId = slotDocId(newDate, newTime);
 
@@ -189,7 +222,7 @@ async function rescheduleBooking({ env, accessToken, user, bookingId, body, isAd
     return json({ ok: false, error: slotBlock.reason || slotBlock.title || 'Ese horario está bloqueado.' }, 409);
   }
 
-  const existingNewSlot = await getFirestoreDoc(env, accessToken, collectionDocPath(env, 'academy_slots', newSlotId));
+  const existingNewSlot = activeSlot(await getFirestoreDoc(env, accessToken, collectionDocPath(env, 'academy_slots', newSlotId)));
 
   if (existingNewSlot) {
     return json({ ok: false, error: 'Ese horario ya está reservado.' }, 409);
@@ -460,8 +493,27 @@ function activeBlock(doc) {
   return data;
 }
 
+function activeSlot(doc) {
+  if (!doc) return null;
+
+  const data = fromFirestoreFields(doc.fields || {});
+  const status = String(data.status || 'booked').toLowerCase();
+
+  if (['cancelled', 'canceled', 'released', 'deleted'].includes(status)) return null;
+
+  return data;
+}
+
 function slotDocId(date, time) {
   return `${date}_${String(time || '').replace(':', '')}`;
+}
+
+function isAnnualGroupSlot(date, time) {
+  if (date < ANNUAL_GROUP_START || date > ANNUAL_GROUP_END) return false;
+  if (!ANNUAL_GROUP_TIMES.has(time)) return false;
+  const [year, month, day] = date.split('-').map(Number);
+  const weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+  return weekday === 5;
 }
 
 function dayBlockDocId(date) {
@@ -797,6 +849,7 @@ function json(data, status = 200) {
     headers: {
       ...CORS,
       'Content-Type': 'application/json',
+      'Cache-Control': 'no-store',
     },
   });
 }
