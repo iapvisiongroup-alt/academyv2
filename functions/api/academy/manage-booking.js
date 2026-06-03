@@ -107,7 +107,7 @@ export async function onRequest(context) {
 
 async function cancelBooking({ env, accessToken, user, bookingId, body, isAdminAction }) {
   const loaded = await loadBooking(env, accessToken, user, bookingId, isAdminAction);
-  const { booking, uid, userBookingPath, privateBookingPath } = loaded;
+  const { booking, uid, userBookingPath, privateBookingPath, privateBookingExists } = loaded;
 
   if (!isAdminAction && !canChangeBooking(booking)) {
     return json({
@@ -120,17 +120,21 @@ async function cancelBooking({ env, accessToken, user, bookingId, body, isAdminA
   const reason = String(body?.reason || body?.cancelReason || '').trim().slice(0, 500);
   const slotId = booking.slotId || slotDocId(booking.date, booking.time);
   const slotPath = collectionDocPath(env, 'academy_slots', slotId);
+  const privateCancelData = {
+    status: 'cancelled',
+    internalStatus: isAdminAction ? 'admin_cancelled' : 'student_cancelled',
+    cancelledBy: isAdminAction ? normalizeEmail(user.email) : 'student',
+    cancelReason: reason,
+    cancelledAt: now,
+    cancelledAtIso: now.toISOString(),
+    updatedAt: now,
+    updatedAtIso: now.toISOString(),
+  };
+
   const writes = [
-    updateWrite(privateBookingPath, {
-      status: 'cancelled',
-      internalStatus: isAdminAction ? 'admin_cancelled' : 'student_cancelled',
-      cancelledBy: isAdminAction ? normalizeEmail(user.email) : 'student',
-      cancelReason: reason,
-      cancelledAt: now,
-      cancelledAtIso: now.toISOString(),
-      updatedAt: now,
-      updatedAtIso: now.toISOString(),
-    }),
+    privateBookingExists
+      ? updateWrite(privateBookingPath, privateCancelData)
+      : upsertWrite(privateBookingPath, buildPrivateBookingFallback(booking, uid, bookingId, privateCancelData)),
     deleteWrite(slotPath),
   ];
 
@@ -165,7 +169,7 @@ async function cancelBooking({ env, accessToken, user, bookingId, body, isAdminA
 
 async function rescheduleBooking({ env, accessToken, user, bookingId, body, isAdminAction }) {
   const loaded = await loadBooking(env, accessToken, user, bookingId, isAdminAction);
-  const { booking, uid, userBookingPath, privateBookingPath } = loaded;
+  const { booking, uid, userBookingPath, privateBookingPath, privateBookingExists } = loaded;
 
   if (!isAdminAction && !canChangeBooking(booking)) {
     return json({
@@ -247,10 +251,7 @@ async function rescheduleBooking({ env, accessToken, user, bookingId, body, isAd
     createdAtIso: now.toISOString(),
   };
 
-  const writes = [
-    createWrite(collectionDocPath(env, 'academy_slots', newSlotId), slotData),
-    deleteWrite(collectionDocPath(env, 'academy_slots', oldSlotId)),
-    updateWrite(privateBookingPath, {
+  const privateRescheduleData = {
       date: newDate,
       time: newTime,
       slotId: newSlotId,
@@ -263,7 +264,14 @@ async function rescheduleBooking({ env, accessToken, user, bookingId, body, isAd
       rescheduledAtIso: now.toISOString(),
       updatedAt: now,
       updatedAtIso: now.toISOString(),
-    }),
+  };
+
+  const writes = [
+    createWrite(collectionDocPath(env, 'academy_slots', newSlotId), slotData),
+    deleteWrite(collectionDocPath(env, 'academy_slots', oldSlotId)),
+    privateBookingExists
+      ? updateWrite(privateBookingPath, privateRescheduleData)
+      : upsertWrite(privateBookingPath, buildPrivateBookingFallback(booking, uid, bookingId, privateRescheduleData)),
   ];
 
   if (userBookingPath) {
@@ -353,6 +361,7 @@ async function loadBooking(env, accessToken, user, bookingId, isAdminAction) {
     uid,
     userBookingPath: userDoc ? userBookingPath : '',
     privateBookingPath,
+    privateBookingExists: !!privateDoc,
   };
 }
 
@@ -504,6 +513,24 @@ function activeSlot(doc) {
   return data;
 }
 
+function buildPrivateBookingFallback(booking, uid, bookingId, extraData) {
+  const now = new Date();
+
+  return {
+    ...booking,
+    ...extraData,
+    id: bookingId,
+    uid,
+    customerUid: booking.customerUid || uid,
+    customerEmail: booking.customerEmail || booking.email || '',
+    email: booking.email || booking.customerEmail || '',
+    internalStatus: extraData.internalStatus || booking.internalStatus || 'synced_from_user_booking',
+    restoredPrivateCopy: true,
+    restoredPrivateCopyAt: now,
+    restoredPrivateCopyAtIso: now.toISOString(),
+  };
+}
+
 function slotDocId(date, time) {
   return `${date}_${String(time || '').replace(':', '')}`;
 }
@@ -613,6 +640,15 @@ function createWrite(documentPath, data) {
     },
     currentDocument: {
       exists: false,
+    },
+  };
+}
+
+function upsertWrite(documentPath, data) {
+  return {
+    update: {
+      name: documentPath,
+      fields: toFirestoreFields(data),
     },
   };
 }
