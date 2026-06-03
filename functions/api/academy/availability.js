@@ -9,7 +9,7 @@ const DAYS_TO_SHOW = 42;
 const ANNUAL_GROUP_START = '2026-09-11';
 const ANNUAL_GROUP_END = '2027-06-25';
 const ANNUAL_GROUP_TIMES = new Set(['17:00', '19:00']);
-const ANNUAL_GROUP_LABEL = 'Grupo Anual IA · Viernes 17:00 a 20:00';
+const ANNUAL_GROUP_LABEL = 'Grupo Anual IA Online · Viernes 17:00 a 20:00 por Zoom';
 
 const NATIONAL_HOLIDAYS = {
   '2026-01-01': 'Año Nuevo',
@@ -75,7 +75,7 @@ export async function onRequest(context) {
       });
     });
 
-    const bookedMap = await batchGetDocuments(env, accessToken, 'academy_slots', slotIds);
+    const slotMap = await batchGetDocuments(env, accessToken, 'academy_slots', slotIds);
     const blockMap = await batchGetDocuments(env, accessToken, 'academy_availability_blocks', blockIds);
     const now = new Date();
 
@@ -88,7 +88,8 @@ export async function onRequest(context) {
       const groupDay = isAnnualGroupDate(date);
 
       const slots = ALLOWED_TIMES.map(time => {
-        const booked = !!bookedMap[slotDocId(date, time)];
+        const bookedSlot = activeSlot(slotMap[slotDocId(date, time)]);
+        const booked = !!bookedSlot;
         const slotBlock = activeBlock(blockMap[slotDocId(date, time)]);
         const slotDate = parseMadridDateTime(date, time);
         const past = slotDate.getTime() <= now.getTime();
@@ -106,6 +107,10 @@ export async function onRequest(context) {
           time,
           available: !isWeekend && !past && !booked && !blocked,
           booked,
+          bookingId: bookedSlot?.bookingId || '',
+          busyReason: booked
+            ? 'Reservado'
+            : blockReason,
           blocked,
           groupBlocked,
           holidayBlocked,
@@ -157,7 +162,17 @@ function activeBlock(doc) {
   if (!doc) return null;
   const data = doc.fields ? fromFirestoreFields(doc.fields) : doc;
   if (!data) return null;
-  if (data.status && data.status !== 'blocked') return null;
+  const status = String(data.status || 'blocked').toLowerCase();
+  if (status !== 'blocked') return null;
+  return data;
+}
+
+function activeSlot(doc) {
+  if (!doc) return null;
+  const data = doc.fields ? fromFirestoreFields(doc.fields) : doc;
+  if (!data) return null;
+  const status = String(data.status || 'booked').toLowerCase();
+  if (['cancelled', 'canceled', 'released', 'deleted'].includes(status)) return null;
   return data;
 }
 
@@ -309,6 +324,6 @@ function requireEnv(env, keys) {
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { ...CORS, 'Content-Type': 'application/json' },
+    headers: { ...CORS, 'Content-Type': 'application/json', 'Cache-Control': 'no-store' },
   });
 }
