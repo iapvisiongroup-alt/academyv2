@@ -17,6 +17,7 @@ const ANNUAL_COURSE = {
 const LEGACY_ANNUAL_COURSE_ID = 'ia-anual-presencial-viernes';
 const ANNUAL_COURSE_IDS = [ANNUAL_COURSE.id, LEGACY_ANNUAL_COURSE_ID];
 const ACADEMY_HERO_VIDEO_URL = 'https://d8j0ntlcm91z4.cloudfront.net/user_3Bu8kApHUBmQcoBNUYoyCcOGJne/hf_20260414_232148_e856f696-c60e-4c40-921e-3fc3ac60224f.mp4';
+const CHANGE_LIMIT_HOURS = 24;
 
 function addAcademyStyles() {
     if (document.querySelector('#academy-page-styles')) return;
@@ -96,6 +97,7 @@ function addAcademyStyles() {
         .ac-btn:disabled{opacity:.6;cursor:not-allowed;transform:none}
         .ac-btn.paid{background:#16a34a;color:#fff}
         .ac-btn.dark{background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.14)}
+        .ac-btn.danger{background:rgba(239,68,68,.13);color:#fecaca;border:1px solid rgba(239,68,68,.28)}
         .ac-note{color:rgba(255,255,255,.45);font-size:11px;line-height:1.45;text-align:center;margin:0}
         .ac-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:130;background:#fff;color:#111827;border-radius:999px;padding:12px 16px;font-size:13px;font-weight:900;box-shadow:0 20px 60px rgba(0,0,0,.35)}
         .ac-modal{position:fixed;inset:0;z-index:125;background:rgba(0,0,0,.72);backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:center;padding:18px}
@@ -105,9 +107,22 @@ function addAcademyStyles() {
         .ac-modal-head span{display:block;color:rgba(255,255,255,.52);font-size:12px;line-height:1.45;margin-top:6px}
         .ac-close{border:0;background:rgba(255,255,255,.08);color:#fff;border-radius:999px;width:34px;height:34px;cursor:pointer;font-size:20px;line-height:1}
         .ac-modal-body{padding:20px;display:grid;gap:18px}
-        .ac-booking-list{background:#050505;border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:14px;display:grid;gap:8px}
-        .ac-booking-item{display:flex;justify-content:space-between;gap:12px;color:rgba(255,255,255,.72);font-size:13px;border-bottom:1px solid rgba(255,255,255,.08);padding-bottom:8px}
-        .ac-booking-item:last-child{border-bottom:0;padding-bottom:0}
+        .ac-manage-banner{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;background:linear-gradient(135deg,rgba(245,158,11,.14),rgba(34,197,94,.1));border:1px solid rgba(245,158,11,.24);border-radius:8px;padding:14px}
+        .ac-manage-banner strong{display:block;font-size:15px;margin-bottom:4px}
+        .ac-manage-banner span{display:block;color:rgba(255,255,255,.62);font-size:12px;line-height:1.45}
+        .ac-pill{display:inline-flex;align-items:center;justify-content:center;width:max-content;border-radius:999px;padding:6px 10px;background:rgba(34,197,94,.14);color:#4ade80;font-size:10px;font-weight:950;text-transform:uppercase;white-space:nowrap}
+        .ac-pill.warn{background:rgba(245,158,11,.14);color:#fbbf24}
+        .ac-pill.danger{background:rgba(239,68,68,.14);color:#fca5a5}
+        .ac-booking-list{background:#050505;border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:10px;display:grid;gap:10px}
+        .ac-booking-item{display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center;color:rgba(255,255,255,.72);font-size:13px;background:#0d0d0d;border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:13px}
+        .ac-booking-item.active{border-color:rgba(245,158,11,.62);background:rgba(245,158,11,.08)}
+        .ac-booking-main{display:grid;gap:7px;min-width:0}
+        .ac-booking-title{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+        .ac-booking-title strong{font-size:14px;color:#fff}
+        .ac-booking-date{font-size:18px;font-weight:950;color:#fff;line-height:1.15}
+        .ac-booking-muted{color:rgba(255,255,255,.52);font-size:12px;line-height:1.45;margin:0}
+        .ac-booking-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+        .ac-booking-actions .ac-btn{padding:10px 12px;font-size:12px}
         .ac-calendar{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}
         .ac-day{min-height:84px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:#050505;color:#fff;padding:10px 8px;cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;justify-content:space-between;position:relative;text-align:left}
         .ac-day:hover{border-color:rgba(245,158,11,.6)}
@@ -120,12 +135,14 @@ function addAcademyStyles() {
         .ac-day.unavailable .ac-day-status{background:rgba(239,68,68,.12);color:#ef4444}
         .ac-day-x{position:absolute;right:8px;top:8px;color:#ef4444;font-size:16px;font-weight:950}
         .ac-times{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
-        .ac-time{border:1px solid rgba(255,255,255,.12);background:#050505;color:#fff;border-radius:8px;padding:13px 8px;font-size:13px;font-weight:950;cursor:pointer}
+        .ac-time{border:1px solid rgba(255,255,255,.12);background:#050505;color:#fff;border-radius:8px;padding:12px 8px;font-size:13px;font-weight:950;cursor:pointer;display:grid;gap:4px;text-align:center}
+        .ac-time small{color:rgba(255,255,255,.45);font-size:10px;font-weight:900;text-transform:uppercase}
         .ac-time.active{background:#f59e0b;color:#111827;border-color:#f59e0b}
+        .ac-time.active small{color:rgba(17,24,39,.72)}
         .ac-time:disabled{opacity:.35;cursor:not-allowed}
         .ac-empty{border:1px dashed rgba(255,255,255,.14);border-radius:8px;padding:16px;color:rgba(255,255,255,.55);font-size:13px;text-align:center}
         .ac-modal-actions{padding:18px 20px;border-top:1px solid rgba(255,255,255,.08);display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap}
-        @media(max-width:860px){.ac-flow,.ac-courses,.ac-annual-inner{grid-template-columns:1fr}.ac-title{font-size:40px}.ac-shell{padding:22px 14px 70px}.ac-calendar{grid-template-columns:repeat(2,1fr)}.ac-times{grid-template-columns:repeat(2,1fr)}.ac-annual-inner{padding:20px}.ac-annual-grid{grid-template-columns:1fr}.ac-annual-price strong{font-size:42px}}
+        @media(max-width:860px){.ac-flow,.ac-courses,.ac-annual-inner,.ac-manage-banner,.ac-booking-item{grid-template-columns:1fr}.ac-title{font-size:40px}.ac-shell{padding:22px 14px 70px}.ac-calendar{grid-template-columns:repeat(2,1fr)}.ac-times{grid-template-columns:repeat(2,1fr)}.ac-annual-inner{padding:20px}.ac-annual-grid{grid-template-columns:1fr}.ac-annual-price strong{font-size:42px}.ac-booking-actions{justify-content:flex-start}}
     `;
 
     document.head.appendChild(style);
@@ -158,12 +175,71 @@ function formatBookingDate(date, time) {
     return `${date}${time ? ' · ' + time : ''}`;
 }
 
+function formatFriendlyBookingDate(dateText, timeText) {
+    if (!dateText) return '';
+
+    try {
+        const [year, month, day] = String(dateText).split('-').map(Number);
+        const date = new Date(year, month - 1, day);
+        const label = new Intl.DateTimeFormat('es-ES', {
+            weekday: 'long',
+            day: 'numeric',
+            month: 'long',
+        }).format(date);
+
+        return `${label}${timeText ? ' · ' + timeText : ''}`;
+    } catch {
+        return formatBookingDate(dateText, timeText);
+    }
+}
+
 function firstAvailableDay(days) {
     return days.find(day => day.available) || days[0] || null;
 }
 
 function firstAvailableTime(day) {
     return (day?.slots || []).find(slot => slot.available)?.time || '';
+}
+
+function activeBookingStatus(status) {
+    const value = String(status || 'booked').toLowerCase();
+    return !['cancelled', 'canceled', 'released', 'deleted'].includes(value);
+}
+
+function getCourseTotalClasses(course) {
+    return Math.max(1, Number(course?.totalClasses || course?.classes || course?.lessons?.length || 1));
+}
+
+function bookingStartMs(booking) {
+    const [year, month, day] = String(booking?.date || '').split('-').map(Number);
+    const [hour, minute] = String(booking?.time || '').split(':').map(Number);
+
+    if (!year || !month || !day || Number.isNaN(hour)) return 0;
+
+    return new Date(year, month - 1, day, hour || 0, minute || 0, 0).getTime();
+}
+
+function canStudentChangeBooking(booking) {
+    const start = bookingStartMs(booking);
+    return start > 0 && start - Date.now() >= CHANGE_LIMIT_HOURS * 60 * 60 * 1000;
+}
+
+function sortBookingsByDate(a, b) {
+    return String(`${a.date || ''} ${a.time || ''}`).localeCompare(String(`${b.date || ''} ${b.time || ''}`));
+}
+
+function nextAvailableClassNumber(courseBookings, totalClasses) {
+    const used = new Set(
+        courseBookings
+            .map(item => Number(item.classNumber || 0))
+            .filter(value => value > 0)
+    );
+
+    for (let i = 1; i <= totalClasses; i++) {
+        if (!used.has(i)) return i;
+    }
+
+    return totalClasses;
 }
 
 function handleAcademyImageError(img) {
@@ -201,6 +277,9 @@ export function AcademyPage(navigate) {
     let bookingCourseId = '';
     let bookingDate = '';
     let bookingTime = '';
+    let bookingAction = 'book';
+    let activeBookingId = '';
+    let activeBooking = null;
     let bookingLoading = false;
     let availabilityLoading = false;
     let availabilityDays = [];
@@ -211,8 +290,47 @@ export function AcademyPage(navigate) {
 
         return ids.some(id => {
             const status = String(purchases[id]?.status || '').toLowerCase();
-            return status === 'paid' || status === 'active' || status === 'enrolled' || status === 'paid_manual_review';
+            return ['paid', 'active', 'enrolled', 'completed', 'paid_manual_review'].includes(status);
         });
+    }
+
+    function getCourseBookings(courseId) {
+        return (bookings[courseId] || [])
+            .filter(item => activeBookingStatus(item.status))
+            .sort(sortBookingsByDate);
+    }
+
+    function ownsCourse(courseId) {
+        return isPaidCourse(courseId) || getCourseBookings(courseId).length > 0;
+    }
+
+    function courseActionText(course, owned, courseBookings) {
+        if (!owned) {
+            return loadingCourseId === course.id ? 'Abriendo pago...' : 'Comprar ' + course.name;
+        }
+
+        return courseBookings.length ? 'Gestionar clases' : 'Pagado · Agendar clase';
+    }
+
+    function courseBookingSummary(course, owned, courseBookings) {
+        if (!owned) return 'Después del pago podrás elegir día y hora desde la propia web.';
+
+        const totalClasses = getCourseTotalClasses(course);
+
+        if (!courseBookings.length) {
+            return 'Curso pagado. Entra para elegir tu primera fecha disponible.';
+        }
+
+        const nextBooking = courseBookings.find(item => bookingStartMs(item) >= Date.now()) || courseBookings[0];
+        const countText = `${courseBookings.length} de ${totalClasses} clase${totalClasses === 1 ? '' : 's'} agendada${courseBookings.length === 1 ? '' : 's'}`;
+
+        return `Próxima clase: ${formatFriendlyBookingDate(nextBooking.date, nextBooking.time)}. ${countText}.`;
+    }
+
+    function resetBookingAction() {
+        bookingAction = 'book';
+        activeBookingId = '';
+        activeBooking = null;
     }
 
     function annualButtonText() {
@@ -359,14 +477,10 @@ export function AcademyPage(navigate) {
         ACADEMY_COURSES
             .filter(course => !ANNUAL_COURSE_IDS.includes(course.id))
             .forEach(course => {
-                const paid = isPaidCourse(course.id);
-                const courseBookings = bookings[course.id] || [];
+                const courseBookings = getCourseBookings(course.id);
+                const owned = ownsCourse(course.id);
                 const card = document.createElement('article');
                 card.className = 'ac-card';
-
-                const bookingText = courseBookings.length
-                    ? `${courseBookings.length} clase${courseBookings.length === 1 ? '' : 's'} agendada${courseBookings.length === 1 ? '' : 's'}`
-                    : 'Después del pago podrás elegir día y hora desde la propia web.';
 
                 card.innerHTML = `
                     <div class="ac-card-head">
@@ -401,10 +515,10 @@ export function AcademyPage(navigate) {
                     </div>
 
                     <div class="ac-actions">
-                        <button class="ac-btn ${paid ? 'paid' : ''}" data-course-action="${escapeHtml(course.id)}">
-                            ${paid ? 'Pagado · Agendar clase' : loadingCourseId === course.id ? 'Abriendo pago...' : 'Comprar ' + escapeHtml(course.name)}
+                        <button class="ac-btn ${owned ? 'paid' : ''}" data-course-action="${escapeHtml(course.id)}" ${loadingCourseId === course.id ? 'disabled' : ''}>
+                            ${escapeHtml(courseActionText(course, owned, courseBookings))}
                         </button>
-                        <p class="ac-note">${escapeHtml(paid ? bookingText : 'Después del pago podrás elegir día y hora desde la propia web.')}</p>
+                        <p class="ac-note">${escapeHtml(courseBookingSummary(course, owned, courseBookings))}</p>
                     </div>
                 `;
 
@@ -417,9 +531,8 @@ export function AcademyPage(navigate) {
         root.querySelectorAll('[data-course-action]').forEach(button => {
             button.addEventListener('click', () => {
                 const courseId = button.dataset.courseAction;
-                const paid = isPaidCourse(courseId);
 
-                if (paid) {
+                if (ownsCourse(courseId)) {
                     openBookingModal(courseId);
                     return;
                 }
@@ -435,9 +548,17 @@ export function AcademyPage(navigate) {
         const course = ACADEMY_COURSES.find(item => item.id === bookingCourseId);
         if (!course) return;
 
-        const courseBookings = bookings[course.id] || [];
+        const courseBookings = getCourseBookings(course.id);
+        const totalClasses = getCourseTotalClasses(course);
+        const allClassesBooked = courseBookings.length >= totalClasses;
+        const isRescheduling = bookingAction === 'reschedule' && activeBooking;
         const selectedDay = availabilityDays.find(day => day.date === bookingDate) || firstAvailableDay(availabilityDays);
         const selectedSlots = selectedDay?.slots || [];
+        const showPicker = isRescheduling || !allClassesBooked;
+        const modalTitle = isRescheduling ? 'Cambiar clase' : 'Gestionar clases';
+        const modalSubtitle = isRescheduling
+            ? `Estás cambiando la clase ${activeBooking.classNumber || ''}. Elige un nuevo hueco disponible.`
+            : `${course.name} · Puedes agendar, cambiar o cancelar tus clases hasta ${CHANGE_LIMIT_HOURS}h antes.`;
 
         const modal = document.createElement('div');
         modal.className = 'ac-modal';
@@ -446,27 +567,60 @@ export function AcademyPage(navigate) {
             <section class="ac-modal-card">
                 <div class="ac-modal-head">
                     <div>
-                        <strong>Agendar clase</strong>
-                        <span>${escapeHtml(course.name)} · Elige un día disponible y después una hora libre. Los días sin huecos aparecen marcados con X.</span>
+                        <strong>${escapeHtml(modalTitle)}</strong>
+                        <span>${escapeHtml(modalSubtitle)}</span>
                     </div>
                     <button class="ac-close" type="button" data-close-booking>×</button>
                 </div>
 
                 <div class="ac-modal-body">
+                    <div class="ac-manage-banner">
+                        <div>
+                            <strong>${escapeHtml(courseBookings.length ? 'Tus clases están bajo control' : 'Curso pagado, agenda tu clase')}</strong>
+                            <span>${escapeHtml(courseBookings.length ? `${courseBookings.length} de ${totalClasses} clase${totalClasses === 1 ? '' : 's'} agendada${courseBookings.length === 1 ? '' : 's'}.` : 'Elige un día y una hora libre para reservar tu primera sesión.')}</span>
+                        </div>
+                        <span class="ac-pill">${escapeHtml(allClassesBooked ? 'Completo' : 'Pendiente de agendar')}</span>
+                    </div>
+
                     ${courseBookings.length ? `
                         <div>
                             <p class="ac-section-title">Tus clases agendadas</p>
                             <div class="ac-booking-list">
-                                ${courseBookings.map(item => `
-                                    <div class="ac-booking-item">
-                                        <span>Clase ${escapeHtml(item.classNumber)} de ${escapeHtml(item.totalClasses)}</span>
-                                        <strong>${escapeHtml(formatBookingDate(item.date, item.time))}</strong>
+                                ${courseBookings.map(item => {
+                                    const canChange = canStudentChangeBooking(item);
+                                    const bookingId = item.id || item.bookingId || '';
+                                    const selected = activeBookingId && activeBookingId === bookingId;
+
+                                    return `
+                                    <div class="ac-booking-item ${selected ? 'active' : ''}">
+                                        <div class="ac-booking-main">
+                                            <div class="ac-booking-title">
+                                                <strong>Clase ${escapeHtml(item.classNumber || 1)} de ${escapeHtml(item.totalClasses || totalClasses)}</strong>
+                                                <span class="ac-pill ${canChange ? '' : 'warn'}">${escapeHtml(canChange ? 'Gestionable' : 'Cambios cerrados')}</span>
+                                            </div>
+                                            <div class="ac-booking-date">${escapeHtml(formatFriendlyBookingDate(item.date, item.time))}</div>
+                                            <p class="ac-booking-muted">
+                                                ${escapeHtml(canChange ? `Puedes cambiar o cancelar hasta ${CHANGE_LIMIT_HOURS}h antes.` : `Ya está dentro de las ${CHANGE_LIMIT_HOURS}h previas y queda bloqueada.`)}
+                                            </p>
+                                        </div>
+                                        <div class="ac-booking-actions">
+                                            ${canChange ? `
+                                                <button class="ac-btn dark" type="button" data-reschedule-booking="${escapeHtml(bookingId)}">Cambiar fecha</button>
+                                                <button class="ac-btn danger" type="button" data-cancel-booking="${escapeHtml(bookingId)}">Cancelar</button>
+                                            ` : `
+                                                <span class="ac-pill warn">Sin cambios</span>
+                                            `}
+                                        </div>
                                     </div>
-                                `).join('')}
+                                    `;
+                                }).join('')}
                             </div>
                         </div>
-                    ` : ''}
+                    ` : `
+                        <div class="ac-empty">Todavía no tienes clases agendadas para este curso.</div>
+                    `}
 
+                    ${showPicker ? `
                     <div>
                         <p class="ac-section-title">Días disponibles</p>
                         ${availabilityLoading ? `
@@ -487,12 +641,13 @@ export function AcademyPage(navigate) {
                     </div>
 
                     <div>
-                        <p class="ac-section-title">Horas libres ${selectedDay ? 'para ' + escapeHtml(selectedDay.date) : ''}</p>
+                        <p class="ac-section-title">Horas libres ${selectedDay ? 'para ' + escapeHtml(formatFriendlyBookingDate(selectedDay.date, '')) : ''}</p>
                         ${selectedSlots.length ? `
                             <div class="ac-times">
                                 ${selectedSlots.map(slot => `
                                     <button class="ac-time ${slot.time === bookingTime ? 'active' : ''}" type="button" data-booking-time="${escapeHtml(slot.time)}" ${slot.available ? '' : 'disabled'}>
-                                        ${escapeHtml(slot.time)}
+                                        <span>${escapeHtml(slot.time)}</span>
+                                        <small>${escapeHtml(slot.available ? 'Libre' : 'Ocupado')}</small>
                                     </button>
                                 `).join('')}
                             </div>
@@ -500,6 +655,9 @@ export function AcademyPage(navigate) {
                             <div class="ac-empty">Selecciona un día disponible para ver horas.</div>
                         `}
                     </div>
+                    ` : `
+                        <div class="ac-empty">Ya tienes todas las clases de este curso agendadas. Puedes cambiar o cancelar una fecha desde la lista superior mientras falten más de ${CHANGE_LIMIT_HOURS}h.</div>
+                    `}
 
                     <p class="ac-note">
                         Si otro alumno reserva el mismo hueco justo antes, el sistema te avisará para elegir otro horario.
@@ -507,9 +665,12 @@ export function AcademyPage(navigate) {
                 </div>
 
                 <div class="ac-modal-actions">
-                    <button class="ac-btn" type="button" data-confirm-booking ${bookingLoading || !bookingDate || !bookingTime ? 'disabled' : ''}>
-                        ${bookingLoading ? 'Guardando...' : 'Confirmar reserva'}
-                    </button>
+                    ${isRescheduling ? `<button class="ac-btn dark" type="button" data-reset-booking-action>Cancelar cambio</button>` : ''}
+                    ${showPicker ? `
+                        <button class="ac-btn" type="button" data-confirm-booking ${bookingLoading || !bookingDate || !bookingTime || (!isRescheduling && allClassesBooked) ? 'disabled' : ''}>
+                            ${escapeHtml(bookingLoading ? 'Guardando...' : isRescheduling ? 'Confirmar cambio' : 'Confirmar reserva')}
+                        </button>
+                    ` : ''}
                 </div>
             </section>
         `;
@@ -518,8 +679,24 @@ export function AcademyPage(navigate) {
 
         modal.querySelector('[data-close-booking]').addEventListener('click', () => {
             bookingCourseId = '';
+            resetBookingAction();
             render();
         });
+
+        const resetActionBtn = modal.querySelector('[data-reset-booking-action]');
+        if (resetActionBtn) {
+            resetActionBtn.addEventListener('click', () => {
+                resetBookingAction();
+                bookingDate = '';
+                bookingTime = '';
+                const firstDay = firstAvailableDay(availabilityDays);
+                if (firstDay?.available) {
+                    bookingDate = firstDay.date;
+                    bookingTime = firstAvailableTime(firstDay);
+                }
+                render();
+            });
+        }
 
         modal.querySelectorAll('[data-booking-day]').forEach(button => {
             button.addEventListener('click', () => {
@@ -539,13 +716,23 @@ export function AcademyPage(navigate) {
             });
         });
 
-        modal.querySelector('[data-confirm-booking]').addEventListener('click', confirmBooking);
+        modal.querySelectorAll('[data-reschedule-booking]').forEach(button => {
+            button.addEventListener('click', () => startRescheduleBooking(button.dataset.rescheduleBooking));
+        });
+
+        modal.querySelectorAll('[data-cancel-booking]').forEach(button => {
+            button.addEventListener('click', () => cancelBooking(button.dataset.cancelBooking));
+        });
+
+        const confirmBtn = modal.querySelector('[data-confirm-booking]');
+        if (confirmBtn) confirmBtn.addEventListener('click', confirmBooking);
     }
 
     async function openBookingModal(courseId) {
         bookingCourseId = courseId;
         bookingDate = '';
         bookingTime = '';
+        resetBookingAction();
         availabilityDays = [];
         availabilityLoading = true;
         render();
@@ -573,11 +760,12 @@ export function AcademyPage(navigate) {
 
         const res = await fetch(`${window.location.origin}/api/academy/availability`, {
             method: 'POST',
+            cache: 'no-store',
             headers: {
                 'Content-Type': 'application/json',
                 Authorization: 'Bearer ' + token,
             },
-            body: JSON.stringify({ days: 21 }),
+            body: JSON.stringify({ days: 42 }),
         });
 
         const data = await res.json().catch(() => ({}));
@@ -591,7 +779,7 @@ export function AcademyPage(navigate) {
 
     async function loadGroupStatus() {
         try {
-            const res = await fetch('/api/academy/group-status');
+            const res = await fetch('/api/academy/group-status', { cache: 'no-store' });
             const data = await res.json().catch(() => ({}));
 
             if (res.ok && data.ok) {
@@ -629,7 +817,7 @@ export function AcademyPage(navigate) {
             const bookingsSnap = await getDocs(collection(db, 'artifacts', APP_ID, 'public', 'data', 'users', user.uid, 'academy_bookings'));
             bookingsSnap.forEach(d => {
                 const data = { id: d.id, ...d.data() };
-                if (String(data.status || '').toLowerCase() === 'cancelled') return;
+                if (!activeBookingStatus(data.status)) return;
 
                 const bookingCourseId = data.courseId === LEGACY_ANNUAL_COURSE_ID ? ANNUAL_COURSE.id : data.courseId;
 
@@ -698,8 +886,118 @@ export function AcademyPage(navigate) {
         }
     }
 
+    async function startRescheduleBooking(bookingId) {
+        if (!auth.currentUser) {
+            document.body.appendChild(AuthModal());
+            return;
+        }
+
+        const booking = getCourseBookings(bookingCourseId).find(item => {
+            return (item.id || item.bookingId || '') === bookingId;
+        });
+
+        if (!booking) {
+            toast(root, 'No se encontró esa reserva.');
+            return;
+        }
+
+        if (!canStudentChangeBooking(booking)) {
+            toast(root, `Solo puedes cambiar una clase hasta ${CHANGE_LIMIT_HOURS}h antes.`);
+            return;
+        }
+
+        bookingAction = 'reschedule';
+        activeBookingId = bookingId;
+        activeBooking = booking;
+        bookingDate = '';
+        bookingTime = '';
+        availabilityLoading = true;
+        render();
+
+        try {
+            await loadAvailability();
+            const firstDay = firstAvailableDay(availabilityDays);
+
+            if (firstDay?.available) {
+                bookingDate = firstDay.date;
+                bookingTime = firstAvailableTime(firstDay);
+            }
+        } catch (err) {
+            toast(root, err.message || 'No se pudo cargar la disponibilidad.');
+        } finally {
+            availabilityLoading = false;
+            render();
+        }
+    }
+
+    async function cancelBooking(bookingId) {
+        if (!auth.currentUser) {
+            document.body.appendChild(AuthModal());
+            return;
+        }
+
+        const booking = getCourseBookings(bookingCourseId).find(item => {
+            return (item.id || item.bookingId || '') === bookingId;
+        });
+
+        if (!booking) {
+            toast(root, 'No se encontró esa reserva.');
+            return;
+        }
+
+        if (!canStudentChangeBooking(booking)) {
+            toast(root, `Solo puedes cancelar una clase hasta ${CHANGE_LIMIT_HOURS}h antes.`);
+            return;
+        }
+
+        const ok = confirm('¿Cancelar esta clase? La hora quedará libre para poder elegir otra.');
+        if (!ok) return;
+
+        bookingLoading = true;
+        render();
+
+        try {
+            const token = await auth.currentUser.getIdToken();
+
+            const res = await fetch(`${window.location.origin}/api/academy/manage-booking`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: 'Bearer ' + token,
+                },
+                body: JSON.stringify({
+                    action: 'cancel',
+                    bookingId,
+                    reason: 'Cancelada por el alumno desde la web',
+                }),
+            });
+
+            const data = await res.json().catch(() => ({}));
+
+            if (!res.ok || !data.ok) {
+                throw new Error(data.error || 'No se pudo cancelar la clase.');
+            }
+
+            resetBookingAction();
+            bookingLoading = false;
+            await loadPurchasesAndBookings(auth.currentUser);
+            await loadAvailability().catch(() => {});
+            render();
+            toast(root, 'Clase cancelada. La hora queda liberada.');
+        } catch (err) {
+            bookingLoading = false;
+            render();
+            toast(root, err.message || 'No se pudo cancelar la clase.');
+        }
+    }
+
     async function confirmBooking() {
-        if (!auth.currentUser || !bookingCourseId) return;
+        if (!auth.currentUser) {
+            document.body.appendChild(AuthModal());
+            return;
+        }
+
+        if (!bookingCourseId) return;
 
         bookingLoading = true;
         render();
@@ -707,37 +1005,55 @@ export function AcademyPage(navigate) {
         try {
             const token = await auth.currentUser.getIdToken();
             const course = ACADEMY_COURSES.find(item => item.id === bookingCourseId);
-            const courseBookings = bookings[bookingCourseId] || [];
-            const classNumber = Math.min(courseBookings.length + 1, Math.max(1, course?.lessons?.length || 1));
+            const courseBookings = getCourseBookings(bookingCourseId);
+            const totalClasses = getCourseTotalClasses(course);
+            const isRescheduling = bookingAction === 'reschedule' && activeBookingId;
 
-            const res = await fetch(`${window.location.origin}/api/academy/book-class`, {
+            if (!isRescheduling && courseBookings.length >= totalClasses) {
+                throw new Error('Ya tienes todas las clases de este curso agendadas.');
+            }
+
+            const classNumber = nextAvailableClassNumber(courseBookings, totalClasses);
+            const route = isRescheduling ? 'manage-booking' : 'book-class';
+            const payload = isRescheduling
+                ? {
+                    action: 'reschedule',
+                    bookingId: activeBookingId,
+                    newDate: bookingDate,
+                    newTime: bookingTime,
+                }
+                : {
+                    courseId: bookingCourseId,
+                    date: bookingDate,
+                    time: bookingTime,
+                    classNumber,
+                };
+
+            const res = await fetch(`${window.location.origin}/api/academy/${route}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     Authorization: 'Bearer ' + token,
                 },
-                body: JSON.stringify({
-                    courseId: bookingCourseId,
-                    date: bookingDate,
-                    time: bookingTime,
-                    classNumber,
-                }),
+                body: JSON.stringify(payload),
             });
 
             const data = await res.json().catch(() => ({}));
 
             if (!res.ok || !data.ok) {
-                throw new Error(data.error || 'No se pudo reservar la clase.');
+                throw new Error(data.error || (isRescheduling ? 'No se pudo cambiar la clase.' : 'No se pudo reservar la clase.'));
             }
 
-            bookingCourseId = '';
+            resetBookingAction();
             bookingLoading = false;
             await loadPurchasesAndBookings(auth.currentUser);
-            toast(root, 'Clase agendada correctamente.');
+            await loadAvailability().catch(() => {});
+            render();
+            toast(root, isRescheduling ? 'Clase cambiada correctamente.' : 'Clase agendada correctamente.');
         } catch (err) {
             bookingLoading = false;
             render();
-            toast(root, err.message || 'No se pudo reservar la clase.');
+            toast(root, err.message || 'No se pudo guardar la clase.');
         }
     }
 
