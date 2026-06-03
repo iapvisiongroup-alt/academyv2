@@ -1078,6 +1078,14 @@
       font-weight: 900;
     }
 
+    .agenda-slot span:last-child {
+      min-width: 0;
+      text-align: right;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
     .agenda-slot.busy {
       background: #fee2e2;
       color: #991b1b;
@@ -2340,6 +2348,7 @@
 
       const res = await fetch("/api/academy/manage-availability", {
         method: "POST",
+        cache: "no-store",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${token}`,
@@ -2368,6 +2377,7 @@
         const [manageRes, availabilityRes] = await Promise.all([
           fetch("/api/academy/manage-availability", {
             method: "POST",
+            cache: "no-store",
             headers: {
               "Content-Type": "application/json",
               "Authorization": `Bearer ${token}`,
@@ -2376,6 +2386,7 @@
           }),
           fetch("/api/academy/availability", {
             method: "POST",
+            cache: "no-store",
             headers: {
               "Content-Type": "application/json",
               "Authorization": `Bearer ${token}`,
@@ -2487,6 +2498,7 @@
 
         const res = await fetch("/api/academy/manage-booking", {
           method: "POST",
+          cache: "no-store",
           headers: {
             "Content-Type": "application/json",
             "Authorization": `Bearer ${token}`,
@@ -2635,11 +2647,11 @@
                   const label = slot.booked
                     ? "Reservado"
                     : slot.blocked
-                      ? "Bloqueado"
+                      ? (slot.busyReason || slot.blockReason || "Bloqueado")
                       : slot.past
                         ? "Pasado"
                         : busy
-                          ? "No disponible"
+                          ? (slot.busyReason || slot.blockReason || "No disponible")
                           : "Libre";
 
                   return `
