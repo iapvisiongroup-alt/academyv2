@@ -226,6 +226,88 @@
       border-top: 1px solid var(--line);
     }
 
+    .line-items-card {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 14px;
+      background: #fff;
+      margin-bottom: 13px;
+    }
+
+    .line-items-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .line-items-head strong {
+      display: block;
+      font-size: 14px;
+    }
+
+    .line-items-head span {
+      display: block;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .line-items-list {
+      display: grid;
+      gap: 9px;
+    }
+
+    .line-item-row {
+      display: grid;
+      grid-template-columns: minmax(160px, 1fr) 86px 112px 104px auto;
+      gap: 8px;
+      align-items: end;
+      padding: 10px;
+      border: 1px solid #eef2f7;
+      border-radius: 14px;
+      background: #f8fafc;
+    }
+
+    .line-item-row label {
+      margin-bottom: 5px;
+      font-size: 10px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .line-item-row input {
+      border-radius: 11px;
+      padding: 10px 11px;
+      font-size: 13px;
+    }
+
+    .line-item-total {
+      min-height: 40px;
+      border: 1px solid #e2e8f0;
+      border-radius: 11px;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 0 11px;
+      font-size: 13px;
+      font-weight: 950;
+    }
+
+    .line-remove {
+      height: 40px;
+      width: 40px;
+      border: 0;
+      border-radius: 11px;
+      background: #fee2e2;
+      color: #dc2626;
+      cursor: pointer;
+      font-weight: 950;
+    }
+
     .pill {
       display: inline-flex;
       align-items: center;
@@ -1168,6 +1250,8 @@
       .agenda-form-grid,
       .agenda-stats,
       .agenda-list-grid { grid-template-columns: 1fr; }
+      .line-item-row { grid-template-columns: 1fr 1fr; }
+      .line-item-row > div:first-child { grid-column: 1 / -1; }
       .panel-top,
       .panel-help { align-items: stretch; flex-direction: column; }
       .view-tabs { grid-template-columns: 1fr; }
@@ -1296,9 +1380,18 @@
             <input id="address" required placeholder="Calle, número, ciudad, provincia" />
           </div>
 
-          <div class="field">
-            <label id="concept-label">Curso contratado</label>
-            <input id="concept" required placeholder="Ej. Programa Anual IA Profesional" />
+          <input id="concept" type="hidden" />
+          <input id="baseAmount" type="hidden" />
+
+          <div class="line-items-card">
+            <div class="line-items-head">
+              <div>
+                <strong id="line-items-title">Artículos / conceptos</strong>
+                <span>Añade una línea por cada producto, servicio, curso o extra que quieras incluir.</span>
+              </div>
+              <button id="add-line-item" class="btn ghost" type="button">Añadir línea</button>
+            </div>
+            <div id="line-items-list" class="line-items-list"></div>
           </div>
 
           <div class="field">
@@ -1306,15 +1399,9 @@
             <textarea id="notes" placeholder="Horario, forma de pago, observaciones, entrega de portátil, etc."></textarea>
           </div>
 
-          <div class="grid2">
-            <div class="field">
-              <label>Importe base</label>
-              <input id="baseAmount" type="number" min="0" step="0.01" required placeholder="890.00" />
-            </div>
-            <div class="field">
-              <label>Fecha de operación</label>
-              <input id="issueDate" type="date" required />
-            </div>
+          <div class="field">
+            <label>Fecha de operación</label>
+            <input id="issueDate" type="date" required />
           </div>
 
           <div id="quote-section" class="agreement-box hidden" style="margin-bottom:14px">
@@ -1940,6 +2027,7 @@
     let chatMessages = [];
     let lastSeenChatMessageId = "";
     let lastLeadSearchLabel = "-";
+    let lineItems = [];
 
     const money = (cents) => new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format((Number(cents) || 0) / 100);
     const escapeHtml = (s) => String(s || "").replace(/[&<>"']/g, m => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#039;" }[m]));
@@ -1951,8 +2039,114 @@
       setTimeout(() => $("toast").classList.add("hidden"), 2800);
     }
 
+    function emptyLineItem() {
+      return {
+        description: "",
+        quantity: 1,
+        unitAmount: "",
+      };
+    }
+
+    function centsFromEuroValue(value) {
+      return Math.round((Number(value) || 0) * 100);
+    }
+
+    function getLineItemsFromDom() {
+      const rows = Array.from(document.querySelectorAll("[data-line-item-row]"));
+
+      if (!rows.length) {
+        return lineItems.length ? lineItems : [emptyLineItem()];
+      }
+
+      return rows.map((row, index) => {
+        const description = row.querySelector("[data-line-description]")?.value.trim() || "";
+        const quantity = Math.max(0, Number(row.querySelector("[data-line-quantity]")?.value || 0));
+        const unitAmount = Number(row.querySelector("[data-line-unit]")?.value || 0);
+        const unitCents = centsFromEuroValue(unitAmount);
+        const totalCents = Math.round(quantity * unitCents);
+
+        return {
+          index: index + 1,
+          description,
+          quantity,
+          unitAmount,
+          unitCents,
+          totalCents,
+        };
+      });
+    }
+
+    function validLineItems() {
+      return getLineItemsFromDom().filter(item => {
+        return item.description || item.quantity > 0 || item.unitCents > 0;
+      }).map((item, index) => ({
+        index: index + 1,
+        description: item.description || `Concepto ${index + 1}`,
+        quantity: item.quantity > 0 ? item.quantity : 1,
+        unitAmount: Number(item.unitAmount || 0),
+        unitCents: item.unitCents,
+        totalCents: item.totalCents,
+      }));
+    }
+
+    function syncLineItemsHiddenFields(items = validLineItems()) {
+      const concept = items.map(item => item.description).filter(Boolean).join(" + ");
+      const baseCents = items.reduce((sum, item) => sum + item.totalCents, 0);
+
+      $("concept").value = concept.slice(0, 240);
+      $("baseAmount").value = (baseCents / 100).toFixed(2);
+
+      return { concept, baseCents };
+    }
+
     function baseCentsFromInput() {
-      return Math.round((Number($("baseAmount").value) || 0) * 100);
+      const items = validLineItems();
+      const synced = syncLineItemsHiddenFields(items);
+      return synced.baseCents;
+    }
+
+    function renderLineItems() {
+      if (!$("line-items-list")) return;
+
+      if (!lineItems.length) lineItems = [emptyLineItem()];
+
+      $("line-items-list").innerHTML = lineItems.map((item, index) => `
+        <div class="line-item-row" data-line-item-row data-line-index="${index}">
+          <div>
+            <label>Descripción</label>
+            <input data-line-description value="${escapeHtml(item.description || "")}" placeholder="${selectedType === "Academia" ? "Ej. Curso IA Profesional" : "Ej. Web con IA, automatización, consultoría..."}" />
+          </div>
+          <div>
+            <label>Cantidad</label>
+            <input data-line-quantity type="number" min="0" step="0.01" value="${escapeHtml(item.quantity ?? 1)}" />
+          </div>
+          <div>
+            <label>Precio unidad</label>
+            <input data-line-unit type="number" min="0" step="0.01" value="${escapeHtml(item.unitAmount ?? "")}" placeholder="0.00" />
+          </div>
+          <div>
+            <label>Total</label>
+            <div class="line-item-total" data-line-total>${money(Math.round((Number(item.quantity || 0)) * centsFromEuroValue(item.unitAmount)))}</div>
+          </div>
+          <button class="line-remove" type="button" data-remove-line="${index}" ${lineItems.length <= 1 ? "disabled" : ""}>×</button>
+        </div>
+      `).join("");
+
+      document.querySelectorAll("[data-line-description], [data-line-quantity], [data-line-unit]").forEach(input => {
+        input.addEventListener("input", updateTaxSummary);
+      });
+
+      document.querySelectorAll("[data-remove-line]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          lineItems = getLineItemsFromDom();
+          lineItems.splice(Number(btn.dataset.removeLine), 1);
+          if (!lineItems.length) lineItems = [emptyLineItem()];
+          renderLineItems();
+          updateTaxSummary();
+        });
+      });
+
+      updateTaxSummary();
     }
 
     function updateTaxSummary() {
@@ -1962,7 +2156,7 @@
       const total = base + tax;
       const isQuote = selectedType === "Servicios IA" && documentMode === "quote";
 
-      $("concept-label").textContent = selectedType === "Academia" ? "Curso contratado" : "Servicio IA contratado";
+      $("line-items-title").textContent = selectedType === "Academia" ? "Cursos / artículos contratados" : "Artículos / servicios del presupuesto";
       $("appointment-section").classList.toggle("hidden", selectedType !== "Academia");
       $("document-mode-section").classList.toggle("hidden", selectedType !== "Servicios IA");
       $("quote-section").classList.toggle("hidden", !isQuote);
@@ -1990,6 +2184,7 @@
       documentMode = "invoice";
       signatureDataUrl = "";
       selectedClientId = "";
+      lineItems = [emptyLineItem()];
       $("issueDate").valueAsDate = new Date();
       const validDate = new Date();
       validDate.setDate(validDate.getDate() + 15);
@@ -2003,7 +2198,7 @@
         if (btn.dataset.documentMode) btn.classList.toggle("active", btn.dataset.documentMode === documentMode);
       });
 
-      updateTaxSummary();
+      renderLineItems();
     }
 
     document.querySelectorAll(".choice").forEach(btn => {
@@ -2018,17 +2213,23 @@
           documentMode = btn.dataset.documentMode;
           document.querySelectorAll("[data-document-mode]").forEach(b => b.classList.toggle("active", b === btn));
         }
-        updateTaxSummary();
+        lineItems = getLineItemsFromDom();
+        renderLineItems();
       });
     });
 
-    $("baseAmount").addEventListener("input", updateTaxSummary);
+    $("add-line-item").addEventListener("click", () => {
+      lineItems = getLineItemsFromDom();
+      lineItems.push(emptyLineItem());
+      renderLineItems();
+    });
     $("reset-btn").addEventListener("click", resetForm);
     $("issueDate").valueAsDate = new Date();
     const firstValidDate = new Date();
     firstValidDate.setDate(firstValidDate.getDate() + 15);
     $("validUntil").valueAsDate = firstValidDate;
-    updateTaxSummary();
+    lineItems = [emptyLineItem()];
+    renderLineItems();
 
     $("login-form").addEventListener("submit", async (e) => {
       e.preventDefault();
@@ -3143,7 +3344,18 @@
       $("phone").value = c.phone || "";
       $("email").value = c.email || "";
       $("address").value = c.address || "";
-      $("concept").value = c.lastConcept || "";
+      lineItems = Array.isArray(c.lastLineItems) && c.lastLineItems.length
+        ? c.lastLineItems.map(item => ({
+            description: item.description || "",
+            quantity: item.quantity || 1,
+            unitAmount: Number(item.unitAmount || (Number(item.unitCents || 0) / 100)) || "",
+          }))
+        : [{
+            description: c.lastConcept || "",
+            quantity: 1,
+            unitAmount: "",
+          }];
+      renderLineItems();
       $("appointmentDate").value = "";
       $("appointmentTime").value = "";
       $("appointmentNotes").value = "";
@@ -3354,11 +3566,37 @@
       setTimeout(() => document.body.classList.remove("print-invoice"), 500);
     });
 
+    function documentLineItems(doc) {
+      const items = Array.isArray(doc.lineItems) && doc.lineItems.length
+        ? doc.lineItems
+        : [{
+            description: doc.concept || "Concepto",
+            quantity: 1,
+            unitCents: Number(doc.baseCents || 0),
+            totalCents: Number(doc.baseCents || 0),
+          }];
+
+      return items.map((item, index) => {
+        const quantity = Number(item.quantity || 1);
+        const totalCents = Number(item.totalCents ?? Math.round(quantity * Number(item.unitCents || 0)));
+        const unitCents = Number(item.unitCents ?? (quantity ? Math.round(totalCents / quantity) : totalCents));
+
+        return {
+          index: index + 1,
+          description: item.description || `Concepto ${index + 1}`,
+          quantity,
+          unitCents,
+          totalCents,
+        };
+      });
+    }
+
     function buildInvoiceSheet(inv) {
       const issuer = inv.issuer || {};
       const client = inv.client || {};
       const isExempt = Number(inv.taxRate || 0) === 0;
       const taxLabel = isExempt ? "IVA exento" : `IVA ${Number(inv.taxRate || 0)}%`;
+      const lineItems = documentLineItems(inv);
       const appointmentText = inv.appointment?.date && inv.appointment?.time
         ? `${inv.appointment.date} a las ${inv.appointment.time}`
         : "No indicada";
@@ -3417,6 +3655,8 @@
             <thead>
               <tr>
                 <th style="text-align:left">Descripción</th>
+                <th style="text-align:right">Cant.</th>
+                <th style="text-align:right">Precio</th>
                 <th style="text-align:right">Base</th>
                 <th style="text-align:right">IVA</th>
                 <th style="text-align:right">Cuota IVA</th>
@@ -3424,13 +3664,20 @@
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td>${escapeHtml(inv.concept || "")}</td>
-                <td style="text-align:right">${money(inv.baseCents)}</td>
-                <td style="text-align:right">${escapeHtml(taxLabel)}</td>
-                <td style="text-align:right">${isExempt ? "Exento" : money(inv.taxCents)}</td>
-                <td style="text-align:right"><strong>${money(inv.totalCents)}</strong></td>
-              </tr>
+              ${lineItems.map(item => {
+                const itemTax = Math.round(item.totalCents * Number(inv.taxRate || 0) / 100);
+                return `
+                  <tr>
+                    <td>${escapeHtml(item.description)}</td>
+                    <td style="text-align:right">${escapeHtml(item.quantity)}</td>
+                    <td style="text-align:right">${money(item.unitCents)}</td>
+                    <td style="text-align:right">${money(item.totalCents)}</td>
+                    <td style="text-align:right">${escapeHtml(taxLabel)}</td>
+                    <td style="text-align:right">${isExempt ? "Exento" : money(itemTax)}</td>
+                    <td style="text-align:right"><strong>${money(item.totalCents + itemTax)}</strong></td>
+                  </tr>
+                `;
+              }).join("")}
             </tbody>
           </table>
 
@@ -3452,6 +3699,7 @@
     function buildQuoteSheet(quote) {
       const issuer = quote.issuer || {};
       const client = quote.client || {};
+      const lineItems = documentLineItems(quote);
 
       return `
         <article class="invoice-sheet">
@@ -3507,6 +3755,8 @@
             <thead>
               <tr>
                 <th style="text-align:left">Descripción</th>
+                <th style="text-align:right">Cant.</th>
+                <th style="text-align:right">Precio</th>
                 <th style="text-align:right">Base</th>
                 <th style="text-align:right">IVA</th>
                 <th style="text-align:right">Cuota IVA</th>
@@ -3514,13 +3764,21 @@
               </tr>
             </thead>
             <tbody>
-              <tr>
-                <td>${escapeHtml(quote.concept || "")}</td>
-                <td style="text-align:right">${money(quote.baseCents)}</td>
-                <td style="text-align:right">IVA ${Number(quote.taxRate || 21)}%</td>
-                <td style="text-align:right">${money(quote.taxCents)}</td>
-                <td style="text-align:right"><strong>${money(quote.totalCents)}</strong></td>
-              </tr>
+              ${lineItems.map(item => {
+                const taxRate = Number(quote.taxRate || 21);
+                const itemTax = Math.round(item.totalCents * taxRate / 100);
+                return `
+                  <tr>
+                    <td>${escapeHtml(item.description)}</td>
+                    <td style="text-align:right">${escapeHtml(item.quantity)}</td>
+                    <td style="text-align:right">${money(item.unitCents)}</td>
+                    <td style="text-align:right">${money(item.totalCents)}</td>
+                    <td style="text-align:right">IVA ${taxRate}%</td>
+                    <td style="text-align:right">${money(itemTax)}</td>
+                    <td style="text-align:right"><strong>${money(item.totalCents + itemTax)}</strong></td>
+                  </tr>
+                `;
+              }).join("")}
             </tbody>
           </table>
 
@@ -3550,11 +3808,18 @@
 
       try {
         const token = await currentUser.getIdToken();
+        const items = validLineItems();
+        const synced = syncLineItemsHiddenFields(items);
+
+        if (!items.length || synced.baseCents <= 0) {
+          throw new Error("Añade al menos una línea con importe.");
+        }
 
         const payload = {
           clientId: selectedClientId || undefined,
           serviceType: selectedType,
           concept: $("concept").value.trim(),
+          lineItems: items,
           notes: $("notes").value.trim(),
           baseAmount: Number($("baseAmount").value),
           issueDate: $("issueDate").value,
