@@ -5,6 +5,31 @@ const CORS = {
 };
 
 const ACADEMY_APPOINTMENT_TIMES = new Set(['10:00', '12:00', '17:00', '19:00']);
+const ANNUAL_GROUP_START = '2026-09-11';
+const ANNUAL_GROUP_END = '2027-06-25';
+const ANNUAL_GROUP_TIMES = new Set(['17:00', '19:00']);
+const NATIONAL_HOLIDAYS = {
+  '2026-01-01': 'Año Nuevo',
+  '2026-01-06': 'Epifanía del Señor',
+  '2026-04-03': 'Viernes Santo',
+  '2026-05-01': 'Fiesta del Trabajo',
+  '2026-08-15': 'Asunción de la Virgen',
+  '2026-10-12': 'Fiesta Nacional de España',
+  '2026-11-01': 'Todos los Santos',
+  '2026-12-06': 'Día de la Constitución',
+  '2026-12-08': 'Inmaculada Concepción',
+  '2026-12-25': 'Navidad',
+  '2027-01-01': 'Año Nuevo',
+  '2027-01-06': 'Epifanía del Señor',
+  '2027-03-26': 'Viernes Santo',
+  '2027-05-01': 'Fiesta del Trabajo',
+  '2027-08-15': 'Asunción de la Virgen',
+  '2027-10-12': 'Fiesta Nacional de España',
+  '2027-11-01': 'Todos los Santos',
+  '2027-12-06': 'Día de la Constitución',
+  '2027-12-08': 'Inmaculada Concepción',
+  '2027-12-25': 'Navidad',
+};
 
 export async function onRequest(context) {
   const { request, env } = context;
@@ -43,13 +68,15 @@ export async function onRequest(context) {
 
 function normalizeInvoicePayload(body, staff) {
   const serviceType = body.serviceType === 'Academia' ? 'Academia' : 'Servicios IA';
-  const baseCents = Math.round(Number(body.baseAmount || 0) * 100);
+  const lineItems = normalizeLineItems(body);
+  const baseCents = lineItems.reduce((sum, item) => sum + item.totalCents, 0);
   if (!Number.isFinite(baseCents) || baseCents <= 0) throw new Error('Importe base inválido');
 
   const client = body.client || {};
   const clientEmail = normalizeEmail(client.email);
   if (!client.fullName || !clientEmail || !clientEmail.includes('@')) throw new Error('Faltan datos del cliente');
-  if (!body.concept) throw new Error('Falta el concepto');
+  const concept = normalizeConcept(body.concept, lineItems);
+  if (!concept) throw new Error('Falta el concepto');
   if (!body.signatureDataUrl || !String(body.signatureDataUrl).startsWith('data:image/png;base64,')) {
     throw new Error('Falta la firma del cliente');
   }
@@ -61,7 +88,8 @@ function normalizeInvoicePayload(body, staff) {
 
   return {
     serviceType,
-    concept: String(body.concept).trim().slice(0, 240),
+    concept,
+    lineItems,
     notes: String(body.notes || '').trim().slice(0, 1200),
     issueDate: String(body.issueDate || now.slice(0, 10)).slice(0, 10),
     paymentMethod: normalizePaymentMethod(body.paymentMethod),
@@ -87,6 +115,55 @@ function normalizeInvoicePayload(body, staff) {
       email: staff.email,
     },
   };
+}
+
+function normalizeLineItems(body) {
+  const rawItems = Array.isArray(body.lineItems) ? body.lineItems : [];
+  const items = rawItems.map((item, index) => {
+    const quantity = Math.max(0, Number(item?.quantity || 0));
+    const unitCents = Number.isFinite(Number(item?.unitCents))
+      ? Math.round(Number(item.unitCents))
+      : Math.round(Number(item?.unitAmount || 0) * 100);
+    const totalCents = Number.isFinite(Number(item?.totalCents))
+      ? Math.round(Number(item.totalCents))
+      : Math.round(quantity * unitCents);
+    const description = String(item?.description || '').trim().slice(0, 240);
+
+    return {
+      index: index + 1,
+      description,
+      quantity: quantity > 0 ? quantity : 1,
+      unitCents,
+      totalCents,
+    };
+  }).filter(item => item.description || item.totalCents > 0);
+
+  if (items.length) {
+    return items.map((item, index) => ({
+      ...item,
+      index: index + 1,
+      description: item.description || `Concepto ${index + 1}`,
+    }));
+  }
+
+  const fallbackBaseCents = Math.round(Number(body.baseAmount || 0) * 100);
+  const fallbackConcept = String(body.concept || '').trim().slice(0, 240);
+
+  if (!fallbackConcept && fallbackBaseCents <= 0) return [];
+
+  return [{
+    index: 1,
+    description: fallbackConcept || 'Concepto',
+    quantity: 1,
+    unitCents: fallbackBaseCents,
+    totalCents: fallbackBaseCents,
+  }];
+}
+
+function normalizeConcept(concept, lineItems) {
+  const clean = String(concept || '').trim();
+  if (clean) return clean.slice(0, 240);
+  return lineItems.map(item => item.description).filter(Boolean).join(' + ').slice(0, 240);
 }
 
 function getIssuerForService(env, serviceType) {
@@ -160,6 +237,14 @@ function lastSunday(year, monthIndex) {
 }
 
 async function assertAcademySlotAvailable(projectId, accessToken, date, time) {
+  if (NATIONAL_HOLIDAYS[date]) {
+    throw new Error(`Ese día es festivo nacional: ${NATIONAL_HOLIDAYS[date]}.`);
+  }
+
+  if (isAnnualGroupSlot(date, time)) {
+    throw new Error('Ese viernes por la tarde está reservado para el Curso Anual IA Online por Zoom.');
+  }
+
   const slotId = academySlotId(date, time);
   const slotDoc = await getDoc(projectId, `academy_slots/${slotId}`, accessToken, true);
 
@@ -187,6 +272,14 @@ function isActiveAgendaBlock(doc) {
 
 function academySlotId(date, time) {
   return `${date}_${String(time || '').replace(':', '')}`;
+}
+
+function isAnnualGroupSlot(date, time) {
+  if (date < ANNUAL_GROUP_START || date > ANNUAL_GROUP_END) return false;
+  if (!ANNUAL_GROUP_TIMES.has(time)) return false;
+  const [year, month, day] = date.split('-').map(Number);
+  const weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+  return weekday === 5;
 }
 
 async function createInvoiceWithCounter(projectId, accessToken, payload, requestedClientId = '', attempt = 0) {
@@ -297,6 +390,7 @@ async function createInvoiceWithCounter(projectId, accessToken, payload, request
     ...payload.client,
     serviceType: payload.serviceType,
     lastConcept: payload.concept,
+    lastLineItems: payload.lineItems || [],
     lastInvoiceNumber: invoiceNumber,
     signatureDataUrl: payload.signatureDataUrl,
     lastSignatureAt: payload.createdAt,
@@ -306,7 +400,7 @@ async function createInvoiceWithCounter(projectId, accessToken, payload, request
   };
   const clientFieldPaths = [
     'id', 'fullName', 'taxId', 'address', 'phone', 'email', 'serviceType',
-    'lastConcept', 'lastInvoiceNumber', 'signatureDataUrl', 'lastSignatureAt',
+    'lastConcept', 'lastLineItems', 'lastInvoiceNumber', 'signatureDataUrl', 'lastSignatureAt',
     'agreementText', 'archivedAt', 'updatedAt',
   ];
   if (!existingClient.exists) {

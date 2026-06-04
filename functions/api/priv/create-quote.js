@@ -10,7 +10,12 @@ export async function onRequest(context) {
   if (request.method !== 'POST') return jsonError('Método no permitido', 405);
 
   try {
-    requireEnv(env, ['FIREBASE_API_KEY','FIREBASE_PROJECT_ID','FIREBASE_CLIENT_EMAIL','FIREBASE_PRIVATE_KEY']);
+    requireEnv(env, [
+      'FIREBASE_API_KEY',
+      'FIREBASE_PROJECT_ID',
+      'FIREBASE_CLIENT_EMAIL',
+      'FIREBASE_PRIVATE_KEY',
+    ]);
 
     const idToken = getBearerToken(request);
     if (!idToken) return jsonError('No autenticado', 401);
@@ -25,12 +30,7 @@ export async function onRequest(context) {
     if (!body) return jsonError('Body JSON inválido', 400);
 
     const payload = normalizeQuotePayload(body, staff);
-    payload.issuer = {
-      name: env.SERVICES_COMPANY_NAME || env.COMPANY_NAME || 'KreateIA',
-      taxId: env.SERVICES_COMPANY_TAX_ID || env.COMPANY_TAX_ID || '',
-      address: env.SERVICES_COMPANY_ADDRESS || env.COMPANY_ADDRESS || '',
-      email: env.SERVICES_COMPANY_EMAIL || env.GMAIL_SENDER || '',
-    };
+    payload.issuer = getIssuerForServices(env);
 
     const quote = await createQuoteWithCounter(env.FIREBASE_PROJECT_ID, accessToken, payload, body.clientId);
     return json({ ok: true, quote });
@@ -40,13 +40,15 @@ export async function onRequest(context) {
 }
 
 function normalizeQuotePayload(body, staff) {
-  const baseCents = Math.round(Number(body.baseAmount || 0) * 100);
+  const lineItems = normalizeLineItems(body);
+  const baseCents = lineItems.reduce((sum, item) => sum + item.totalCents, 0);
   if (!Number.isFinite(baseCents) || baseCents <= 0) throw new Error('Importe base inválido');
 
   const client = body.client || {};
   const clientEmail = normalizeEmail(client.email);
   if (!client.fullName || !clientEmail || !clientEmail.includes('@')) throw new Error('Faltan datos del cliente');
-  if (!body.concept) throw new Error('Falta el concepto del presupuesto');
+  const concept = normalizeConcept(body.concept, lineItems);
+  if (!concept) throw new Error('Falta el concepto del presupuesto');
 
   const taxRate = 21;
   const taxCents = Math.round(baseCents * taxRate / 100);
@@ -59,7 +61,8 @@ function normalizeQuotePayload(body, staff) {
     serviceType: 'Servicios IA',
     documentType: 'quote',
     status: 'Pendiente',
-    concept: String(body.concept).trim().slice(0, 240),
+    concept,
+    lineItems,
     notes: String(body.notes || '').trim().slice(0, 1200),
     issueDate,
     validUntil,
@@ -76,12 +79,73 @@ function normalizeQuotePayload(body, staff) {
       email: clientEmail,
     },
     createdAt: now,
-    createdBy: { uid: staff.uid, email: staff.email },
+    createdBy: {
+      uid: staff.uid,
+      email: staff.email,
+    },
     acceptedAt: null,
     rejectedAt: null,
     convertedInvoiceId: null,
     convertedInvoiceNumber: null,
     emailSentAt: null,
+  };
+}
+
+function normalizeLineItems(body) {
+  const rawItems = Array.isArray(body.lineItems) ? body.lineItems : [];
+  const items = rawItems.map((item, index) => {
+    const quantity = Math.max(0, Number(item?.quantity || 0));
+    const unitCents = Number.isFinite(Number(item?.unitCents))
+      ? Math.round(Number(item.unitCents))
+      : Math.round(Number(item?.unitAmount || 0) * 100);
+    const totalCents = Number.isFinite(Number(item?.totalCents))
+      ? Math.round(Number(item.totalCents))
+      : Math.round(quantity * unitCents);
+    const description = String(item?.description || '').trim().slice(0, 240);
+
+    return {
+      index: index + 1,
+      description,
+      quantity: quantity > 0 ? quantity : 1,
+      unitCents,
+      totalCents,
+    };
+  }).filter(item => item.description || item.totalCents > 0);
+
+  if (items.length) {
+    return items.map((item, index) => ({
+      ...item,
+      index: index + 1,
+      description: item.description || `Concepto ${index + 1}`,
+    }));
+  }
+
+  const fallbackBaseCents = Math.round(Number(body.baseAmount || 0) * 100);
+  const fallbackConcept = String(body.concept || '').trim().slice(0, 240);
+
+  if (!fallbackConcept && fallbackBaseCents <= 0) return [];
+
+  return [{
+    index: 1,
+    description: fallbackConcept || 'Concepto',
+    quantity: 1,
+    unitCents: fallbackBaseCents,
+    totalCents: fallbackBaseCents,
+  }];
+}
+
+function normalizeConcept(concept, lineItems) {
+  const clean = String(concept || '').trim();
+  if (clean) return clean.slice(0, 240);
+  return lineItems.map(item => item.description).filter(Boolean).join(' + ').slice(0, 240);
+}
+
+function getIssuerForServices(env) {
+  return {
+    name: env.SERVICES_COMPANY_NAME || env.COMPANY_NAME || 'KreateIA',
+    taxId: env.SERVICES_COMPANY_TAX_ID || env.COMPANY_TAX_ID || '',
+    address: env.SERVICES_COMPANY_ADDRESS || env.COMPANY_ADDRESS || '',
+    email: env.SERVICES_COMPANY_EMAIL || env.GMAIL_SENDER || '',
   };
 }
 
@@ -96,9 +160,38 @@ async function createQuoteWithCounter(projectId, accessToken, payload, requested
   const quoteNumber = `PRE-${padded}`;
   const quoteId = quoteNumber;
   const clientId = normalizeClientId(requestedClientId) || `client_serv_${padded}`;
+  const existingClient = normalizeClientId(requestedClientId)
+    ? await getDoc(projectId, `private_clients/${clientId}`, accessToken, true)
+    : { exists: false };
   const now = new Date().toISOString();
 
-  const quote = { id: quoteId, quoteNumber, clientId, ...payload, updatedAt: now };
+  const quote = {
+    id: quoteId,
+    quoteNumber,
+    clientId,
+    ...payload,
+    updatedAt: now,
+  };
+
+  const clientFields = {
+    id: clientId,
+    ...payload.client,
+    serviceType: 'Servicios IA',
+    lastConcept: payload.concept,
+    lastLineItems: payload.lineItems || [],
+    lastQuoteNumber: quoteNumber,
+    lastQuoteConcept: payload.concept,
+    archivedAt: null,
+    updatedAt: now,
+  };
+  const clientFieldPaths = [
+    'id', 'fullName', 'taxId', 'address', 'phone', 'email', 'serviceType',
+    'lastConcept', 'lastLineItems', 'lastQuoteNumber', 'lastQuoteConcept', 'archivedAt', 'updatedAt',
+  ];
+  if (!existingClient.exists) {
+    clientFields.createdAt = payload.createdAt;
+    clientFieldPaths.push('createdAt');
+  }
 
   const writes = [
     {
@@ -112,18 +205,9 @@ async function createQuoteWithCounter(projectId, accessToken, payload, requested
     {
       update: {
         name: docName(projectId, `private_clients/${clientId}`),
-        fields: toFields({
-          id: clientId,
-          ...payload.client,
-          serviceType: 'Servicios IA',
-          lastConcept: payload.concept,
-          lastQuoteNumber: quoteNumber,
-          lastQuoteConcept: payload.concept,
-          archivedAt: null,
-          updatedAt: now,
-          createdAt: payload.createdAt,
-        }),
+        fields: toFields(clientFields),
       },
+      updateMask: { fieldPaths: clientFieldPaths },
     },
     {
       update: {
@@ -135,7 +219,10 @@ async function createQuoteWithCounter(projectId, accessToken, payload, requested
 
   const res = await fetch(firestoreBase(projectId) + ':commit', {
     method: 'POST',
-    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
     body: JSON.stringify({ writes }),
   });
 
@@ -152,7 +239,9 @@ async function createQuoteWithCounter(projectId, accessToken, payload, requested
 }
 
 async function isAllowedStaff(projectId, accessToken, email) {
-  const doc = await getDoc(projectId, `private_allowed_users/${normalizeEmail(email)}`, accessToken, true);
+  const key = normalizeEmail(email);
+  if (!key) return false;
+  const doc = await getDoc(projectId, `private_allowed_users/${key}`, accessToken, true);
   return doc.exists && doc.data.active === true;
 }
 
@@ -163,7 +252,8 @@ async function verifyFirebaseToken(idToken, firebaseApiKey) {
     body: JSON.stringify({ idToken }),
   });
   if (!res.ok) throw new Error('Token inválido o expirado');
-  const user = (await res.json()).users?.[0];
+  const data = await res.json();
+  const user = data.users?.[0];
   if (!user?.localId || !user?.email) throw new Error('Token inválido');
   return { uid: user.localId, email: normalizeEmail(user.email) };
 }
@@ -197,9 +287,21 @@ async function signJWT(payload, pemKey) {
   return `${unsigned}.${b64uBytes(new Uint8Array(sig))}`;
 }
 
+function b64uJson(obj) {
+  return b64uBytes(new TextEncoder().encode(JSON.stringify(obj)));
+}
+
+function b64uBytes(bytes) {
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    bin += String.fromCharCode(...bytes.slice(i, i + 0x8000));
+  }
+  return btoa(bin).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+}
+
 async function getDoc(projectId, path, accessToken, allowMissing = false) {
   const res = await fetch(`${firestoreBase(projectId)}/${encodePath(path)}`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
+    headers: { 'Authorization': `Bearer ${accessToken}` },
   });
   if (res.status === 404 && allowMissing) return { exists: false, data: {}, updateTime: null };
   if (!res.ok) throw new Error(`No se pudo leer ${path}`);
@@ -210,17 +312,21 @@ async function getDoc(projectId, path, accessToken, allowMissing = false) {
 function firestoreBase(projectId) {
   return `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
 }
+
 function docName(projectId, path) {
   return `projects/${projectId}/databases/(default)/documents/${path}`;
 }
+
 function encodePath(path) {
   return path.split('/').map(encodeURIComponent).join('/');
 }
+
 function toFields(obj) {
   const fields = {};
   Object.entries(obj).forEach(([k, v]) => { fields[k] = toValue(v); });
   return fields;
 }
+
 function toValue(v) {
   if (v === null || v === undefined) return { nullValue: null };
   if (typeof v === 'boolean') return { booleanValue: v };
@@ -229,11 +335,13 @@ function toValue(v) {
   if (typeof v === 'object') return { mapValue: { fields: toFields(v) } };
   return { stringValue: String(v) };
 }
+
 function fromFields(fields) {
   const obj = {};
   Object.entries(fields).forEach(([k, v]) => { obj[k] = fromValue(v); });
   return obj;
 }
+
 function fromValue(v) {
   if ('stringValue' in v) return v.stringValue;
   if ('integerValue' in v) return Number(v.integerValue);
@@ -245,44 +353,45 @@ function fromValue(v) {
   if ('mapValue' in v) return fromFields(v.mapValue.fields || {});
   return null;
 }
-function b64uJson(obj) {
-  return b64uBytes(new TextEncoder().encode(JSON.stringify(obj)));
-}
-function b64uBytes(bytes) {
-  let bin = '';
-  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.slice(i, i + 0x8000));
-  return btoa(bin).replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
-}
+
 function getBearerToken(request) {
   const auth = request.headers.get('Authorization') || request.headers.get('authorization') || '';
   return auth.startsWith('Bearer ') ? auth.slice(7).trim() : '';
 }
+
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
 }
+
 function normalizeClientId(id) {
   const clean = String(id || '').trim();
   return /^[A-Za-z0-9_-]{3,140}$/.test(clean) ? clean : '';
 }
+
 function normalizeDate(value) {
   const clean = String(value || '').trim();
   return /^\d{4}-\d{2}-\d{2}$/.test(clean) ? clean : '';
 }
+
 function addDays(date, days) {
   const d = new Date(`${date}T12:00:00Z`);
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
 }
+
 function requireEnv(env, keys) {
   const missing = keys.filter(k => !env[k]);
   if (missing.length) throw new Error('Faltan variables: ' + missing.join(', '));
 }
+
 function sleep(ms) {
   return new Promise(r => setTimeout(r, ms));
 }
+
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
 }
+
 function jsonError(error, status = 400) {
   return json({ ok: false, error }, status);
 }
