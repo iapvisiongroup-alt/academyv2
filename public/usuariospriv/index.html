@@ -1323,14 +1323,21 @@
       .table-card { box-shadow: none; border: 0; }
       .table-scroll { overflow: visible; max-height: none; }
       table { min-width: 0; }
-      body.print-invoice * { visibility: hidden; }
-      body.print-invoice #invoice-print-area,
-      body.print-invoice #invoice-print-area * { visibility: visible; }
+      body.print-invoice > *:not(#invoice-modal) {
+        display: none !important;
+      }
+      body.print-invoice #invoice-modal {
+        position: static !important;
+        inset: auto !important;
+        display: block !important;
+        padding: 0 !important;
+        background: #fff !important;
+        backdrop-filter: none !important;
+      }
       body.print-invoice #invoice-print-area {
-        position: absolute;
-        left: 0;
-        top: 0;
+        position: static !important;
         width: 186mm;
+        margin: 0;
       }
       body.print-invoice .invoice-sheet {
         border: 0;
@@ -2093,6 +2100,7 @@
     let documentMode = "invoice";
     let signatureDataUrl = "";
     let selectedClientId = "";
+    let editingQuoteId = "";
     let currentView = "academyClients";
     let clients = [];
     let invoices = [];
@@ -2251,9 +2259,11 @@
       $("legal-section").classList.toggle("hidden", isQuote);
       $("legalAccepted").required = !isQuote;
       $("send-email-label").textContent = isQuote
-        ? "Enviar automáticamente al cliente el presupuesto desde empresas@kreateia.com."
+        ? (editingQuoteId ? "Enviar automáticamente al cliente el presupuesto actualizado desde empresas@kreateia.com." : "Enviar automáticamente al cliente el presupuesto desde empresas@kreateia.com.")
         : "Enviar automáticamente al cliente un email desde empresas@kreateia.com con el resumen de factura y mensaje de agradecimiento.";
-      $("submit-btn").textContent = isQuote ? "Crear presupuesto" : "Generar factura";
+      $("submit-btn").textContent = isQuote
+        ? (editingQuoteId ? "Guardar cambios del presupuesto" : "Crear presupuesto")
+        : "Generar factura";
 
       $("tax-summary").innerHTML = `
         <div class="sum-line"><span>Base imponible</span><strong>${money(base)}</strong></div>
@@ -2270,6 +2280,7 @@
       documentMode = "invoice";
       signatureDataUrl = "";
       selectedClientId = "";
+      editingQuoteId = "";
       lineItems = [emptyLineItem()];
       $("issueDate").valueAsDate = new Date();
       const validDate = new Date();
@@ -2289,6 +2300,7 @@
 
     document.querySelectorAll(".choice").forEach(btn => {
       btn.addEventListener("click", () => {
+        editingQuoteId = "";
         if (btn.dataset.type) {
           selectedType = btn.dataset.type;
           if (selectedType === "Academia") documentMode = "invoice";
@@ -3388,6 +3400,7 @@
           <td>
             <div style="display:flex;gap:6px;flex-wrap:wrap">
               <button class="btn ghost" type="button" data-open-quote="${escapeHtml(q.id)}">Ver</button>
+              ${q.convertedInvoiceId ? "" : `<button class="btn ghost" type="button" data-edit-quote="${escapeHtml(q.id)}">Editar</button>`}
               <button class="btn ghost" type="button" data-send-quote="${escapeHtml(q.id)}">Enviar</button>
               ${q.convertedInvoiceId ? `<button class="btn ghost" type="button" data-open-invoice="${escapeHtml(q.convertedInvoiceId)}">Factura</button>` : `<button class="btn ghost" type="button" data-convert-quote="${escapeHtml(q.id)}">Facturar</button>`}
             </div>
@@ -3397,6 +3410,10 @@
 
       document.querySelectorAll("[data-open-quote]").forEach(btn => {
         btn.addEventListener("click", () => openQuote(btn.dataset.openQuote));
+      });
+
+      document.querySelectorAll("[data-edit-quote]").forEach(btn => {
+        btn.addEventListener("click", () => editQuote(btn.dataset.editQuote));
       });
 
       document.querySelectorAll("[data-send-quote]").forEach(btn => {
@@ -3416,12 +3433,49 @@
       return clients.find(c => c.id === clientId) || null;
     }
 
+    function editQuote(quoteId) {
+      const quote = getQuote(quoteId);
+
+      if (!quote) return toast("No se encontró el presupuesto.");
+      if (quote.convertedInvoiceId) return toast("Este presupuesto ya tiene factura y no se puede editar.");
+
+      selectedClientId = quote.clientId || "";
+      editingQuoteId = quote.id || quoteId;
+      selectedType = "Servicios IA";
+      documentMode = "quote";
+
+      const client = quote.client || {};
+      $("fullName").value = client.fullName || "";
+      $("taxId").value = client.taxId || "";
+      $("phone").value = client.phone || "";
+      $("email").value = client.email || "";
+      $("address").value = client.address || "";
+      $("notes").value = quote.notes || "";
+      $("issueDate").value = quote.issueDate || academyTodayInputValue();
+      $("validUntil").value = quote.validUntil || "";
+      $("appointmentDate").value = "";
+      $("appointmentTime").value = "";
+      $("appointmentNotes").value = "";
+      $("sendEmail").checked = false;
+
+      lineItems = quoteLineItemsForForm(quote);
+      syncDocumentChoiceButtons();
+      renderLineItems();
+      updateTaxSummary();
+
+      $("client-modal").classList.add("hidden");
+      $("invoice-modal").classList.add("hidden");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      toast(`Editando presupuesto ${quote.quoteNumber || quote.id}.`);
+    }
+
     function fillFormFromClient(clientId, mode = "invoice") {
       const c = getClient(clientId);
 
       if (!c) return toast("No se encontró el cliente.");
 
       selectedClientId = c.id;
+      editingQuoteId = "";
       selectedType = c.serviceType === "Servicios IA" ? "Servicios IA" : "Academia";
       documentMode = selectedType === "Servicios IA" ? mode : "invoice";
 
@@ -3520,6 +3574,7 @@
                 <strong>${money(q.totalCents)}</strong>
                 <div class="mini">${escapeHtml(q.status || "Pendiente")} · ${q.emailSentAt ? "Email enviado" : "Email pendiente"}</div>
                 <button class="btn ghost" style="margin-top:6px;padding:7px 10px" type="button" data-open-quote="${escapeHtml(q.id)}">Ver presupuesto</button>
+                ${q.convertedInvoiceId ? "" : `<button class="btn ghost" style="margin-top:6px;padding:7px 10px" type="button" data-edit-quote="${escapeHtml(q.id)}">Editar</button>`}
                 ${q.convertedInvoiceId ? "" : `<button class="btn ghost" style="margin-top:6px;padding:7px 10px" type="button" data-convert-quote="${escapeHtml(q.id)}">Facturar</button>`}
               </div>
             </div>
@@ -3528,6 +3583,10 @@
 
       document.querySelectorAll("#client-quotes [data-open-quote]").forEach(btn => {
         btn.addEventListener("click", () => openQuote(btn.dataset.openQuote));
+      });
+
+      document.querySelectorAll("#client-quotes [data-edit-quote]").forEach(btn => {
+        btn.addEventListener("click", () => editQuote(btn.dataset.editQuote));
       });
 
       document.querySelectorAll("#client-quotes [data-convert-quote]").forEach(btn => {
@@ -3622,6 +3681,29 @@
 
     function getQuote(quoteId) {
       return quotes.find(q => q.id === quoteId) || null;
+    }
+
+    function quoteLineItemsForForm(quote) {
+      if (Array.isArray(quote.lineItems) && quote.lineItems.length) {
+        return quote.lineItems.map(item => ({
+          description: item.description || "",
+          quantity: item.quantity || 1,
+          unitAmount: Number(item.unitAmount || (Number(item.unitCents || 0) / 100)) || "",
+        }));
+      }
+
+      return [{
+        description: quote.concept || "",
+        quantity: 1,
+        unitAmount: Number(quote.baseCents || 0) ? Number(quote.baseCents || 0) / 100 : "",
+      }];
+    }
+
+    function syncDocumentChoiceButtons() {
+      document.querySelectorAll(".choice").forEach(btn => {
+        if (btn.dataset.type) btn.classList.toggle("active", btn.dataset.type === selectedType);
+        if (btn.dataset.documentMode) btn.classList.toggle("active", btn.dataset.documentMode === documentMode);
+      });
     }
 
     function openInvoice(invoiceId) {
@@ -3882,7 +3964,9 @@
 
       const btn = $("submit-btn");
       btn.disabled = true;
-      btn.textContent = isQuote ? "Creando presupuesto..." : "Generando...";
+      btn.textContent = isQuote
+        ? (editingQuoteId ? "Guardando cambios..." : "Creando presupuesto...")
+        : "Generando...";
 
       try {
         const token = await currentUser.getIdToken();
@@ -3895,6 +3979,7 @@
 
         const payload = {
           clientId: selectedClientId || undefined,
+          ...(editingQuoteId && isQuote ? { quoteId: editingQuoteId } : {}),
           serviceType: selectedType,
           concept: $("concept").value.trim(),
           lineItems: items,
@@ -3920,7 +4005,11 @@
           ...(isQuote ? { validUntil: $("validUntil").value } : { signatureDataUrl }),
         };
 
-        const res = await fetch(isQuote ? "/api/priv/create-quote" : "/api/priv/create-invoice", {
+        const endpoint = isQuote
+          ? (editingQuoteId ? "/api/priv/update-quote" : "/api/priv/create-quote")
+          : "/api/priv/create-invoice";
+
+        const res = await fetch(endpoint, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -3931,9 +4020,12 @@
 
         const data = await res.json().catch(() => ({}));
 
-        if (!res.ok) throw new Error(data.error || (isQuote ? "No se pudo crear el presupuesto." : "No se pudo crear la factura."));
+        if (!res.ok) throw new Error(data.error || (isQuote ? "No se pudo guardar el presupuesto." : "No se pudo crear la factura."));
 
-        toast(isQuote ? `Presupuesto ${data.quote.quoteNumber} creado.` : `Factura ${data.invoice.invoiceNumber} creada.`);
+        toast(isQuote
+          ? `Presupuesto ${data.quote.quoteNumber} ${editingQuoteId ? "actualizado" : "creado"}.`
+          : `Factura ${data.invoice.invoiceNumber} creada.`
+        );
 
         if ($("sendEmail").checked) {
           if (isQuote) await sendQuote(data.quote.id, null, true);
@@ -3942,10 +4034,12 @@
 
         resetForm();
       } catch (err) {
-        toast(err.message || (isQuote ? "Error creando presupuesto." : "Error creando factura."));
+        toast(err.message || (isQuote ? (editingQuoteId ? "Error actualizando presupuesto." : "Error creando presupuesto.") : "Error creando factura."));
       } finally {
         btn.disabled = false;
-        btn.textContent = isQuote ? "Crear presupuesto" : "Generar factura";
+        btn.textContent = isQuote
+          ? (editingQuoteId ? "Guardar cambios del presupuesto" : "Crear presupuesto")
+          : "Generar factura";
       }
     });
 
