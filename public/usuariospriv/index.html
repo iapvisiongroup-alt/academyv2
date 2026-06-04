@@ -239,6 +239,7 @@
       align-items: center;
       justify-content: space-between;
       gap: 12px;
+      flex-wrap: wrap;
       margin-bottom: 10px;
     }
 
@@ -262,13 +263,21 @@
 
     .line-item-row {
       display: grid;
-      grid-template-columns: minmax(160px, 1fr) 86px 112px 104px auto;
+      grid-template-columns: minmax(0, .8fr) minmax(0, 1fr) minmax(0, 1fr) 40px;
       gap: 8px;
       align-items: end;
       padding: 10px;
       border: 1px solid #eef2f7;
       border-radius: 14px;
       background: #f8fafc;
+    }
+
+    .line-item-row > div {
+      min-width: 0;
+    }
+
+    .line-item-row > div:first-child {
+      grid-column: 1 / -1;
     }
 
     .line-item-row label {
@@ -279,6 +288,8 @@
     }
 
     .line-item-row input {
+      width: 100%;
+      min-width: 0;
       border-radius: 11px;
       padding: 10px 11px;
       font-size: 13px;
@@ -295,6 +306,7 @@
       padding: 0 11px;
       font-size: 13px;
       font-weight: 950;
+      white-space: nowrap;
     }
 
     .line-remove {
@@ -1252,6 +1264,7 @@
       .agenda-list-grid { grid-template-columns: 1fr; }
       .line-item-row { grid-template-columns: 1fr 1fr; }
       .line-item-row > div:first-child { grid-column: 1 / -1; }
+      .line-remove { width: 100%; }
       .panel-top,
       .panel-help { align-items: stretch; flex-direction: column; }
       .view-tabs { grid-template-columns: 1fr; }
