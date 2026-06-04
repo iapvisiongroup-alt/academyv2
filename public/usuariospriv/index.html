@@ -992,22 +992,54 @@
       min-width: 0;
       border-collapse: collapse;
       margin-top: 10px;
+      table-layout: fixed;
     }
 
     .invoice-table th {
       position: static;
       background: #111827;
       color: #fff;
-      padding: 11px;
-      font-size: 11px;
+      padding: 9px 8px;
+      font-size: 10px;
       text-transform: uppercase;
-      letter-spacing: .06em;
+      letter-spacing: .03em;
     }
 
     .invoice-table td {
-      padding: 12px 11px;
+      padding: 10px 8px;
       border-bottom: 1px solid #e5e7eb;
-      font-size: 13px;
+      font-size: 12px;
+      line-height: 1.35;
+      word-break: break-word;
+    }
+
+    .invoice-table .desc-col { width: 46%; }
+    .invoice-table .qty-col { width: 11%; }
+    .invoice-table .unit-col,
+    .invoice-table .base-col,
+    .invoice-table .total-col { width: 14.33%; }
+
+    .invoice-brand-print {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 28px;
+      font-weight: 900;
+      letter-spacing: -.04em;
+      margin-bottom: 10px;
+    }
+
+    .invoice-brand-print .mark {
+      width: 34px;
+      height: 34px;
+      border: 2px solid #2563eb;
+      border-radius: 11px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #2563eb;
+      font-size: 17px;
+      font-weight: 950;
     }
 
     .invoice-totals {
@@ -1271,7 +1303,18 @@
     }
 
     @media print {
-      body { background: #fff; }
+      @page { size: A4; margin: 12mm; }
+      * {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      html,
+      body {
+        width: 210mm;
+        min-height: 297mm;
+        background: #fff;
+        overflow: visible !important;
+      }
       header,
       .form-card,
       .panel-head button,
@@ -1287,13 +1330,43 @@
         position: absolute;
         left: 0;
         top: 0;
-        width: 100%;
+        width: 186mm;
       }
       body.print-invoice .invoice-sheet {
         border: 0;
         border-radius: 0;
         box-shadow: none;
-        padding: 22mm 18mm;
+        padding: 0;
+        width: 186mm;
+        max-width: 186mm;
+      }
+      body.print-invoice .modal,
+      body.print-invoice .modal-card,
+      body.print-invoice .modal-body {
+        position: static !important;
+        display: block !important;
+        width: auto !important;
+        height: auto !important;
+        max-height: none !important;
+        overflow: visible !important;
+        padding: 0 !important;
+        background: #fff !important;
+        box-shadow: none !important;
+      }
+      body.print-invoice .invoice-top {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+      body.print-invoice .invoice-boxes {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+      body.print-invoice .invoice-table {
+        page-break-inside: auto;
+      }
+      body.print-invoice .invoice-table tr {
+        break-inside: avoid;
+        page-break-inside: avoid;
       }
     }
   </style>
@@ -3618,9 +3691,9 @@
         <article class="invoice-sheet">
           <div class="invoice-top">
             <div>
-              <div class="brand" style="font-size:28px;margin-bottom:10px">
-                <div class="brand-mark" style="width:34px;height:34px;border-radius:11px"></div>
-                <div><span>Kreate</span><span>IA</span></div>
+              <div class="invoice-brand-print">
+                <span class="mark">K</span>
+                <div><span style="color:#1d4ed8">Kreate</span><span style="color:#ea580c">IA</span></div>
               </div>
               <p style="margin:4px 0;font-size:13px;color:#4b5563">www.kreateia.com</p>
             </div>
@@ -3667,13 +3740,11 @@
           <table class="invoice-table">
             <thead>
               <tr>
-                <th style="text-align:left">Descripción</th>
-                <th style="text-align:right">Cant.</th>
-                <th style="text-align:right">Precio</th>
-                <th style="text-align:right">Base</th>
-                <th style="text-align:right">IVA</th>
-                <th style="text-align:right">Cuota IVA</th>
-                <th style="text-align:right">Total</th>
+                <th class="desc-col" style="text-align:left">Descripción</th>
+                <th class="qty-col" style="text-align:right">Cant.</th>
+                <th class="unit-col" style="text-align:right">Precio</th>
+                <th class="base-col" style="text-align:right">Base</th>
+                <th class="total-col" style="text-align:right">Total</th>
               </tr>
             </thead>
             <tbody>
@@ -3685,8 +3756,6 @@
                     <td style="text-align:right">${escapeHtml(item.quantity)}</td>
                     <td style="text-align:right">${money(item.unitCents)}</td>
                     <td style="text-align:right">${money(item.totalCents)}</td>
-                    <td style="text-align:right">${escapeHtml(taxLabel)}</td>
-                    <td style="text-align:right">${isExempt ? "Exento" : money(itemTax)}</td>
                     <td style="text-align:right"><strong>${money(item.totalCents + itemTax)}</strong></td>
                   </tr>
                 `;
@@ -3718,9 +3787,9 @@
         <article class="invoice-sheet">
           <div class="invoice-top">
             <div>
-              <div class="brand" style="font-size:28px;margin-bottom:10px">
-                <div class="brand-mark" style="width:34px;height:34px;border-radius:11px"></div>
-                <div><span>Kreate</span><span>IA</span></div>
+              <div class="invoice-brand-print">
+                <span class="mark">K</span>
+                <div><span style="color:#1d4ed8">Kreate</span><span style="color:#ea580c">IA</span></div>
               </div>
               <p style="margin:4px 0;font-size:13px;color:#4b5563">www.kreateia.com</p>
             </div>
@@ -3767,13 +3836,11 @@
           <table class="invoice-table">
             <thead>
               <tr>
-                <th style="text-align:left">Descripción</th>
-                <th style="text-align:right">Cant.</th>
-                <th style="text-align:right">Precio</th>
-                <th style="text-align:right">Base</th>
-                <th style="text-align:right">IVA</th>
-                <th style="text-align:right">Cuota IVA</th>
-                <th style="text-align:right">Total</th>
+                <th class="desc-col" style="text-align:left">Descripción</th>
+                <th class="qty-col" style="text-align:right">Cant.</th>
+                <th class="unit-col" style="text-align:right">Precio</th>
+                <th class="base-col" style="text-align:right">Base</th>
+                <th class="total-col" style="text-align:right">Total</th>
               </tr>
             </thead>
             <tbody>
@@ -3786,8 +3853,6 @@
                     <td style="text-align:right">${escapeHtml(item.quantity)}</td>
                     <td style="text-align:right">${money(item.unitCents)}</td>
                     <td style="text-align:right">${money(item.totalCents)}</td>
-                    <td style="text-align:right">IVA ${taxRate}%</td>
-                    <td style="text-align:right">${money(itemTax)}</td>
                     <td style="text-align:right"><strong>${money(item.totalCents + itemTax)}</strong></td>
                   </tr>
                 `;
