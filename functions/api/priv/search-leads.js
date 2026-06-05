@@ -57,6 +57,18 @@ export async function onRequest(context) {
 
     const now = new Date().toISOString();
     const campaignId = safeDocId('campaign_' + now + '_' + campaignName);
+    const searchKey = buildSearchKey({ locationText, latitude, longitude, radiusMeters, sectors, customQuery });
+    const searchGroup = {
+      campaignId,
+      campaignName,
+      searchKey,
+      locationText,
+      radiusMeters,
+      sectors,
+      customQuery,
+      createdAt: now,
+    };
+
     const rawPlaces = await searchPlaces(env, {
       latitude,
       longitude,
@@ -74,19 +86,57 @@ export async function onRequest(context) {
       staff,
       now,
       customQuery,
+      searchGroup,
     }));
-    const leads = await enrichLeadsWithWebsiteReports(baseLeads);
+
+    const existingLookups = await getExistingLeadDocs(env.FIREBASE_PROJECT_ID, accessToken, baseLeads);
+    const newBaseLeads = [];
+    const existingMatches = [];
+
+    baseLeads.forEach(lead => {
+      const existing = existingLookups.get(lead.id);
+
+      if (existing && existing.exists) {
+        existingMatches.push({ lead, existing });
+      } else {
+        newBaseLeads.push(lead);
+      }
+    });
+
+    const leads = await enrichLeadsWithWebsiteReports(newBaseLeads);
+    const existingLeadUpdates = existingMatches.map(({ lead, existing }) => {
+      const update = buildExistingLeadSearchUpdate(existing.data, lead, searchGroup, now);
+
+      return {
+        update: {
+          name: docName(env.FIREBASE_PROJECT_ID, `private_leads/${lead.id}`),
+          fields: toFields(update),
+        },
+        updateMask: {
+          fieldPaths: Object.keys(update),
+        },
+        currentDocument: {
+          exists: true,
+        },
+      };
+    });
 
     const campaignDoc = {
       name: campaignName,
       status: 'created',
+      searchKey,
       locationText,
       latitude,
       longitude,
       radiusMeters,
       sectors,
       customQuery,
-      totalFound: leads.length,
+      totalFound: baseLeads.length,
+      totalNew: leads.length,
+      totalExisting: existingMatches.length,
+      leadIds: baseLeads.map(lead => lead.id),
+      newLeadIds: leads.map(lead => lead.id),
+      existingLeadIds: existingMatches.map(item => item.lead.id),
       createdByUid: staff.uid,
       createdByEmail: staff.email,
       createdAt: now,
@@ -106,6 +156,7 @@ export async function onRequest(context) {
           fields: toFields(stripInternalId(lead)),
         },
       })),
+      ...existingLeadUpdates,
     ];
 
     for (const chunk of chunkArray(writes, 400)) {
@@ -115,7 +166,11 @@ export async function onRequest(context) {
     return json({
       ok: true,
       campaignId,
+      searchKey,
       total: leads.length,
+      totalFound: baseLeads.length,
+      newCount: leads.length,
+      duplicateCount: existingMatches.length,
       leads: leads.map(lead => ({
         id: lead.id,
         name: lead.name,
@@ -263,7 +318,7 @@ async function geocodeLocation(env, locationText) {
   };
 }
 
-function normalizeLead({ place, sector, campaignId, staff, now, customQuery }) {
+function normalizeLead({ place, sector, campaignId, staff, now, customQuery, searchGroup }) {
   const placeId = String(place.id || '').trim();
   const name = String(place.displayName?.text || place.displayName || 'Sin nombre').trim().slice(0, 220);
   const phone = String(place.nationalPhoneNumber || place.internationalPhoneNumber || '').trim().slice(0, 80);
@@ -278,6 +333,13 @@ function normalizeLead({ place, sector, campaignId, staff, now, customQuery }) {
   return {
     id: safeDocId('google_' + (placeId || name)),
     campaignId,
+    firstCampaignId: campaignId,
+    lastSeenCampaignId: campaignId,
+    lastSeenCampaignName: searchGroup?.campaignName || '',
+    lastSeenAt: now,
+    campaignIds: [campaignId],
+    searchHistory: searchGroup ? [searchGroup] : [],
+    seenCount: 1,
     source: 'google_places',
     placeId,
     name,
@@ -307,6 +369,65 @@ function normalizeLead({ place, sector, campaignId, staff, now, customQuery }) {
     createdAt: now,
     updatedAt: now,
   };
+}
+
+async function getExistingLeadDocs(projectId, accessToken, leads) {
+  const entries = await mapWithConcurrency(leads, 20, async lead => {
+    const existing = await getDoc(projectId, `private_leads/${lead.id}`, accessToken, true);
+    return [lead.id, existing];
+  });
+
+  return new Map(entries);
+}
+
+function buildExistingLeadSearchUpdate(existing, lead, searchGroup, now) {
+  const previousCampaignIds = Array.isArray(existing.campaignIds)
+    ? existing.campaignIds
+    : existing.campaignId
+      ? [existing.campaignId]
+      : [];
+
+  const campaignIds = uniqueStrings([
+    ...previousCampaignIds,
+    searchGroup.campaignId,
+  ]).slice(-20);
+
+  const previousHistory = Array.isArray(existing.searchHistory) ? existing.searchHistory : [];
+  const searchHistory = mergeSearchHistory(previousHistory, searchGroup);
+
+  return {
+    campaignIds,
+    searchHistory,
+    seenCount: Math.max(0, Number(existing.seenCount || 0)) + 1,
+    lastSeenAt: now,
+    lastSeenCampaignId: searchGroup.campaignId,
+    lastSeenCampaignName: searchGroup.campaignName,
+    lastFoundSearchKey: searchGroup.searchKey,
+    lastFoundSector: lead.sector,
+  };
+}
+
+function mergeSearchHistory(history, nextGroup) {
+  const normalized = history
+    .filter(item => item && typeof item === 'object')
+    .filter(item => item.campaignId !== nextGroup.campaignId);
+
+  normalized.push(nextGroup);
+  return normalized.slice(-12);
+}
+
+function uniqueStrings(values) {
+  const seen = new Set();
+  const result = [];
+
+  values.forEach(value => {
+    const clean = String(value || '').trim();
+    if (!clean || seen.has(clean)) return;
+    seen.add(clean);
+    result.push(clean);
+  });
+
+  return result;
 }
 
 function buildLeadSummary(lead, report = null) {
@@ -513,6 +634,29 @@ function buildCampaignName(locationText, sectors, customQuery = '') {
   const location = String(locationText || 'zona seleccionada').trim();
   const target = customQuery || sectors.join(', ');
   return `${location} - ${target || 'busqueda'}`.slice(0, 160);
+}
+
+function buildSearchKey({ locationText, latitude, longitude, radiusMeters, sectors, customQuery }) {
+  const normalizedLocation = String(locationText || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+
+  const normalizedSectors = Array.isArray(sectors)
+    ? [...new Set(sectors.map(v => String(v || '').trim().toLowerCase()).filter(Boolean))].sort()
+    : [];
+
+  const normalizedQuery = String(customQuery || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+
+  return [
+    normalizedLocation || `${Number(latitude).toFixed(4)},${Number(longitude).toFixed(4)}`,
+    String(radiusMeters),
+    normalizedSectors.join('+') || 'sin-sector',
+    normalizedQuery || 'sin-query',
+  ].join('|').slice(0, 500);
 }
 
 async function fetchWithTimeout(url, timeoutMs) {
