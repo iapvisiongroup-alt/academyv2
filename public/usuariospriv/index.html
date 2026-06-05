@@ -575,7 +575,7 @@
 
     .lead-stats {
       display: grid;
-      grid-template-columns: repeat(4, minmax(120px, 1fr));
+      grid-template-columns: repeat(6, minmax(120px, 1fr));
       gap: 10px;
     }
 
@@ -600,6 +600,76 @@
       margin-top: 4px;
       font-size: 20px;
       letter-spacing: -.04em;
+    }
+
+    .lead-campaigns {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: #f8fafc;
+      padding: 14px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .lead-campaigns-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .lead-campaigns-head strong {
+      font-size: 14px;
+      letter-spacing: -.02em;
+    }
+
+    .lead-campaign-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .lead-campaign {
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      background: #fff;
+      padding: 11px 12px;
+      display: grid;
+      gap: 6px;
+      min-height: 92px;
+    }
+
+    .lead-campaign-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    .lead-campaign-top strong {
+      color: #0f172a;
+      font-size: 13px;
+      line-height: 1.25;
+    }
+
+    .lead-campaign-metrics {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .lead-campaign-metrics span {
+      border-radius: 999px;
+      padding: 5px 8px;
+      font-size: 11px;
+      font-weight: 950;
+      background: #ecfdf5;
+      color: #047857;
+    }
+
+    .lead-campaign-metrics span.warn {
+      background: #fff7ed;
+      color: #c2410c;
     }
 
     .table-scroll {
@@ -1293,7 +1363,9 @@
       .invoice-boxes,
       .agenda-form-grid,
       .agenda-stats,
-      .agenda-list-grid { grid-template-columns: 1fr; }
+      .agenda-list-grid,
+      .lead-stats,
+      .lead-campaign-list { grid-template-columns: 1fr; }
       .line-item-row { grid-template-columns: 1fr 1fr; }
       .line-item-row > div:first-child { grid-column: 1 / -1; }
       .line-remove { width: 100%; }
@@ -1834,10 +1906,22 @@
             </form>
 
             <div class="lead-stats">
-              <div class="lead-stat"><span>Total</span><strong id="lead-stat-total">0</strong></div>
+              <div class="lead-stat"><span>Total guardados</span><strong id="lead-stat-total">0</strong></div>
               <div class="lead-stat"><span>Con teléfono</span><strong id="lead-stat-phone">0</strong></div>
               <div class="lead-stat"><span>Con web</span><strong id="lead-stat-web">0</strong></div>
+              <div class="lead-stat"><span>Nuevos última</span><strong id="lead-stat-new">0</strong></div>
+              <div class="lead-stat"><span>Repetidos</span><strong id="lead-stat-duplicate">0</strong></div>
               <div class="lead-stat"><span>Última búsqueda</span><strong id="lead-stat-last">-</strong></div>
+            </div>
+
+            <div class="lead-campaigns">
+              <div class="lead-campaigns-head">
+                <strong>Últimos grupos de búsqueda</strong>
+                <span class="mini">Cada búsqueda queda guardada como campaña y no duplica empresas ya existentes.</span>
+              </div>
+              <div id="lead-campaign-list" class="lead-campaign-list">
+                <div class="muted">Todavía no hay campañas guardadas.</div>
+              </div>
             </div>
 
             <input id="lead-filter" placeholder="Filtrar por nombre, sector, teléfono o ciudad..." />
@@ -2106,6 +2190,7 @@
     let invoices = [];
     let quotes = [];
     let leads = [];
+    let leadCampaigns = [];
     let academyBookings = [];
     let academyBlocks = [];
     let academyAvailabilityDays = [];
@@ -2114,6 +2199,7 @@
     let unsubscribeClients = null;
     let unsubscribeQuotes = null;
     let unsubscribeLeads = null;
+    let unsubscribeLeadCampaigns = null;
     let unsubscribeChat = null;
     let openClientId = "";
     let chatOpen = false;
@@ -2121,6 +2207,8 @@
     let chatMessages = [];
     let lastSeenChatMessageId = "";
     let lastLeadSearchLabel = "-";
+    let lastLeadNewCount = 0;
+    let lastLeadDuplicateCount = 0;
     let lineItems = [];
 
     const money = (cents) => new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR" }).format((Number(cents) || 0) / 100);
@@ -2353,8 +2441,10 @@
       if (unsubscribeClients) unsubscribeClients();
       if (unsubscribeQuotes) unsubscribeQuotes();
       if (unsubscribeLeads) unsubscribeLeads();
+      if (unsubscribeLeadCampaigns) unsubscribeLeadCampaigns();
       if (unsubscribeChat) unsubscribeChat();
       unsubscribeLeads = null;
+      unsubscribeLeadCampaigns = null;
       currentUser = user;
 
       if (!user) {
@@ -2607,12 +2697,16 @@
       $("tab-services-quotes").classList.toggle("active", view === "servicesQuotes");
       $("tab-lead-prospecting").classList.toggle("active", view === "leadProspecting");
 
-      if (cfg.leadView) subscribeLeads();
+      if (cfg.leadView) {
+        subscribeLeads();
+        subscribeLeadCampaigns();
+      }
       if (cfg.agendaView) loadAcademyAgenda();
       renderClients();
       renderInvoices();
       renderQuotes();
       renderLeads();
+      renderLeadCampaigns();
       renderAcademyAgenda();
       updatePanelHeader();
     }
@@ -3052,6 +3146,22 @@
       });
     }
 
+    function subscribeLeadCampaigns() {
+      if (!currentUser || unsubscribeLeadCampaigns) return;
+
+      const campaignQ = query(collection(db, "private_lead_campaigns"), orderBy("createdAt", "desc"), limit(12));
+
+      unsubscribeLeadCampaigns = onSnapshot(campaignQ, snap => {
+        leadCampaigns = [];
+        snap.forEach(d => leadCampaigns.push({ id: d.id, ...d.data() }));
+        renderLeadCampaigns();
+      }, () => {
+        if ($("lead-campaign-list")) {
+          $("lead-campaign-list").innerHTML = `<div class="muted">No se pudieron cargar los grupos de búsqueda.</div>`;
+        }
+      });
+    }
+
     async function searchLeads() {
       if (!currentUser) return toast("Debes iniciar sesión.");
 
@@ -3088,10 +3198,21 @@
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || "No se pudo buscar empresas.");
 
+        lastLeadNewCount = Number(data.newCount ?? data.total ?? 0);
+        lastLeadDuplicateCount = Number(data.duplicateCount || 0);
         lastLeadSearchLabel = locationText;
         $("lead-stat-last").textContent = locationText.slice(0, 18);
         subscribeLeads();
-        toast(`Encontradas ${data.total || 0} empresas.`);
+
+        if (lastLeadNewCount > 0 && lastLeadDuplicateCount > 0) {
+          toast(`Añadidas ${lastLeadNewCount} nuevas. ${lastLeadDuplicateCount} ya estaban guardadas.`);
+        } else if (lastLeadNewCount > 0) {
+          toast(`Añadidas ${lastLeadNewCount} empresas nuevas.`);
+        } else if (lastLeadDuplicateCount > 0) {
+          toast(`Sin nuevas: ${lastLeadDuplicateCount} ya estaban guardadas.`);
+        } else {
+          toast("No se encontraron empresas nuevas.");
+        }
       } catch (err) {
         toast(err.message || "Error buscando empresas.");
       } finally {
@@ -3139,12 +3260,46 @@
       $("lead-stat-total").textContent = String(leads.length);
       $("lead-stat-phone").textContent = String(leads.filter(lead => lead.phone).length);
       $("lead-stat-web").textContent = String(leads.filter(lead => lead.website).length);
+      $("lead-stat-new").textContent = String(lastLeadNewCount);
+      $("lead-stat-duplicate").textContent = String(lastLeadDuplicateCount);
 
       if (lastLeadSearchLabel && lastLeadSearchLabel !== "-") {
         $("lead-stat-last").textContent = lastLeadSearchLabel.slice(0, 18);
       } else {
         $("lead-stat-last").textContent = rows[0] ? shortLeadDate(rows[0].createdAt) : "-";
       }
+    }
+
+    function renderLeadCampaigns() {
+      const box = $("lead-campaign-list");
+      if (!box) return;
+
+      if (!leadCampaigns.length) {
+        box.innerHTML = `<div class="muted">Todavía no hay campañas guardadas.</div>`;
+        return;
+      }
+
+      box.innerHTML = leadCampaigns.slice(0, 8).map(campaign => {
+        const totalFound = Number(campaign.totalFound || 0);
+        const totalNew = Number(campaign.totalNew ?? campaign.totalFound ?? 0);
+        const totalExisting = Number(campaign.totalExisting || 0);
+        const target = campaign.customQuery || (Array.isArray(campaign.sectors) ? campaign.sectors.join(", ") : "");
+
+        return `
+          <article class="lead-campaign">
+            <div class="lead-campaign-top">
+              <strong>${escapeHtml(campaign.name || "Búsqueda sin nombre")}</strong>
+              <span class="mini">${escapeHtml(shortLeadDate(campaign.createdAt))}</span>
+            </div>
+            <div class="mini">${escapeHtml(campaign.locationText || "Zona no indicada")}${target ? ` · ${escapeHtml(target)}` : ""}</div>
+            <div class="lead-campaign-metrics">
+              <span>${totalNew} nuevas</span>
+              <span class="warn">${totalExisting} repetidas</span>
+              <span class="warn">${totalFound} vistas</span>
+            </div>
+          </article>
+        `;
+      }).join("");
     }
 
     function renderLeads() {
@@ -3169,6 +3324,7 @@
               <strong>${escapeHtml(lead.name || "Sin nombre")}</strong>
               <div class="mini">${escapeHtml(lead.address || "")}</div>
               <div class="mini">Añadido: ${escapeHtml(shortLeadDate(lead.createdAt))}</div>
+              <div class="mini">Visto en ${escapeHtml(lead.seenCount || (Array.isArray(lead.campaignIds) ? lead.campaignIds.length : 1))} búsqueda${Number(lead.seenCount || 1) === 1 ? "" : "s"}</div>
             </td>
             <td>
               ${lead.phone ? escapeHtml(lead.phone) : `<span class="muted">Sin teléfono</span>`}
