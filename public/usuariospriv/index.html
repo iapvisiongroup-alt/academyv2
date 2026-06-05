@@ -513,9 +513,25 @@
     .lead-panel {
       padding: 18px;
       display: grid;
-      gap: 14px;
+      gap: 12px;
       border-bottom: 1px solid var(--line);
       background: #fff;
+    }
+
+    .lead-actionbar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .lead-actionbar-main,
+    .lead-actionbar-danger {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
     }
 
     .lead-search-grid {
@@ -575,15 +591,22 @@
 
     .lead-stats {
       display: grid;
-      grid-template-columns: repeat(6, minmax(120px, 1fr));
-      gap: 10px;
+      grid-template-columns: 1.15fr repeat(4, minmax(105px, .65fr));
+      gap: 8px;
+      align-items: stretch;
     }
 
     .lead-stat {
       border: 1px solid var(--line);
-      border-radius: 16px;
-      padding: 12px;
+      border-radius: 12px;
+      padding: 10px 11px;
       background: #f8fafc;
+    }
+
+    .lead-stat.primary {
+      background: #0f172a;
+      border-color: #0f172a;
+      color: #fff;
     }
 
     .lead-stat span {
@@ -595,20 +618,24 @@
       font-weight: 900;
     }
 
+    .lead-stat.primary span {
+      color: #cbd5e1;
+    }
+
     .lead-stat strong {
       display: block;
       margin-top: 4px;
-      font-size: 20px;
+      font-size: 19px;
       letter-spacing: -.04em;
     }
 
     .lead-campaigns {
       border: 1px solid var(--line);
-      border-radius: 18px;
+      border-radius: 14px;
       background: #f8fafc;
-      padding: 14px;
+      padding: 12px;
       display: grid;
-      gap: 10px;
+      gap: 8px;
     }
 
     .lead-campaigns-head {
@@ -625,18 +652,18 @@
 
     .lead-campaign-list {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 8px;
+      gap: 6px;
     }
 
     .lead-campaign {
       border: 1px solid #e2e8f0;
-      border-radius: 14px;
+      border-radius: 10px;
       background: #fff;
-      padding: 11px 12px;
+      padding: 9px 10px;
       display: grid;
-      gap: 6px;
-      min-height: 92px;
+      grid-template-columns: minmax(220px, 1.4fr) minmax(180px, .9fr) auto;
+      gap: 10px;
+      align-items: center;
     }
 
     .lead-campaign-top {
@@ -656,6 +683,7 @@
       display: flex;
       gap: 6px;
       flex-wrap: wrap;
+      justify-content: flex-end;
     }
 
     .lead-campaign-metrics span {
@@ -1371,6 +1399,13 @@
       .line-remove { width: 100%; }
       .panel-top,
       .panel-help { align-items: stretch; flex-direction: column; }
+      .lead-actionbar { align-items: stretch; flex-direction: column; }
+      .lead-actionbar-main,
+      .lead-actionbar-danger,
+      .lead-actionbar-main .btn,
+      .lead-actionbar-danger .btn { width: 100%; }
+      .lead-campaign { grid-template-columns: 1fr; }
+      .lead-campaign-metrics { justify-content: flex-start; }
       .view-tabs { grid-template-columns: 1fr; }
     }
 
@@ -1895,29 +1930,29 @@
                 </div>
               </div>
 
-              <div class="lead-note">
-                La IA prepara la lista y el guion. El primer contacto comercial debe hacerlo una persona y se debe respetar cualquier solicitud de no contactar.
-              </div>
-
-              <div style="display:flex;gap:10px;flex-wrap:wrap">
-                <button id="lead-search-btn" class="btn primary" type="submit">Buscar empresas</button>
-                <button id="lead-clear-btn" class="btn ghost" type="button">Limpiar filtros</button>
+              <div class="lead-actionbar">
+                <div class="lead-actionbar-main">
+                  <button id="lead-search-btn" class="btn primary" type="submit">Buscar empresas</button>
+                  <button id="lead-clear-btn" class="btn ghost" type="button">Limpiar filtros</button>
+                </div>
+                <div class="lead-actionbar-danger">
+                  <button id="lead-clear-all-btn" class="btn danger" type="button">Borrar prospección</button>
+                </div>
               </div>
             </form>
 
             <div class="lead-stats">
-              <div class="lead-stat"><span>Total guardados</span><strong id="lead-stat-total">0</strong></div>
-              <div class="lead-stat"><span>Con teléfono</span><strong id="lead-stat-phone">0</strong></div>
-              <div class="lead-stat"><span>Con web</span><strong id="lead-stat-web">0</strong></div>
+              <div class="lead-stat primary"><span>Última búsqueda</span><strong id="lead-stat-last">-</strong></div>
               <div class="lead-stat"><span>Nuevos última</span><strong id="lead-stat-new">0</strong></div>
               <div class="lead-stat"><span>Repetidos</span><strong id="lead-stat-duplicate">0</strong></div>
-              <div class="lead-stat"><span>Última búsqueda</span><strong id="lead-stat-last">-</strong></div>
+              <div class="lead-stat"><span>Total guardados</span><strong id="lead-stat-total">0</strong></div>
+              <div class="lead-stat"><span>Con teléfono</span><strong id="lead-stat-phone">0</strong></div>
             </div>
 
             <div class="lead-campaigns">
               <div class="lead-campaigns-head">
-                <strong>Últimos grupos de búsqueda</strong>
-                <span class="mini">Cada búsqueda queda guardada como campaña y no duplica empresas ya existentes.</span>
+                <strong>Historial de búsquedas</strong>
+                <span class="mini">Se guardan por grupos y se saltan empresas repetidas.</span>
               </div>
               <div id="lead-campaign-list" class="lead-campaign-list">
                 <div class="muted">Todavía no hay campañas guardadas.</div>
@@ -3129,6 +3164,7 @@
       toast("Filtros limpios. Los leads guardados se mantienen.");
     });
 
+    $("lead-clear-all-btn").addEventListener("click", clearLeadProspecting);
     $("lead-filter").addEventListener("input", renderLeads);
 
     function subscribeLeads() {
@@ -3160,6 +3196,62 @@
           $("lead-campaign-list").innerHTML = `<div class="muted">No se pudieron cargar los grupos de búsqueda.</div>`;
         }
       });
+    }
+
+    async function clearLeadProspecting() {
+      if (!currentUser) return toast("Debes iniciar sesión.");
+
+      const ok = confirm("Esto borrará todos los leads, campañas e historial de prospección IA. No afecta a clientes, facturas ni presupuestos. ¿Quieres continuar?");
+      if (!ok) return;
+
+      const confirmation = prompt('Para confirmar, escribe exactamente: BORRAR_PROSPECCION');
+      if (confirmation !== "BORRAR_PROSPECCION") {
+        toast("Borrado cancelado.");
+        return;
+      }
+
+      const btn = $("lead-clear-all-btn");
+      btn.disabled = true;
+      btn.textContent = "Borrando...";
+
+      try {
+        const token = await currentUser.getIdToken();
+
+        const res = await fetch("/api/priv/clear-leads", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${token}`,
+          },
+          body: JSON.stringify({ confirmation }),
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) throw new Error(data.error || "No se pudo borrar la prospección.");
+
+        leads = [];
+        leadCampaigns = [];
+        lastLeadNewCount = 0;
+        lastLeadDuplicateCount = 0;
+        lastLeadSearchLabel = "-";
+        $("lead-location").value = "";
+        $("lead-custom-query").value = "";
+        $("lead-campaign-name").value = "";
+        $("lead-radius").value = "5000";
+        $("lead-filter").value = "";
+        document.querySelectorAll("[data-lead-sector]").forEach(input => {
+          input.checked = false;
+        });
+        renderLeads();
+        renderLeadCampaigns();
+        updatePanelHeader();
+        toast(`Prospección limpiada. ${data.totalDeleted || 0} registros borrados.`);
+      } catch (err) {
+        toast(err.message || "Error borrando prospección.");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Borrar prospección";
+      }
     }
 
     async function searchLeads() {
@@ -3259,7 +3351,6 @@
     function renderLeadStats(rows) {
       $("lead-stat-total").textContent = String(leads.length);
       $("lead-stat-phone").textContent = String(leads.filter(lead => lead.phone).length);
-      $("lead-stat-web").textContent = String(leads.filter(lead => lead.website).length);
       $("lead-stat-new").textContent = String(lastLeadNewCount);
       $("lead-stat-duplicate").textContent = String(lastLeadDuplicateCount);
 
