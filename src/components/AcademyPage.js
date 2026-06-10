@@ -17,6 +17,8 @@ const ANNUAL_COURSE = {
 const LEGACY_ANNUAL_COURSE_ID = 'ia-anual-presencial-viernes';
 const ANNUAL_COURSE_IDS = [ANNUAL_COURSE.id, LEGACY_ANNUAL_COURSE_ID];
 const ACADEMY_HERO_VIDEO_URL = 'https://d8j0ntlcm91z4.cloudfront.net/user_3Bu8kApHUBmQcoBNUYoyCcOGJne/hf_20260414_232148_e856f696-c60e-4c40-921e-3fc3ac60224f.mp4';
+const GOOGLE_ADS_CONTACT_CONVERSION_ID = 'AW-18195089658/VFp1CNTdqbwcEPqRjORD';
+const KREATEIA_WHATSAPP_URL = 'https://wa.me/34614403913?text=Hola%20KreateIA%2C%20quiero%20informaci%C3%B3n%20sobre%20los%20cursos%20de%20inteligencia%20artificial.';
 const CHANGE_LIMIT_HOURS = 24;
 
 function addAcademyStyles() {
@@ -43,6 +45,12 @@ function addAcademyStyles() {
         .ac-support{margin-top:22px;background:#0d1510;border:1px solid rgba(34,197,94,.22);border-radius:8px;padding:20px}
         .ac-support h2{font-size:24px;margin:0 0 8px}
         .ac-support p{color:rgba(255,255,255,.66);line-height:1.6;margin:0}
+        .ac-contact-cta{margin-top:14px;background:linear-gradient(135deg,#0d1510,#101010);border:1px solid rgba(34,197,94,.24);border-radius:8px;padding:20px;display:grid;grid-template-columns:1fr auto;gap:16px;align-items:center}
+        .ac-contact-cta h2{font-size:24px;margin:0 0 8px}
+        .ac-contact-cta p{color:rgba(255,255,255,.66);line-height:1.6;margin:0;max-width:720px}
+        .ac-contact-actions{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap}
+        .ac-whatsapp-btn{border:0;border-radius:999px;padding:13px 18px;background:#22c55e;color:#06270f;font-size:13px;font-weight:950;cursor:pointer;box-shadow:0 18px 46px rgba(34,197,94,.18);white-space:nowrap}
+        .ac-whatsapp-btn:hover{transform:translateY(-1px)}
         .ac-annual{position:relative;overflow:hidden;margin-top:28px;border:1px solid rgba(245,158,11,.35);border-radius:10px;background:linear-gradient(135deg,#171006,#0b0b0b 46%,#08111b);box-shadow:0 28px 90px rgba(245,158,11,.12)}
         .ac-annual:before{content:"";position:absolute;inset:auto -20% -42% 45%;height:280px;background:radial-gradient(circle,rgba(245,158,11,.3),transparent 64%);pointer-events:none}
         .ac-annual-inner{position:relative;z-index:1;display:grid;grid-template-columns:1.1fr .9fr;gap:22px;padding:28px}
@@ -142,7 +150,7 @@ function addAcademyStyles() {
         .ac-time:disabled{opacity:.35;cursor:not-allowed}
         .ac-empty{border:1px dashed rgba(255,255,255,.14);border-radius:8px;padding:16px;color:rgba(255,255,255,.55);font-size:13px;text-align:center}
         .ac-modal-actions{padding:18px 20px;border-top:1px solid rgba(255,255,255,.08);display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap}
-        @media(max-width:860px){.ac-flow,.ac-courses,.ac-annual-inner,.ac-manage-banner,.ac-booking-item{grid-template-columns:1fr}.ac-title{font-size:40px}.ac-shell{padding:22px 14px 70px}.ac-calendar{grid-template-columns:repeat(2,1fr)}.ac-times{grid-template-columns:repeat(2,1fr)}.ac-annual-inner{padding:20px}.ac-annual-grid{grid-template-columns:1fr}.ac-annual-price strong{font-size:42px}.ac-booking-actions{justify-content:flex-start}}
+        @media(max-width:860px){.ac-flow,.ac-courses,.ac-annual-inner,.ac-manage-banner,.ac-booking-item,.ac-contact-cta{grid-template-columns:1fr}.ac-title{font-size:40px}.ac-shell{padding:22px 14px 70px}.ac-calendar{grid-template-columns:repeat(2,1fr)}.ac-times{grid-template-columns:repeat(2,1fr)}.ac-annual-inner{padding:20px}.ac-annual-grid{grid-template-columns:1fr}.ac-annual-price strong{font-size:42px}.ac-booking-actions,.ac-contact-actions{justify-content:flex-start}}
     `;
 
     document.head.appendChild(style);
@@ -262,6 +270,34 @@ function handleAcademyImageError(img) {
     img.remove();
     const photo = img.closest('.ac-annual-photo');
     if (photo) photo.classList.add('fallback');
+}
+
+function openWhatsAppWithGoogleAdsConversion() {
+    const goToWhatsApp = () => {
+        window.location.href = KREATEIA_WHATSAPP_URL;
+    };
+
+    if (typeof window.gtag !== 'function') {
+        goToWhatsApp();
+        return;
+    }
+
+    let navigated = false;
+    const navigateOnce = () => {
+        if (navigated) return;
+        navigated = true;
+        goToWhatsApp();
+    };
+
+    window.gtag('event', 'conversion', {
+        send_to: GOOGLE_ADS_CONTACT_CONVERSION_ID,
+        value: 1.0,
+        currency: 'EUR',
+        event_callback: navigateOnce,
+        event_timeout: 1500,
+    });
+
+    setTimeout(navigateOnce, 1200);
 }
 
 export function AcademyPage(navigate) {
@@ -467,6 +503,18 @@ export function AcademyPage(navigate) {
                     Todos los cursos incluyen acompañamiento por WhatsApp. Podrás preguntar dudas, revisar prompts, pedir orientación y desbloquearte mientras aplicas la IA en tu trabajo, contenido o negocio.
                 </p>
             </section>
+
+            <section class="ac-contact-cta">
+                <div>
+                    <h2>¿No sabes qué curso elegir?</h2>
+                    <p>
+                        Escríbenos por WhatsApp y te orientamos rápido según tu nivel, tu objetivo y si prefieres formación 1 a 1 o grupo anual online.
+                    </p>
+                </div>
+                <div class="ac-contact-actions">
+                    <button class="ac-whatsapp-btn" type="button" data-whatsapp-contact>Hablar por WhatsApp</button>
+                </div>
+            </section>
         `;
 
         renderAnnualCourse(shell);
@@ -539,6 +587,10 @@ export function AcademyPage(navigate) {
 
                 startCheckout(courseId);
             });
+        });
+
+        root.querySelectorAll('[data-whatsapp-contact]').forEach(button => {
+            button.addEventListener('click', openWhatsAppWithGoogleAdsConversion);
         });
 
         if (bookingCourseId) renderBookingModal();
