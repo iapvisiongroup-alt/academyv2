@@ -18,6 +18,8 @@ const LEGACY_ANNUAL_COURSE_ID = 'ia-anual-presencial-viernes';
 const ANNUAL_COURSE_IDS = [ANNUAL_COURSE.id, LEGACY_ANNUAL_COURSE_ID];
 const ACADEMY_HERO_VIDEO_URL = 'https://d8j0ntlcm91z4.cloudfront.net/user_3Bu8kApHUBmQcoBNUYoyCcOGJne/hf_20260414_232148_e856f696-c60e-4c40-921e-3fc3ac60224f.mp4';
 const GOOGLE_ADS_CONTACT_CONVERSION_ID = 'AW-18195089658/VFp1CNTdqbwcEPqRjORD';
+const GOOGLE_ADS_PURCHASE_CONVERSION_ID = 'AW-18195089658/9ps2CPWSsrkcEPqRjORD';
+const PURCHASE_TRACKING_STORAGE_PREFIX = 'kreateia_google_ads_purchase_';
 const KREATEIA_WHATSAPP_URL = 'https://wa.me/34614403913?text=Hola%20KreateIA%2C%20quiero%20informaci%C3%B3n%20sobre%20los%20cursos%20de%20inteligencia%20artificial.';
 const CHANGE_LIMIT_HOURS = 24;
 
@@ -300,8 +302,50 @@ function openWhatsAppWithGoogleAdsConversion() {
     setTimeout(navigateOnce, 1200);
 }
 
+function getAcademyCourseValue(courseId) {
+    if (ANNUAL_COURSE_IDS.includes(courseId)) return 890;
+
+    const course = ACADEMY_COURSES.find(item => item.id === courseId);
+    const amount = Number(course?.amount || 0);
+
+    return amount > 0 ? amount / 100 : 1;
+}
+
+function trackAcademyPurchaseFromStripeReturn() {
+    const params = new URLSearchParams(window.location.search);
+
+    if (params.get('academy_payment') !== 'success') return;
+
+    const sessionId = String(params.get('session_id') || '').trim();
+    const courseId = String(params.get('courseId') || '').trim();
+
+    if (!sessionId || !courseId || typeof window.gtag !== 'function') return;
+
+    const storageKey = PURCHASE_TRACKING_STORAGE_PREFIX + sessionId;
+
+    try {
+        if (window.localStorage.getItem(storageKey) === 'sent') return;
+    } catch {
+        // La medicion puede continuar aunque el navegador bloquee localStorage.
+    }
+
+    window.gtag('event', 'conversion', {
+        send_to: GOOGLE_ADS_PURCHASE_CONVERSION_ID,
+        value: getAcademyCourseValue(courseId),
+        currency: 'EUR',
+        transaction_id: sessionId,
+    });
+
+    try {
+        window.localStorage.setItem(storageKey, 'sent');
+    } catch {
+        // El transaction_id tambien protege frente a conversiones duplicadas.
+    }
+}
+
 export function AcademyPage(navigate) {
     addAcademyStyles();
+    trackAcademyPurchaseFromStripeReturn();
 
     const root = document.createElement('div');
     root.id = 'academy-root';
