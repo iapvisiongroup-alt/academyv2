@@ -5,6 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>KreateIA · Cursos Presenciales de IA</title>
 
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18195089658"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'AW-18195089658');
+
+    function trackWhatsAppContact() {
+      gtag('event', 'conversion', {
+        send_to: 'AW-18195089658/VFp1CNTdqbwcEPqRjORD'
+      });
+    }
+  </script>
+
   <style>
     * {
       box-sizing: border-box;
@@ -82,6 +97,84 @@
       display: block;
       color: #111827;
       font-size: 15px;
+    }
+
+    .contact a {
+      color: #1d4ed8;
+      font-weight: 850;
+      text-decoration: none;
+    }
+
+    .cta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 24px;
+    }
+
+    .cta {
+      min-height: 48px;
+      padding: 13px 18px;
+      border-radius: 12px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      background: #16a34a;
+      color: #ffffff;
+      font-size: 15px;
+      font-weight: 900;
+      text-decoration: none;
+      box-shadow: 0 12px 26px rgba(22, 163, 74, .2);
+    }
+
+    .cta.secondary {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      color: #1e293b;
+      box-shadow: none;
+    }
+
+    .contact-band {
+      padding: 28px;
+      border-radius: 22px;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 24px;
+      align-items: center;
+    }
+
+    .contact-band h2 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      line-height: 1.1;
+    }
+
+    .contact-band p {
+      margin: 0;
+      color: #475569;
+      line-height: 1.55;
+    }
+
+    .floating-whatsapp {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 20;
+      min-height: 50px;
+      padding: 13px 17px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #16a34a;
+      color: #ffffff;
+      font-size: 14px;
+      font-weight: 900;
+      text-decoration: none;
+      box-shadow: 0 18px 42px rgba(15, 23, 42, .24);
     }
 
     .hero {
@@ -429,7 +522,8 @@
       .grid-2,
       .grid-3,
       .course-grid,
-      .program-list {
+      .program-list,
+      .contact-band {
         grid-template-columns: 1fr;
       }
 
@@ -437,6 +531,15 @@
       .hero-side,
       .program {
         padding: 24px;
+      }
+
+      .contact-band .cta-row {
+        margin-top: 0;
+      }
+
+      .floating-whatsapp {
+        right: 12px;
+        bottom: 12px;
       }
     }
 
@@ -458,6 +561,10 @@
       .note-box {
         box-shadow: none;
       }
+
+      .floating-whatsapp {
+        display: none;
+      }
     }
   </style>
 </head>
@@ -475,8 +582,8 @@
 
       <div class="contact">
         <strong>Más información</strong>
-        info@kreateia.com<br>
-        Formación presencial en el local
+        <a href="tel:+34614403913">614 403 913</a><br>
+        C/ Lino León Martínez, 6 · Torre-Pacheco
       </div>
     </header>
 
@@ -487,6 +594,16 @@
         <p class="lead">
           Cursos pensados para personas, negocios locales, emprendedores, creadores y empresas que quieren usar la IA en tareas reales: contenido, ventas, redes sociales, automatización, imagen, vídeo y productividad.
         </p>
+        <div class="cta-row">
+          <a
+            class="cta"
+            href="https://wa.me/34614403913?text=Hola%2C%20quiero%20informaci%C3%B3n%20sobre%20los%20cursos%20presenciales%20de%20KreateIA."
+            target="_blank"
+            rel="noopener"
+            onclick="trackWhatsAppContact()"
+          >Consultar por WhatsApp</a>
+          <a class="cta secondary" href="tel:+34614403913">Llamar al 614 403 913</a>
+        </div>
       </div>
 
       <aside class="hero-side">
@@ -865,10 +982,30 @@
     </section>
 
     <section class="section">
+      <div class="contact-band">
+        <div>
+          <h2>Consulta horarios y próximas plazas</h2>
+          <p>
+            Cuéntanos qué quieres aprender y te recomendamos el curso adecuado. Estamos en C/ Lino León Martínez, 6, Torre-Pacheco.
+          </p>
+        </div>
+        <div class="cta-row">
+          <a
+            class="cta"
+            href="https://wa.me/34614403913?text=Hola%2C%20quiero%20consultar%20horarios%20y%20plazas%20de%20los%20cursos%20presenciales."
+            target="_blank"
+            rel="noopener"
+            onclick="trackWhatsAppContact()"
+          >Preguntar por WhatsApp</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
       <div class="note-box">
         <h2>Información y plazas</h2>
         <p>
-          Para consultar horarios, disponibilidad, próximas fechas o resolver dudas sobre el programa anual, escribe a <strong>info@kreateia.com</strong>.
+          Para consultar horarios, disponibilidad, próximas fechas o resolver dudas sobre el programa anual, llama al <strong>614 403 913</strong> o escribe a <strong>info@kreateia.com</strong>.
         </p>
       </div>
     </section>
@@ -881,9 +1018,18 @@
 
       <div>
         <strong>Contacto</strong><br>
-        info@kreateia.com
+        614 403 913 · info@kreateia.com<br>
+        C/ Lino León Martínez, 6 · Torre-Pacheco
       </div>
     </footer>
   </div>
+
+  <a
+    class="floating-whatsapp"
+    href="https://wa.me/34614403913?text=Hola%2C%20quiero%20informaci%C3%B3n%20sobre%20los%20cursos%20presenciales%20de%20KreateIA."
+    target="_blank"
+    rel="noopener"
+    onclick="trackWhatsAppContact()"
+  >WhatsApp</a>
 </body>
 </html>
