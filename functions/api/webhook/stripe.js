@@ -61,11 +61,16 @@ async function saveInvoice(projectId, appId, uid, invoiceData, accessToken) {
         }
     };
 
-    await fetch(`${baseUrl}/${docPath}`, {
+    const res = await fetch(`${baseUrl}/${docPath}`, {
         method:  'PATCH',
         headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
         body:    JSON.stringify(body),
     });
+
+    if (!res.ok) {
+        const err = await res.text();
+        throw new Error(`Error guardando factura (${res.status}): ${err.slice(0, 200)}`);
+    }
 
     return invoiceId;
 }
@@ -229,11 +234,29 @@ export async function onRequestPost(context) {
             }
 
             const PLAN_CREDITS = { starter: 1000, pro: 3000, max: 10000 };
+            const PLAN_AMOUNTS = { starter: 999, pro: 2499, max: 6999 };
+            const PLAN_CURRENCY = 'eur';
             const creditsToAdd = PLAN_CREDITS[planId];
+            const expectedAmount = PLAN_AMOUNTS[planId];
 
             if (!creditsToAdd) {
                 console.error('❌ Plan desconocido:', planId);
                 return new Response('Plan desconocido', { status: 400 });
+            }
+
+            if (session.payment_status !== 'paid') {
+                console.error('❌ Pago no confirmado:', session.payment_status);
+                return new Response('Pago no confirmado', { status: 400 });
+            }
+
+            if (String(session.currency || '').toLowerCase() !== PLAN_CURRENCY) {
+                console.error('❌ Moneda inválida:', session.currency);
+                return new Response('Moneda inválida', { status: 400 });
+            }
+
+            if (Number(session.amount_total || 0) !== expectedAmount) {
+                console.error('❌ Importe no coincide:', session.amount_total, expectedAmount);
+                return new Response('Importe inválido', { status: 400 });
             }
 
             console.log(`💰 PAGO RECIBIDO — uid:${uid} | plan:${planId} | +${creditsToAdd} créditos`);
@@ -263,7 +286,6 @@ export async function onRequestPost(context) {
 
             // Guardar factura en Firestore
             const PLAN_NAMES = { starter: 'Iniciación', pro: 'Creador Pro', max: 'Estudio Max' };
-            const PLAN_PRICES = { starter: 999, pro: 2499, max: 6999 };
             await saveInvoice(
                 env.FIREBASE_PROJECT_ID,
                 env.FIREBASE_APP_ID,
@@ -272,7 +294,7 @@ export async function onRequestPost(context) {
                     planId:        planId,
                     planName:      PLAN_NAMES[planId] || planId,
                     credits:       creditsToAdd,
-                    amount:        PLAN_PRICES[planId] || session.amount_total || 0,
+                    amount:        expectedAmount,
                     currency:      session.currency || 'eur',
                     email:         session.customer_details?.email || '',
                     name:          session.customer_details?.name || '',

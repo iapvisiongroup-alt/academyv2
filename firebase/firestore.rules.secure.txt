@@ -43,6 +43,11 @@ service cloud.firestore {
       ]);
     }
 
+    function profileEmailIsValid() {
+      return !('email' in request.resource.data)
+        || request.resource.data.email == normalizedEmail();
+    }
+
     // Admin principal. Mantiene acceso total solo a tus emails reales.
     match /{document=**} {
       allow read, write: if isMainAdmin();
@@ -138,7 +143,7 @@ service cloud.firestore {
 
       allow create: if ownUserDoc(userId)
                     && request.resource.data.uid == request.auth.uid
-                    && (!('email' in request.resource.data) || request.resource.data.email == normalizedEmail())
+                    && profileEmailIsValid()
                     && !request.resource.data.keys().hasAny([
                       'credits',
                       'role',
@@ -147,7 +152,9 @@ service cloud.firestore {
                       'creditsUpdateReason'
                     ]);
 
-      allow update: if ownUserDoc(userId) && protectedUserFieldsNotChanged();
+      allow update: if ownUserDoc(userId)
+                    && protectedUserFieldsNotChanged()
+                    && profileEmailIsValid();
       allow delete: if false;
     }
 
