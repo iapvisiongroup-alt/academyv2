@@ -93,11 +93,12 @@ export function AuthModal(onSuccessCallback) {
 
     const handleSuccessfulAuth = async (user) => {
         try {
+            const userEmail = String(user.email || '').trim().toLowerCase();
             const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', user.uid);
             const snap = await getDoc(userRef);
             if (!snap.exists()) {
                 const newProfile = { 
-                    email: user.email || '',
+                    email: userEmail,
                     uid: user.uid,
                     createdAt: new Date().toISOString(),
                     updatedAt: new Date().toISOString(),
@@ -107,7 +108,7 @@ export function AuthModal(onSuccessCallback) {
                 const currentData = snap.data();
                 const updates = {};
 
-                if (!currentData.email && user.email) updates.email = user.email;
+                if (!currentData.email && userEmail) updates.email = userEmail;
                 if (currentData.uid !== user.uid) updates.uid = user.uid;
 
                 if (Object.keys(updates).length) {
