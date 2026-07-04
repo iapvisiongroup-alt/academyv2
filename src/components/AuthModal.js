@@ -1,4 +1,4 @@
-import { auth, googleProvider, db, APP_ID, ADMIN_EMAIL } from '../lib/firebase.js';
+import { auth, googleProvider, db, APP_ID } from '../lib/firebase.js';
 import { signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 
@@ -95,20 +95,24 @@ export function AuthModal(onSuccessCallback) {
         try {
             const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', user.uid);
             const snap = await getDoc(userRef);
-            const isAdmin = user.email === ADMIN_EMAIL;
-            
             if (!snap.exists()) {
                 const newProfile = { 
-                    email: user.email || 'Usuario Social', 
-                    credits: isAdmin ? 99999 : 0, 
-                    role: isAdmin ? 'admin' : 'user', 
-                    uid: user.uid 
+                    email: user.email || '',
+                    uid: user.uid,
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
                 };
                 await setDoc(userRef, newProfile);
             } else {
                 const currentData = snap.data();
-                if (isAdmin && currentData.role !== 'admin') {
-                    await updateDoc(userRef, { role: 'admin', credits: Math.max(currentData.credits, 99999) });
+                const updates = {};
+
+                if (!currentData.email && user.email) updates.email = user.email;
+                if (currentData.uid !== user.uid) updates.uid = user.uid;
+
+                if (Object.keys(updates).length) {
+                    updates.updatedAt = new Date().toISOString();
+                    await updateDoc(userRef, updates);
                 }
             }
             

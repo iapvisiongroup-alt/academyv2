@@ -1,0 +1,191 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function hasEmail() {
+      return signedIn() && request.auth.token.email is string;
+    }
+
+    function normalizedEmail() {
+      return request.auth.token.email.lower();
+    }
+
+    function isMainAdmin() {
+      return hasEmail()
+        && (
+          normalizedEmail() == 'info@iapvision.com'
+          || normalizedEmail() == 'info@kreateia.com'
+        );
+    }
+
+    function isPrivateAllowed() {
+      return hasEmail()
+        && exists(/databases/$(database)/documents/private_allowed_users/$(normalizedEmail()))
+        && get(/databases/$(database)/documents/private_allowed_users/$(normalizedEmail())).data.active == true;
+    }
+
+    function ownUserDoc(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function protectedUserFieldsNotChanged() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+        'credits',
+        'role',
+        'creditsUpdatedAt',
+        'creditsUpdatedBy',
+        'creditsUpdateReason'
+      ]);
+    }
+
+    // Admin principal. Mantiene acceso total solo a tus emails reales.
+    match /{document=**} {
+      allow read, write: if isMainAdmin();
+    }
+
+    // Permisos internos usuariospriv.
+    match /private_allowed_users/{email} {
+      allow get: if hasEmail() && email == normalizedEmail();
+      allow list, create, update, delete: if false;
+    }
+
+    match /private_clients/{clientId} {
+      allow read: if isPrivateAllowed();
+      allow create, update, delete: if false;
+    }
+
+    match /private_invoices/{invoiceId} {
+      allow read: if isPrivateAllowed();
+      allow create, update, delete: if false;
+    }
+
+    match /private_quotes/{quoteId} {
+      allow read: if isPrivateAllowed();
+      allow create, update, delete: if false;
+    }
+
+    match /private_chat_messages/{messageId} {
+      allow read: if isPrivateAllowed();
+
+      allow create: if isPrivateAllowed()
+                    && request.resource.data.keys().hasOnly([
+                      'text',
+                      'senderUid',
+                      'senderEmail',
+                      'senderName',
+                      'createdAt',
+                      'createdAtIso'
+                    ])
+                    && request.resource.data.text is string
+                    && request.resource.data.text.size() > 0
+                    && request.resource.data.text.size() <= 1200
+                    && request.resource.data.senderUid == request.auth.uid
+                    && request.resource.data.senderEmail == normalizedEmail();
+
+      allow update, delete: if false;
+    }
+
+    match /private_lead_campaigns/{campaignId} {
+      allow read: if isPrivateAllowed();
+      allow create, update: if isPrivateAllowed();
+      allow delete: if isMainAdmin();
+    }
+
+    match /private_leads/{leadId} {
+      allow read: if isPrivateAllowed();
+      allow create, update: if isPrivateAllowed();
+      allow delete: if isMainAdmin();
+    }
+
+    match /private_lead_events/{eventId} {
+      allow read: if isPrivateAllowed();
+      allow create: if isPrivateAllowed();
+      allow update, delete: if isMainAdmin();
+    }
+
+    match /private_counters/{counterId} {
+      allow read, write: if false;
+    }
+
+    match /admin_ai_tools/{toolId} {
+      allow read, write: if isMainAdmin();
+    }
+
+    match /public_ai_tools/{toolId} {
+      allow get, list: if signedIn()
+        && (
+          isMainAdmin()
+          || resource.data.enabled == true
+        );
+
+      allow create, update, delete: if isMainAdmin();
+    }
+
+    match /admin_ai_tool_runs/{runId} {
+      allow read: if isMainAdmin();
+      allow create, update, delete: if false;
+    }
+
+    // Perfil principal del usuario del SaaS.
+    // MUY IMPORTANTE: credits y role no pueden tocarse desde frontend.
+    match /artifacts/{appId}/public/data/users/{userId} {
+      allow read: if ownUserDoc(userId);
+
+      allow create: if ownUserDoc(userId)
+                    && request.resource.data.uid == request.auth.uid
+                    && (!('email' in request.resource.data) || request.resource.data.email == normalizedEmail())
+                    && !request.resource.data.keys().hasAny([
+                      'credits',
+                      'role',
+                      'creditsUpdatedAt',
+                      'creditsUpdatedBy',
+                      'creditsUpdateReason'
+                    ]);
+
+      allow update: if ownUserDoc(userId) && protectedUserFieldsNotChanged();
+      allow delete: if false;
+    }
+
+    match /artifacts/{appId}/public/data/users/{userId}/invoices/{invoiceId} {
+      allow read: if ownUserDoc(userId);
+      allow create, update, delete: if false;
+    }
+
+    match /artifacts/{appId}/public/data/users/{userId}/academy_purchases/{courseId} {
+      allow read: if ownUserDoc(userId);
+      allow create, update, delete: if false;
+    }
+
+    match /artifacts/{appId}/public/data/users/{userId}/academy_orders/{orderId} {
+      allow read: if ownUserDoc(userId);
+      allow create, update, delete: if false;
+    }
+
+    match /artifacts/{appId}/public/data/users/{userId}/academy_bookings/{bookingId} {
+      allow read: if ownUserDoc(userId);
+      allow create, update, delete: if false;
+    }
+
+    match /artifacts/{appId}/public/data/users/{userId}/generations/{docId} {
+      allow read, write: if ownUserDoc(userId);
+    }
+
+    match /artifacts/{appId}/public/data/users/{userId}/generation_tasks/{docId} {
+      allow read, write: if ownUserDoc(userId);
+    }
+
+    match /artifacts/{appId}/public/data/users/{userId}/artists/{document=**} {
+      allow read, write: if ownUserDoc(userId);
+    }
+
+    // Cierre por defecto para subcolecciones no previstas.
+    match /artifacts/{appId}/public/data/users/{userId}/{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

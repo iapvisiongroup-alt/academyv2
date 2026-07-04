@@ -1,6 +1,6 @@
 import { getModelById, getVideoModelById, getI2IModelById, getI2VModelById, getV2VModelById, getLipSyncModelById } from './models.js';
 import { auth, db, APP_ID } from './firebase.js';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 
 // ==========================================
 // SISTEMA DE PRECIOS (CRÉDITOS)
@@ -39,12 +39,7 @@ export class MuapiClient {
                 throw new Error(`Créditos insuficientes. Necesitas ${cost} CR, pero tienes ${currentCredits} CR.`);
             }
 
-            // Restamos los créditos en Firebase
-            await updateDoc(userRef, {
-                credits: Math.max(0, currentCredits - cost)
-            });
-
-            console.log(`[KreateIA Billing] Cobrados ${cost} CR. Saldo: ${Math.max(0, currentCredits - cost)} CR`);
+            console.log(`[KreateIA Billing] Saldo validado en cliente. El cargo real lo hace el backend: ${cost} CR`);
             return true;
 
         } catch (error) {

@@ -1,16 +1,35 @@
-import { db, APP_ID } from '../lib/firebase.js';
+import { auth, db, ADMIN_EMAIL } from '../lib/firebase.js';
 import {
     collection,
     getDocs,
     doc,
     setDoc,
-    updateDoc,
     serverTimestamp
 } from 'firebase/firestore';
 
 export function AdminPanel() {
     const overlay = document.createElement('div');
     overlay.className = 'fixed inset-0 bg-black/95 backdrop-blur-2xl flex items-center justify-center z-[9999] p-4 md:p-8 animate-fade-in';
+
+    const currentUser = auth.currentUser;
+    const isAdminEmail = String(currentUser?.email || '').toLowerCase() === String(ADMIN_EMAIL || '').toLowerCase();
+
+    if (!currentUser || !isAdminEmail) {
+        const denied = document.createElement('div');
+        denied.className = 'w-full max-w-md bg-[#0a0a0a] border border-red-500/30 rounded-[2rem] p-8 text-center shadow-[0_0_80px_rgba(239,68,68,0.15)]';
+        denied.innerHTML = `
+            <h2 class="text-2xl font-black text-white mb-3">Acceso bloqueado</h2>
+            <p class="text-white/50 text-sm leading-relaxed mb-6">
+                Este panel solo puede abrirlo el administrador principal autenticado.
+            </p>
+            <button id="close-admin-denied" class="bg-white/10 hover:bg-white/20 text-white px-5 py-3 rounded-xl font-bold">
+                Cerrar
+            </button>
+        `;
+        denied.querySelector('#close-admin-denied').onclick = () => overlay.remove();
+        overlay.appendChild(denied);
+        return overlay;
+    }
 
     const modal = document.createElement('div');
     modal.className = 'w-full max-w-6xl h-[86vh] bg-[#0a0a0a] border border-[#FFB000]/30 rounded-[2rem] shadow-[0_0_80px_rgba(255,176,0,0.15)] relative flex flex-col overflow-hidden';
@@ -372,25 +391,47 @@ export function AdminPanel() {
     modal.querySelector('#save-tool-btn').onclick = saveTool;
     modal.querySelector('#reload-tools-btn').onclick = loadTools;
 
+    async function adminApi(payload) {
+        const user = auth.currentUser;
+        if (!user) throw new Error('Sesión de administrador no disponible.');
+
+        const token = await user.getIdToken(true);
+        const response = await fetch('/api/admin/users', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: 'Bearer ' + token,
+            },
+            body: JSON.stringify(payload),
+        });
+
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok || data.ok === false) {
+            throw new Error(data.error || 'Error en API admin.');
+        }
+
+        return data;
+    }
+
     // Función para cargar todos los usuarios de Firebase
     const loadUsers = async () => {
         try {
-            const usersRef = collection(db, 'artifacts', APP_ID, 'public', 'data', 'users');
-            const snapshot = await getDocs(usersRef);
+            const data = await adminApi({ action: 'listUsers' });
+            const users = Array.isArray(data.users) ? data.users : [];
 
             tbody.innerHTML = '';
 
-            if (snapshot.empty) {
+            if (!users.length) {
                 tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-8 text-center">No hay usuarios registrados aún.</td></tr>`;
                 return;
             }
 
-            snapshot.forEach(docSnap => {
-                const data = docSnap.data();
-                const uid = docSnap.id;
-                const email = data.email || 'Sin Email';
-                const credits = data.credits || 0;
-                const role = data.role || 'user';
+            users.forEach(userData => {
+                const uid = userData.uid || userData.id;
+                const email = userData.email || 'Sin Email';
+                const credits = userData.credits || 0;
+                const role = userData.role || 'user';
 
                 const tr = document.createElement('tr');
                 tr.className = 'hover:bg-white/5 transition-colors group';
@@ -421,28 +462,22 @@ export function AdminPanel() {
             });
         } catch (error) {
             console.error('Error cargando usuarios:', error);
-            tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-8 text-center text-red-400">Error de permisos. Asegúrate de que las reglas de Firestore permiten leer la base de datos.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-8 text-center text-red-400">${error.message || 'Error cargando usuarios.'}</td></tr>`;
         }
     };
 
     window.updateCredits = async (uid, amount) => {
         try {
-            const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', uid);
-            const snap = await getDocs(collection(db, 'artifacts', APP_ID, 'public', 'data', 'users'));
-
-            let currentCredits = 0;
-
-            snap.forEach(d => {
-                if (d.id === uid) currentCredits = d.data().credits || 0;
+            const result = await adminApi({
+                action: 'adjustCredits',
+                uid,
+                amount: Number(amount) || 0,
             });
 
-            const newCredits = Math.max(0, currentCredits + amount);
-            await updateDoc(userRef, { credits: newCredits });
-
             const display = document.getElementById(`credit-display-${uid}`);
-            if (display) display.textContent = newCredits;
+            if (display) display.textContent = result.credits ?? 0;
         } catch (error) {
-            alert('Error al actualizar créditos.');
+            alert(error.message || 'Error al actualizar créditos.');
             console.error(error);
         }
     };
@@ -452,15 +487,16 @@ export function AdminPanel() {
 
         if (input !== null && input !== '' && !isNaN(input)) {
             try {
-                const newCredits = parseInt(input);
-                const userRef = doc(db, 'artifacts', APP_ID, 'public', 'data', 'users', uid);
-
-                await updateDoc(userRef, { credits: newCredits });
+                const result = await adminApi({
+                    action: 'setCredits',
+                    uid,
+                    credits: parseInt(input),
+                });
 
                 const display = document.getElementById(`credit-display-${uid}`);
-                if (display) display.textContent = newCredits;
+                if (display) display.textContent = result.credits ?? 0;
             } catch (error) {
-                alert('Error al guardar.');
+                alert(error.message || 'Error al guardar.');
             }
         }
     };

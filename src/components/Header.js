@@ -2,7 +2,7 @@ import { SettingsModal } from './SettingsModal.js';
 import { AuthModal } from './AuthModal.js';
 import { AdminPanel } from './AdminPanel.js';
 import { PricingModal } from './PricingModal.js';
-import { auth, db, APP_ID } from '../lib/firebase.js';
+import { auth, db, APP_ID, ADMIN_EMAIL } from '../lib/firebase.js';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
 
@@ -132,7 +132,9 @@ export function Header(navigate) {
             rightPart.appendChild(loginBtn);
 
         } else {
-            if (role === 'admin') {
+            const isAdminEmail = String(user.email || '').toLowerCase() === String(ADMIN_EMAIL || '').toLowerCase();
+
+            if (isAdminEmail) {
                 const adminBtn = document.createElement('button');
                 adminBtn.className = 'w-9 h-9 rounded-xl bg-gradient-to-br from-[#FFB000]/20 to-transparent border border-[#FFB000]/50 flex items-center justify-center text-xl shadow-[0_0_15px_rgba(255,176,0,0.2)] hover:scale-105 transition-transform mr-1 md:mr-2';
                 adminBtn.title = 'Panel de Control Maestro';

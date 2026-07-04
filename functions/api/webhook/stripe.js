@@ -69,7 +69,7 @@ async function saveInvoice(projectId, appId, uid, invoiceData, accessToken) {
     return invoiceId;
 }
 
-async function addCreditsToUser(projectId, appId, uid, credits, accessToken) {
+async function addCreditsToUser(projectId, appId, uid, credits, accessToken, profileData = {}) {
     const baseUrl  = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
     const docPath  = `artifacts/${appId}/public/data/users/${uid}`;
     const fullName = `projects/${projectId}/databases/(default)/documents/${docPath}`;
@@ -86,19 +86,32 @@ async function addCreditsToUser(projectId, appId, uid, credits, accessToken) {
         const doc      = await readRes.json();
         currentCredits = parseInt(doc.fields?.credits?.integerValue ?? 0);
         updateTime     = doc.updateTime;
+    } else if (readRes.status === 404) {
+        throw new Error(`Usuario no encontrado para añadir créditos: ${uid}`);
+    } else {
+        const err = await readRes.text();
+        throw new Error(`Error leyendo usuario (${readRes.status}): ${err.slice(0, 200)}`);
     }
 
     const newCredits = currentCredits + credits;
+    const fields = {
+        credits: { integerValue: String(newCredits) },
+        creditsUpdatedAt: { timestampValue: new Date().toISOString() },
+        creditsUpdatedBy: { stringValue: 'stripe_webhook' },
+    };
+
+    if (profileData.email) fields.email = { stringValue: String(profileData.email).toLowerCase() };
+    if (profileData.name) fields.name = { stringValue: String(profileData.name) };
 
     // Escribir con transacción atómica
     const writeBody = {
         writes: [{
             update: {
                 name:   fullName,
-                fields: { credits: { integerValue: String(newCredits) } },
+                fields,
             },
-            updateMask: { fieldPaths: ['credits'] },
-            ...(updateTime ? { currentDocument: { updateTime } } : {}),
+            updateMask: { fieldPaths: Object.keys(fields) },
+            currentDocument: { updateTime },
         }],
     };
 
@@ -189,7 +202,11 @@ export async function onRequestPost(context) {
                 env.FIREBASE_APP_ID,
                 uid,
                 creditsToAdd,
-                accessToken
+                accessToken,
+                {
+                    email: session.customer_details?.email || '',
+                    name: session.customer_details?.name || '',
+                }
             );
 
             console.log(`✅ Créditos añadidos — uid:${uid} | nuevo saldo:${newBalance}`);
