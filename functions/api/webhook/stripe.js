@@ -41,7 +41,7 @@ async function getServiceAccountToken(env) {
 
 async function saveInvoice(projectId, appId, uid, invoiceData, accessToken) {
     const baseUrl  = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
-    const invoiceId = `inv_${Date.now()}`;
+    const invoiceId = `stripe_${safeDocId(invoiceData.stripeSession || Date.now())}`;
     const docPath  = `artifacts/${appId}/public/data/users/${uid}/invoices/${invoiceId}`;
 
     const body = {
@@ -57,6 +57,7 @@ async function saveInvoice(projectId, appId, uid, invoiceData, accessToken) {
             status:      { stringValue: 'paid' },
             stripeSession: { stringValue: invoiceData.stripeSession },
             createdAt:   { timestampValue: new Date().toISOString() },
+            updatedAt:   { timestampValue: new Date().toISOString() },
         }
     };
 
@@ -73,6 +74,9 @@ async function addCreditsToUser(projectId, appId, uid, credits, accessToken, pro
     const baseUrl  = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
     const docPath  = `artifacts/${appId}/public/data/users/${uid}`;
     const fullName = `projects/${projectId}/databases/(default)/documents/${docPath}`;
+    const sessionId = String(profileData.stripeSession || '').trim();
+
+    if (!sessionId) throw new Error('Falta stripeSession para procesar créditos.');
 
     // Leer créditos actuales
     const readRes = await fetch(`${baseUrl}/${docPath}`, {
@@ -81,38 +85,68 @@ async function addCreditsToUser(projectId, appId, uid, credits, accessToken, pro
 
     let currentCredits = 0;
     let updateTime     = null;
+    let userExists     = false;
 
     if (readRes.ok) {
         const doc      = await readRes.json();
         currentCredits = parseInt(doc.fields?.credits?.integerValue ?? 0);
         updateTime     = doc.updateTime;
+        userExists     = true;
     } else if (readRes.status === 404) {
-        throw new Error(`Usuario no encontrado para añadir créditos: ${uid}`);
+        if (!profileData.email) {
+            throw new Error(`Usuario no encontrado y Stripe no envió email: ${uid}`);
+        }
     } else {
         const err = await readRes.text();
         throw new Error(`Error leyendo usuario (${readRes.status}): ${err.slice(0, 200)}`);
     }
 
+    const now = new Date().toISOString();
     const newCredits = currentCredits + credits;
     const fields = {
+        uid: { stringValue: uid },
         credits: { integerValue: String(newCredits) },
-        creditsUpdatedAt: { timestampValue: new Date().toISOString() },
+        creditsUpdatedAt: { timestampValue: now },
         creditsUpdatedBy: { stringValue: 'stripe_webhook' },
+        updatedAt: { timestampValue: now },
     };
 
     if (profileData.email) fields.email = { stringValue: String(profileData.email).toLowerCase() };
     if (profileData.name) fields.name = { stringValue: String(profileData.name) };
+    if (!userExists) {
+        fields.role = { stringValue: 'user' };
+        fields.createdAt = { timestampValue: now };
+    }
 
-    // Escribir con transacción atómica
+    const processedPath = `stripe_processed_sessions/${safeDocId(sessionId)}`;
+    const processedFullName = `projects/${projectId}/databases/(default)/documents/${processedPath}`;
+
+    // Escribir con protección idempotente: una sesión de Stripe solo puede sumar créditos una vez.
     const writeBody = {
-        writes: [{
-            update: {
-                name:   fullName,
-                fields,
+        writes: [
+            {
+                update: {
+                    name: processedFullName,
+                    fields: {
+                        stripeSession: { stringValue: sessionId },
+                        uid: { stringValue: uid },
+                        email: { stringValue: String(profileData.email || '').toLowerCase() },
+                        planId: { stringValue: String(profileData.planId || '') },
+                        credits: { integerValue: String(credits) },
+                        createdAt: { timestampValue: now },
+                    },
+                },
+                currentDocument: { exists: false },
             },
-            updateMask: { fieldPaths: Object.keys(fields) },
-            currentDocument: { updateTime },
-        }],
+            {
+                update: {
+                    name: fullName,
+                    fields,
+                },
+                updateMask: { fieldPaths: Object.keys(fields) },
+                currentDocument: userExists ? { updateTime } : { exists: false },
+            },
+        ],
     };
 
     const writeRes = await fetch(`${baseUrl}:commit`, {
@@ -123,10 +157,19 @@ async function addCreditsToUser(projectId, appId, uid, credits, accessToken, pro
 
     if (!writeRes.ok) {
         const err = await writeRes.text();
+
+        if (
+            writeRes.status === 409
+            || err.includes('ALREADY_EXISTS')
+            || err.includes('FAILED_PRECONDITION')
+        ) {
+            return { alreadyProcessed: true, credits: currentCredits };
+        }
+
         throw new Error(`Error Firestore (${writeRes.status}): ${err.slice(0, 200)}`);
     }
 
-    return newCredits;
+    return { alreadyProcessed: false, credits: newCredits };
 }
 
 export async function onRequestPost(context) {
@@ -197,7 +240,7 @@ export async function onRequestPost(context) {
 
             // 3. Añadir créditos en Firebase
             const accessToken = await getServiceAccountToken(env);
-            const newBalance  = await addCreditsToUser(
+            const creditResult = await addCreditsToUser(
                 env.FIREBASE_PROJECT_ID,
                 env.FIREBASE_APP_ID,
                 uid,
@@ -206,10 +249,17 @@ export async function onRequestPost(context) {
                 {
                     email: session.customer_details?.email || '',
                     name: session.customer_details?.name || '',
+                    stripeSession: session.id,
+                    planId,
                 }
             );
 
-            console.log(`✅ Créditos añadidos — uid:${uid} | nuevo saldo:${newBalance}`);
+            if (creditResult.alreadyProcessed) {
+                console.log(`ℹ️ Sesión Stripe ya procesada — ${session.id}`);
+                return new Response(JSON.stringify({ status: 'already_processed', credits: creditResult.credits }), { status: 200 });
+            }
+
+            console.log(`✅ Créditos añadidos — uid:${uid} | nuevo saldo:${creditResult.credits}`);
 
             // Guardar factura en Firestore
             const PLAN_NAMES = { starter: 'Iniciación', pro: 'Creador Pro', max: 'Estudio Max' };
@@ -232,7 +282,7 @@ export async function onRequestPost(context) {
             );
 
             console.log(`🧾 Factura guardada — uid:${uid} | plan:${planId}`);
-            return new Response(JSON.stringify({ status: 'success', credits: newBalance }), { status: 200 });
+            return new Response(JSON.stringify({ status: 'success', credits: creditResult.credits }), { status: 200 });
         }
 
         return new Response(JSON.stringify({ received: true }), { status: 200 });
@@ -241,4 +291,11 @@ export async function onRequestPost(context) {
         console.error(`❌ Webhook Error: ${err.message}`);
         return new Response(`Webhook Error: ${err.message}`, { status: 400 });
     }
+}
+
+function safeDocId(value) {
+    return String(value || '')
+        .trim()
+        .replace(/[^A-Za-z0-9_-]/g, '_')
+        .slice(0, 180) || `id_${Date.now()}`;
 }
