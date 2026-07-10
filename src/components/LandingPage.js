@@ -150,6 +150,11 @@ function makeVideo(url, className) {
     video.playsInline = true;
     video.setAttribute('playsinline', '');
     if (className) video.className = className;
+    video.addEventListener('error', () => {
+        const parent = video.parentElement;
+        if (parent) parent.classList.add('media-fallback');
+        video.remove();
+    });
     return video;
 }
 
@@ -172,6 +177,10 @@ function makeMediaCard(item, label, labelColor) {
         media.src = item.url;
         media.alt = item.title;
         media.loading = 'lazy';
+        media.addEventListener('error', () => {
+            card.classList.add('media-fallback');
+            media.remove();
+        });
     } else {
         media = makeVideo(item.url);
     }

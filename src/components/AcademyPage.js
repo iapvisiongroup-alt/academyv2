@@ -16,7 +16,7 @@ const ANNUAL_COURSE = {
 
 const LEGACY_ANNUAL_COURSE_ID = 'ia-anual-presencial-viernes';
 const ANNUAL_COURSE_IDS = [ANNUAL_COURSE.id, LEGACY_ANNUAL_COURSE_ID];
-const ACADEMY_HERO_VIDEO_URL = 'https://d8j0ntlcm91z4.cloudfront.net/user_3Bu8kApHUBmQcoBNUYoyCcOGJne/hf_20260414_232148_e856f696-c60e-4c40-921e-3fc3ac60224f.mp4';
+const ACADEMY_HERO_IMAGE_URL = '/assets/academy/curso-anual-zoom.png';
 const GOOGLE_ADS_CONTACT_CONVERSION_ID = 'AW-18195089658/VFp1CNTdqbwcEPqRjORD';
 const GOOGLE_ADS_PURCHASE_CONVERSION_ID = 'AW-18195089658/9ps2CPWSsrkcEPqRjORD';
 const PURCHASE_TRACKING_STORAGE_PREFIX = 'kreateia_google_ads_purchase_';
@@ -33,8 +33,8 @@ function addAcademyStyles() {
         #academy-root{width:100%;height:100%;overflow-y:auto;overflow-x:hidden;background:#050505;color:#fff;font-family:Inter,-apple-system,BlinkMacSystemFont,"SF Pro Display",sans-serif}
         .ac-shell{width:min(1180px,100%);margin:0 auto;padding:34px 18px 80px}
         .ac-hero{position:relative;overflow:hidden;min-height:520px;padding:52px 26px 30px;border:1px solid rgba(255,255,255,.1);border-radius:10px;background:#050505;display:flex;flex-direction:column;justify-content:flex-end}
-        .ac-hero-media{position:absolute;inset:0;z-index:0;background:#050505}
-        .ac-hero-media video{display:block;width:100%;height:100%;object-fit:cover;opacity:.72;filter:saturate(1.08) contrast(1.05)}
+        .ac-hero-media{position:absolute;inset:0;z-index:0;background:radial-gradient(circle at 22% 22%,rgba(245,158,11,.28),transparent 30%),radial-gradient(circle at 78% 18%,rgba(59,130,246,.2),transparent 30%),linear-gradient(135deg,#050505,#101010 45%,#160f05)}
+        .ac-hero-media img{display:block;width:100%;height:100%;object-fit:cover;opacity:.72;filter:saturate(1.08) contrast(1.05)}
         .ac-hero-media:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(5,5,5,.96),rgba(5,5,5,.74) 42%,rgba(5,5,5,.22)),linear-gradient(180deg,rgba(0,0,0,.14),rgba(0,0,0,.9));pointer-events:none}
         .ac-hero-content{position:relative;z-index:1}
         .ac-kicker{color:#f59e0b;font-size:12px;font-weight:950;text-transform:uppercase;margin:0 0 14px}
@@ -272,6 +272,9 @@ function handleAcademyImageError(img) {
     img.remove();
     const photo = img.closest('.ac-annual-photo');
     if (photo) photo.classList.add('fallback');
+
+    const hero = img.closest('.ac-hero-media');
+    if (hero) hero.classList.add('fallback');
 }
 
 function openWhatsAppWithGoogleAdsConversion() {
@@ -522,7 +525,7 @@ export function AcademyPage(navigate) {
         shell.innerHTML = `
             <section class="ac-hero">
                 <div class="ac-hero-media" aria-hidden="true">
-                    <video src="${ACADEMY_HERO_VIDEO_URL}" autoplay muted loop playsinline preload="metadata"></video>
+                    <img src="${ACADEMY_HERO_IMAGE_URL}" alt="" loading="eager" data-academy-hero-image>
                 </div>
 
                 <div class="ac-hero-content">
@@ -560,6 +563,11 @@ export function AcademyPage(navigate) {
                 </div>
             </section>
         `;
+
+        const heroImage = shell.querySelector('[data-academy-hero-image]');
+        if (heroImage) {
+            heroImage.addEventListener('error', () => handleAcademyImageError(heroImage));
+        }
 
         renderAnnualCourse(shell);
 

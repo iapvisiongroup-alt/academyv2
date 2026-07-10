@@ -285,7 +285,7 @@ async function getServiceAccountToken(env) {
         aud: 'https://oauth2.googleapis.com/token',
         iat: now,
         exp: now + 3600,
-        scope: 'https://www.googleapis.com/auth/datastore',
+        scope: 'https://www.googleapis.com/auth/datastore https://www.googleapis.com/auth/devstorage.read_write',
     };
 
     const jwt = await signJWT(payload, env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'));
@@ -407,6 +407,165 @@ function looksLikeMediaUrl(value) {
     ];
 
     return externalDomains.some(d => value.includes(d));
+}
+
+function isOwnStorageUrl(value, env) {
+    if (typeof value !== 'string') return false;
+    const bucket = getFirebaseStorageBucket(env);
+    return value.includes('firebasestorage.googleapis.com')
+        && value.includes(`/b/${encodeURIComponent(bucket)}/o/`);
+}
+
+function getFirebaseStorageBucket(env) {
+    return String(
+        env.FIREBASE_STORAGE_BUCKET
+        || env.FIREBASE_BUCKET
+        || (env.FIREBASE_PROJECT_ID ? `${env.FIREBASE_PROJECT_ID}.firebasestorage.app` : '')
+    ).trim();
+}
+
+function safeStorageNamePart(value) {
+    return String(value || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9_-]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 80) || 'media';
+}
+
+function extensionFromContentType(contentType) {
+    const type = String(contentType || '').toLowerCase();
+    if (type.includes('image/png')) return 'png';
+    if (type.includes('image/webp')) return 'webp';
+    if (type.includes('image/gif')) return 'gif';
+    if (type.includes('image/jpeg') || type.includes('image/jpg')) return 'jpg';
+    return 'bin';
+}
+
+function randomStorageId() {
+    const bytes = crypto.getRandomValues(new Uint8Array(12));
+    return [...bytes].map(v => v.toString(16).padStart(2, '0')).join('');
+}
+
+function isLikelyXmlAccessDenied(text) {
+    return /<Code>\s*AccessDenied\s*<\/Code>/i.test(text || '')
+        || /<Message>\s*Access Denied\s*<\/Message>/i.test(text || '');
+}
+
+async function fetchExternalImage(url) {
+    let headContentType = '';
+
+    try {
+        const head = await fetch(url, { method: 'HEAD' });
+        headContentType = head.headers.get('content-type') || '';
+
+        if (head.ok && headContentType && !headContentType.toLowerCase().startsWith('image/')) {
+            return null;
+        }
+    } catch {}
+
+    const res = await fetch(url);
+    const contentType = res.headers.get('content-type') || headContentType || 'application/octet-stream';
+
+    if (!res.ok) return null;
+
+    const bytes = await res.arrayBuffer();
+
+    if (!String(contentType).toLowerCase().startsWith('image/')) {
+        const preview = new TextDecoder().decode(bytes.slice(0, Math.min(bytes.byteLength, 500)));
+        if (isLikelyXmlAccessDenied(preview)) return null;
+        return null;
+    }
+
+    return { bytes, contentType };
+}
+
+async function uploadImageToFirebaseStorage({ sourceUrl, uid, env, accessToken }) {
+    const bucket = getFirebaseStorageBucket(env);
+    if (!bucket || !env.FIREBASE_PROJECT_ID || !accessToken) return sourceUrl;
+    if (!looksLikeMediaUrl(sourceUrl) || isOwnStorageUrl(sourceUrl, env)) return sourceUrl;
+
+    const image = await fetchExternalImage(sourceUrl);
+    if (!image) return sourceUrl;
+
+    const downloadToken = crypto.randomUUID();
+    const ext = extensionFromContentType(image.contentType);
+    const objectName = [
+        'users',
+        safeStorageNamePart(uid || 'anonymous'),
+        'generated',
+        `${Date.now()}-${randomStorageId()}.${ext}`,
+    ].join('/');
+
+    const boundary = `kreateia-${randomStorageId()}`;
+    const metadata = {
+        name: objectName,
+        contentType: image.contentType,
+        metadata: {
+            firebaseStorageDownloadTokens: downloadToken,
+            source: 'kreateia-generated-media',
+        },
+    };
+
+    const encoder = new TextEncoder();
+    const prefix = encoder.encode(
+        `--${boundary}\r\n`
+        + 'Content-Type: application/json; charset=UTF-8\r\n\r\n'
+        + JSON.stringify(metadata)
+        + `\r\n--${boundary}\r\n`
+        + `${image.contentType ? `Content-Type: ${image.contentType}\r\n` : ''}\r\n`
+    );
+    const suffix = encoder.encode(`\r\n--${boundary}--`);
+    const body = new Uint8Array(prefix.byteLength + image.bytes.byteLength + suffix.byteLength);
+    body.set(prefix, 0);
+    body.set(new Uint8Array(image.bytes), prefix.byteLength);
+    body.set(suffix, prefix.byteLength + image.bytes.byteLength);
+
+    const uploadRes = await fetch(
+        `https://storage.googleapis.com/upload/storage/v1/b/${encodeURIComponent(bucket)}/o?uploadType=multipart`,
+        {
+            method: 'POST',
+            headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': `multipart/related; boundary=${boundary}`,
+            },
+            body,
+        }
+    );
+
+    if (!uploadRes.ok) {
+        const err = await uploadRes.text().catch(() => '');
+        console.error('[API] No se pudo persistir imagen:', uploadRes.status, err.slice(0, 200));
+        return sourceUrl;
+    }
+
+    return `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(bucket)}/o/${encodeURIComponent(objectName)}?alt=media&token=${downloadToken}`;
+}
+
+async function persistImageUrls(value, { uid, env, accessToken }) {
+    if (!value) return value;
+
+    if (typeof value === 'string') {
+        try {
+            return await uploadImageToFirebaseStorage({ sourceUrl: value, uid, env, accessToken });
+        } catch (e) {
+            console.error('[API] Error persistiendo imagen:', e.message);
+            return value;
+        }
+    }
+
+    if (Array.isArray(value)) {
+        return Promise.all(value.map(item => persistImageUrls(item, { uid, env, accessToken })));
+    }
+
+    if (typeof value === 'object') {
+        const out = {};
+        for (const [key, item] of Object.entries(value)) {
+            out[key] = await persistImageUrls(item, { uid, env, accessToken });
+        }
+        return out;
+    }
+
+    return value;
 }
 
 async function wrapMediaUrls(value, env, request) {
@@ -743,11 +902,20 @@ async function handleDynamicToolRun(context, body) {
 
     const responseContentType = muapiResponse.headers.get('content-type') || 'application/json';
 
-    if (muapiResponse.ok && responseContentType.includes('application/json') && env.MEDIA_SECRET) {
+    if (muapiResponse.ok && responseContentType.includes('application/json')) {
         try {
-            const parsed = JSON.parse(responseBody);
-            const wrapped = await wrapMediaUrls(parsed, env, request);
-            responseBody = JSON.stringify(wrapped);
+            let parsed = JSON.parse(responseBody);
+            parsed = await persistImageUrls(parsed, {
+                uid: user.uid,
+                env,
+                accessToken,
+            });
+
+            if (env.MEDIA_SECRET) {
+                parsed = await wrapMediaUrls(parsed, env, request);
+            }
+
+            responseBody = JSON.stringify(parsed);
         } catch {}
     }
 
@@ -812,6 +980,7 @@ export async function onRequest(context) {
 
     // Verificar créditos si hay coste
     let uid = null;
+    let serviceAccessToken = null;
 
     if (cost > 0) {
         const idToken = getBearerToken(request);
@@ -835,13 +1004,13 @@ export async function onRequest(context) {
         }
 
         try {
-            const accessToken = await getServiceAccountToken(env);
+            serviceAccessToken = await getServiceAccountToken(env);
             const docPath = `artifacts/${env.FIREBASE_APP_ID}/public/data/users/${uid}`;
             const result = await firestoreDeductCredits(
                 env.FIREBASE_PROJECT_ID,
                 docPath,
                 cost,
-                accessToken
+                serviceAccessToken
             );
 
             if (!result.ok) return jsonError(result.message, 402);
@@ -899,11 +1068,40 @@ export async function onRequest(context) {
     // Envolver URLs de MuAPI con proxy kreateia-...
     const responseContentType = muapiResponse.headers.get('content-type') || '';
 
-    if (muapiResponse.ok && responseContentType.includes('application/json') && env.MEDIA_SECRET) {
+    if (muapiResponse.ok && responseContentType.includes('application/json')) {
         try {
-            const parsed  = JSON.parse(responseBody);
-            const wrapped = await wrapMediaUrls(parsed, env, request);
-            responseBody  = JSON.stringify(wrapped);
+            let parsed  = JSON.parse(responseBody);
+
+            if (!uid) {
+                const idToken = getBearerToken(request);
+                if (idToken && env.FIREBASE_API_KEY) {
+                    try {
+                        uid = await verifyFirebaseToken(idToken, env.FIREBASE_API_KEY);
+                    } catch {}
+                }
+            }
+
+            if (!serviceAccessToken && uid && env.FIREBASE_CLIENT_EMAIL && env.FIREBASE_PRIVATE_KEY && env.FIREBASE_PROJECT_ID) {
+                try {
+                    serviceAccessToken = await getServiceAccountToken(env);
+                } catch (e) {
+                    console.error('[API] No se pudo preparar persistencia de media:', e.message);
+                }
+            }
+
+            if (uid && serviceAccessToken) {
+                parsed = await persistImageUrls(parsed, {
+                    uid,
+                    env,
+                    accessToken: serviceAccessToken,
+                });
+            }
+
+            if (env.MEDIA_SECRET) {
+                parsed = await wrapMediaUrls(parsed, env, request);
+            }
+
+            responseBody  = JSON.stringify(parsed);
         } catch {}
     }
 
