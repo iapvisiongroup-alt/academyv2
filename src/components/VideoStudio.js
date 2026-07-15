@@ -263,7 +263,7 @@ export function VideoStudio() {
         referencesPanel.innerHTML = `
             <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
                 <div>
-                    <div style="color:#fff;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.08em">Referencias Seedance 2</div>
+                    <div style="color:#fff;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.08em">Referencias KreateVideo 2</div>
                     <div style="color:#666;font-size:10px;margin-top:3px">Renombra y usa @ en el prompt. El orden visible es el orden enviado.</div>
                 </div>
                 <button type="button" data-clear-video-images style="background:#ffffff0d;border:1px solid #ffffff12;color:#888;border-radius:999px;padding:6px 10px;font-size:10px;font-weight:800;cursor:pointer">Limpiar</button>
