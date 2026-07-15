@@ -82,15 +82,50 @@ const AR_LABELS = {
     '3:4': 'Retrato', '1:1': 'Cuadrado', '21:9': 'Cine'
 };
 
-const buildVideoParams = ({ finalApiId, promptText, selectedAr, selectedDuration, selectedQuality, uploadedImageUrl, uploadedVideoUrl, lastGenerationId }) => {
+const normalizeReferenceAlias = (value, fallback) => {
+    const raw = String(value || '').trim().replace(/^@+/, '');
+    const cleaned = raw
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9_-]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 32);
+
+    return cleaned || fallback;
+};
+
+const resolveImageReferencePrompt = (promptText, imageReferences) => {
+    const refs = Array.isArray(imageReferences) ? imageReferences : [];
+    let prompt = promptText || 'Animate this image';
+
+    refs.forEach((ref, index) => {
+        const canonical = '@image' + (index + 1);
+        const alias = '@' + normalizeReferenceAlias(ref.alias, 'image' + (index + 1));
+
+        if (alias !== canonical) {
+            prompt = prompt.replace(new RegExp(alias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), canonical);
+        }
+    });
+
+    if (refs.length && !/@image\d+/i.test(prompt)) {
+        prompt = '@image1 ' + prompt;
+    }
+
+    return prompt;
+};
+
+const buildVideoParams = ({ finalApiId, promptText, selectedAr, selectedDuration, selectedQuality, uploadedImageUrl, imageReferences, uploadedVideoUrl, lastGenerationId }) => {
     const duration = parseInt(selectedDuration) || 5;
     const quality  = selectedQuality || 'basic';
     if (['seedance-v2.0-t2v','veo3.1-fast-text-to-video','kling-v3.0-std-motion-control'].includes(finalApiId))
         return { prompt: promptText, aspect_ratio: selectedAr, duration, quality };
     if (finalApiId === 'seedance-2-vip-image-to-video-fast') {
-        let p = promptText || 'Animate this image';
-        if (!p.includes('@image1')) p = `@image1 ${p}`;
-        return { prompt: p, images_list: [uploadedImageUrl], aspect_ratio: selectedAr, duration, quality };
+        const refs = Array.isArray(imageReferences) && imageReferences.length
+            ? imageReferences
+            : (uploadedImageUrl ? [{ url: uploadedImageUrl, alias: 'image1' }] : []);
+        const p = resolveImageReferencePrompt(promptText, refs);
+        return { prompt: p, images_list: refs.map(ref => ref.url), aspect_ratio: selectedAr, duration, quality };
     }
     if (finalApiId === 'veo3.1-lite-image-to-video') {
         let p = promptText || 'Animate this image smoothly';
@@ -132,6 +167,7 @@ export function VideoStudio() {
     let selectedDuration  = 5;
     let selectedQuality   = 'basic';
     let uploadedImageUrl  = null;
+    let imageReferences   = [];
     let uploadedVideoUrl  = null;
     let lastGenerationId  = null;
 
@@ -140,7 +176,7 @@ export function VideoStudio() {
     const getCurrentMode = () => {
         if (selectedUiId === 'kreate-2-extend') return 'extend';
         if (uploadedVideoUrl) return 'v2v';
-        if (uploadedImageUrl) return 'i2v';
+        if (uploadedImageUrl || imageReferences.length) return 'i2v';
         return 't2v';
     };
 
@@ -196,20 +232,129 @@ export function VideoStudio() {
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleGenerate(); }
     });
 
+    const referencesPanel = document.createElement('div');
+    referencesPanel.style.cssText = 'display:none;border:1px solid #2a2a2a;background:#0b0b0b;border-radius:16px;padding:10px 12px;gap:10px;flex-direction:column';
+
+    function syncImageReferenceFallback() {
+        uploadedImageUrl = imageReferences[0]?.url || null;
+    }
+
+    function renderImageReferences() {
+        syncImageReferenceFallback();
+
+        if (!imageReferences.length) {
+            referencesPanel.style.display = 'none';
+            referencesPanel.innerHTML = '';
+            return;
+        }
+
+        referencesPanel.style.display = 'flex';
+        referencesPanel.innerHTML = `
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+                <div>
+                    <div style="color:#fff;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.08em">Referencias Seedance 2</div>
+                    <div style="color:#666;font-size:10px;margin-top:3px">Renombra y usa @ en el prompt. El orden visible es el orden enviado.</div>
+                </div>
+                <button type="button" data-clear-video-images style="background:#ffffff0d;border:1px solid #ffffff12;color:#888;border-radius:999px;padding:6px 10px;font-size:10px;font-weight:800;cursor:pointer">Limpiar</button>
+            </div>
+            <div style="display:grid;gap:8px">
+                ${imageReferences.map((ref, index) => `
+                    <div data-ref-row="${index}" style="display:grid;grid-template-columns:44px 1fr auto;gap:9px;align-items:center;background:#111;border:1px solid #222;border-radius:12px;padding:7px">
+                        <img src="${ref.thumbnail || ref.url}" alt="" style="width:44px;height:44px;border-radius:9px;object-fit:cover;background:#050505">
+                        <label style="display:grid;gap:4px;min-width:0">
+                            <span style="color:#555;font-size:9px;font-weight:900;text-transform:uppercase">Referencia ${index + 1}</span>
+                            <input data-ref-alias="${index}" value="@${normalizeReferenceAlias(ref.alias, 'image' + (index + 1))}" style="width:100%;background:#050505;border:1px solid #252525;border-radius:9px;color:#f59e0b;padding:8px 10px;font-size:12px;font-weight:900;outline:none">
+                        </label>
+                        <div style="display:flex;gap:5px">
+                            <button type="button" data-move-ref="${index}" data-dir="-1" ${index === 0 ? 'disabled' : ''} style="width:28px;height:28px;border-radius:8px;border:1px solid #252525;background:#080808;color:#777;cursor:pointer;opacity:${index === 0 ? '.35' : '1'}">↑</button>
+                            <button type="button" data-move-ref="${index}" data-dir="1" ${index === imageReferences.length - 1 ? 'disabled' : ''} style="width:28px;height:28px;border-radius:8px;border:1px solid #252525;background:#080808;color:#777;cursor:pointer;opacity:${index === imageReferences.length - 1 ? '.35' : '1'}">↓</button>
+                            <button type="button" data-remove-ref="${index}" style="width:28px;height:28px;border-radius:8px;border:1px solid #3b1717;background:#180909;color:#f87171;cursor:pointer">×</button>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+
+        referencesPanel.querySelectorAll('[data-ref-alias]').forEach(input => {
+            input.addEventListener('input', () => {
+                const index = Number(input.dataset.refAlias);
+                if (!imageReferences[index]) return;
+                imageReferences[index].alias = normalizeReferenceAlias(input.value, 'image' + (index + 1));
+                input.value = '@' + imageReferences[index].alias;
+                updateControlsForModel();
+            });
+            input.addEventListener('focus', () => input.select());
+        });
+
+        referencesPanel.querySelectorAll('[data-remove-ref]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const index = Number(btn.dataset.removeRef);
+                imageReferences.splice(index, 1);
+                imageReferences = imageReferences.map((ref, idx) => ({ ...ref, alias: ref.alias || 'image' + (idx + 1) }));
+                if (!imageReferences.length) textarea.placeholder = 'Describe el vídeo que quieres crear...';
+                renderImageReferences();
+                updateControlsForModel();
+            });
+        });
+
+        referencesPanel.querySelectorAll('[data-move-ref]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const index = Number(btn.dataset.moveRef);
+                const dir = Number(btn.dataset.dir);
+                const next = index + dir;
+                if (next < 0 || next >= imageReferences.length) return;
+                const copy = [...imageReferences];
+                const [item] = copy.splice(index, 1);
+                copy.splice(next, 0, item);
+                imageReferences = copy;
+                renderImageReferences();
+                updateControlsForModel();
+            });
+        });
+
+        const clearBtn = referencesPanel.querySelector('[data-clear-video-images]');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', () => {
+                imageReferences = [];
+                uploadedImageUrl = null;
+                textarea.placeholder = 'Describe el vídeo que quieres crear...';
+                picker.reset();
+                renderImageReferences();
+                updateControlsForModel();
+            });
+        }
+    }
+
     // UPLOAD IMAGEN
     let showVideoIcon;
     const picker = createUploadPicker({
         anchorContainer: container,
-        onSelect: ({ url }) => {
-            uploadedImageUrl = url; uploadedVideoUrl = null; lastGenerationId = null;
+        maxImages: 4,
+        onSelect: ({ url, urls, thumbnail }) => {
+            const selectedUrls = Array.isArray(urls) && urls.length ? urls : [url].filter(Boolean);
+            imageReferences = selectedUrls.map((itemUrl, index) => {
+                const existing = imageReferences.find(ref => ref.url === itemUrl);
+                return {
+                    url: itemUrl,
+                    thumbnail: existing?.thumbnail || (index === 0 ? thumbnail : itemUrl),
+                    alias: existing?.alias || 'image' + (index + 1),
+                };
+            });
+            uploadedImageUrl = imageReferences[0]?.url || null;
+            uploadedVideoUrl = null; lastGenerationId = null;
             if (showVideoIcon) showVideoIcon();
             selectedUiId = 'kreate-2'; selectedModelName = 'KreateVideo 2';
-            textarea.placeholder = 'Describe el movimiento de la imagen...';
+            textarea.placeholder = imageReferences.length > 1
+                ? 'Ejemplo: @image1 empieza la escena y @image2 marca el estilo final...'
+                : 'Describe el movimiento de @image1...';
+            renderImageReferences();
             updateControlsForModel();
         },
         onClear: () => {
+            imageReferences = [];
             uploadedImageUrl = null;
             textarea.placeholder = 'Describe el vídeo que quieres crear...';
+            renderImageReferences();
             updateControlsForModel();
         }
     });
@@ -272,9 +417,9 @@ export function VideoStudio() {
             const data = await resp.json();
             const url  = data.url || data.file_url || data.data?.url;
             if (!url) throw new Error('No se recibió URL.');
-            uploadedVideoUrl = url; uploadedImageUrl = null; lastGenerationId = null;
+            uploadedVideoUrl = url; uploadedImageUrl = null; imageReferences = []; lastGenerationId = null;
             selectedUiId = 'kreate-2'; selectedModelName = 'KreateVideo 2';
-            showVideoReady(); textarea.placeholder = 'Vídeo cargado — describe qué quieres generar...'; updateControlsForModel();
+            showVideoReady(); textarea.placeholder = 'Vídeo cargado — describe qué quieres generar...'; renderImageReferences(); updateControlsForModel();
         } catch (err) { showVideoIcon(); alert(`Error al subir vídeo: ${err.message}`); }
         videoFileInput.value = '';
     };
@@ -282,6 +427,113 @@ export function VideoStudio() {
     topRow.appendChild(videoPickerBtn);
     topRow.appendChild(textarea);
     bar.appendChild(topRow);
+    bar.appendChild(referencesPanel);
+
+    async function uploadVideoReferenceImage(file, token) {
+        const fd = new FormData();
+        fd.append('file', file);
+
+        const resp = await fetch('/api/v1/upload_file', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+            body: fd,
+        });
+
+        const data = await resp.json().catch(() => ({}));
+
+        if (!resp.ok) {
+            throw new Error(data.error || data.message || 'Error subiendo imagen: ' + resp.status);
+        }
+
+        const url = data.url
+            || data.file_url
+            || data.image_url
+            || data.data?.url
+            || data.output?.url
+            || data.outputs?.[0];
+
+        if (!url) throw new Error('No se recibió URL de la imagen.');
+
+        return url;
+    }
+
+    async function handleDroppedVideoImages(fileList) {
+        if (!auth?.currentUser) {
+            if (typeof AuthModal === 'function') {
+                document.body.appendChild(AuthModal());
+                return;
+            }
+            return alert('Debes iniciar sesión para subir imágenes.');
+        }
+
+        const files = Array.from(fileList || []).filter(file => file.type.startsWith('image/'));
+        if (!files.length) return;
+
+        const remainingSlots = Math.max(0, 4 - imageReferences.length);
+        if (!remainingSlots) return alert('Puedes usar hasta 4 imágenes de referencia.');
+
+        const selectedFiles = files.slice(0, remainingSlots);
+        const oldBorder = bar.style.border;
+        const oldBackground = bar.style.background;
+
+        bar.style.border = '1px solid #f59e0b';
+        bar.style.background = '#171006';
+        textarea.placeholder = 'Subiendo ' + selectedFiles.length + ' referencia(s)...';
+
+        try {
+            const token = await auth.currentUser.getIdToken();
+
+            for (const file of selectedFiles) {
+                const url = await uploadVideoReferenceImage(file, token);
+                imageReferences.push({
+                    url,
+                    thumbnail: URL.createObjectURL(file),
+                    alias: 'image' + (imageReferences.length + 1),
+                });
+            }
+
+            uploadedImageUrl = imageReferences[0]?.url || null;
+            uploadedVideoUrl = null;
+            lastGenerationId = null;
+            selectedUiId = 'kreate-2';
+            selectedModelName = 'KreateVideo 2';
+            showVideoIcon();
+            picker.reset();
+            textarea.placeholder = imageReferences.length > 1
+                ? 'Ejemplo: @image1 empieza la escena y @image2 marca el estilo final...'
+                : 'Describe el movimiento de @image1...';
+            renderImageReferences();
+            updateControlsForModel();
+        } catch (err) {
+            alert(err.message || 'Error subiendo imágenes.');
+        } finally {
+            bar.style.border = oldBorder;
+            bar.style.background = oldBackground;
+        }
+    }
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+        bar.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!Array.from(e.dataTransfer?.items || []).some(item => String(item.type || '').startsWith('image/'))) return;
+            bar.style.border = '1px solid #f59e0b';
+            bar.style.background = '#171006';
+        });
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        bar.addEventListener(eventName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (eventName === 'drop') {
+                handleDroppedVideoImages(e.dataTransfer?.files);
+                return;
+            }
+            bar.style.border = '1px solid #2a2a2a';
+            bar.style.background = '#111';
+        });
+    });
 
     // EXTEND BANNER
     const extendBanner = document.createElement('div');
@@ -437,7 +689,7 @@ export function VideoStudio() {
             extendBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 lastGenerationId = rid; selectedUiId = 'kreate-2-extend'; selectedModelName = 'KreateVideo 2 Extend';
-                uploadedImageUrl = null; uploadedVideoUrl = null; showVideoIcon();
+                uploadedImageUrl = null; imageReferences = []; uploadedVideoUrl = null; showVideoIcon(); renderImageReferences();
                 textarea.placeholder = 'Opcional: describe cómo continuar este vídeo...';
                 updateControlsForModel(); container.scrollTo({ top: 0, behavior: 'smooth' }); textarea.focus();
             });
@@ -471,8 +723,8 @@ export function VideoStudio() {
         }
         if (['seedance-v2.0-t2v','veo3.1-fast-text-to-video','kling-v3.0-std-motion-control'].includes(finalApiId) && !promptText)
             return alert('Escribe un prompt para generar el vídeo.');
-        if (finalApiId === 'seedance-2-vip-image-to-video-fast' && !uploadedImageUrl)
-            return alert('Sube una imagen de referencia primero.');
+        if (finalApiId === 'seedance-2-vip-image-to-video-fast' && !imageReferences.length && !uploadedImageUrl)
+            return alert('Sube una o varias imágenes de referencia primero.');
         if (finalApiId === 'veo3.1-lite-image-to-video' && !uploadedImageUrl)
             return alert('Sube una imagen de referencia para KreateVideo Fast I2V.');
         if (finalApiId === 'seedance-2.0-omni-reference-480p' && !uploadedVideoUrl)
@@ -483,7 +735,7 @@ export function VideoStudio() {
         // Saldo verificado por el backend
 
         galleryHeader.classList.remove('hidden');
-        const params      = buildVideoParams({ finalApiId, promptText, selectedAr, selectedDuration, selectedQuality, uploadedImageUrl, uploadedVideoUrl, lastGenerationId });
+        const params      = buildVideoParams({ finalApiId, promptText, selectedAr, selectedDuration, selectedQuality, uploadedImageUrl, imageReferences, uploadedVideoUrl, lastGenerationId });
         const cleanPrompt = String(params.prompt || promptText || '').replace(/@image\d/g,'').replace(/@video\d/g,'').trim();
 
         const loadingCard = document.createElement('div');
