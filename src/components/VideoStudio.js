@@ -239,6 +239,17 @@ export function VideoStudio() {
         uploadedImageUrl = imageReferences[0]?.url || null;
     }
 
+    function updateImageReferencePlaceholder() {
+        if (!imageReferences.length) {
+            textarea.placeholder = 'Describe el vídeo que quieres crear...';
+            return;
+        }
+
+        textarea.placeholder = imageReferences.length > 1
+            ? 'Ejemplo: @image1 empieza la escena y @image2 marca el estilo final...'
+            : 'Describe el movimiento de @image1...';
+    }
+
     function renderImageReferences() {
         syncImageReferenceFallback();
 
@@ -291,7 +302,7 @@ export function VideoStudio() {
                 const index = Number(btn.dataset.removeRef);
                 imageReferences.splice(index, 1);
                 imageReferences = imageReferences.map((ref, idx) => ({ ...ref, alias: ref.alias || 'image' + (idx + 1) }));
-                if (!imageReferences.length) textarea.placeholder = 'Describe el vídeo que quieres crear...';
+                updateImageReferencePlaceholder();
                 renderImageReferences();
                 updateControlsForModel();
             });
@@ -317,7 +328,7 @@ export function VideoStudio() {
             clearBtn.addEventListener('click', () => {
                 imageReferences = [];
                 uploadedImageUrl = null;
-                textarea.placeholder = 'Describe el vídeo que quieres crear...';
+                updateImageReferencePlaceholder();
                 picker.reset();
                 renderImageReferences();
                 updateControlsForModel();
@@ -344,16 +355,14 @@ export function VideoStudio() {
             uploadedVideoUrl = null; lastGenerationId = null;
             if (showVideoIcon) showVideoIcon();
             selectedUiId = 'kreate-2'; selectedModelName = 'KreateVideo 2';
-            textarea.placeholder = imageReferences.length > 1
-                ? 'Ejemplo: @image1 empieza la escena y @image2 marca el estilo final...'
-                : 'Describe el movimiento de @image1...';
+            updateImageReferencePlaceholder();
             renderImageReferences();
             updateControlsForModel();
         },
         onClear: () => {
             imageReferences = [];
             uploadedImageUrl = null;
-            textarea.placeholder = 'Describe el vídeo que quieres crear...';
+            updateImageReferencePlaceholder();
             renderImageReferences();
             updateControlsForModel();
         }
@@ -429,15 +438,24 @@ export function VideoStudio() {
     bar.appendChild(topRow);
     bar.appendChild(referencesPanel);
 
-    async function uploadVideoReferenceImage(file, token) {
+    async function uploadVideoReferenceImage(file) {
         const fd = new FormData();
         fd.append('file', file);
 
-        const resp = await fetch('/api/v1/upload_file', {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${token}` },
-            body: fd,
-        });
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 45000);
+
+        let resp;
+
+        try {
+            resp = await fetch('/api/v1/upload_file', {
+                method: 'POST',
+                body: fd,
+                signal: controller.signal,
+            });
+        } finally {
+            clearTimeout(timeout);
+        }
 
         const data = await resp.json().catch(() => ({}));
 
@@ -458,14 +476,6 @@ export function VideoStudio() {
     }
 
     async function handleDroppedVideoImages(fileList) {
-        if (!auth?.currentUser) {
-            if (typeof AuthModal === 'function') {
-                document.body.appendChild(AuthModal());
-                return;
-            }
-            return alert('Debes iniciar sesión para subir imágenes.');
-        }
-
         const files = Array.from(fileList || []).filter(file => file.type.startsWith('image/'));
         if (!files.length) return;
 
@@ -481,10 +491,8 @@ export function VideoStudio() {
         textarea.placeholder = 'Subiendo ' + selectedFiles.length + ' referencia(s)...';
 
         try {
-            const token = await auth.currentUser.getIdToken();
-
             for (const file of selectedFiles) {
-                const url = await uploadVideoReferenceImage(file, token);
+                const url = await uploadVideoReferenceImage(file);
                 imageReferences.push({
                     url,
                     thumbnail: URL.createObjectURL(file),
@@ -499,16 +507,18 @@ export function VideoStudio() {
             selectedModelName = 'KreateVideo 2';
             showVideoIcon();
             picker.reset();
-            textarea.placeholder = imageReferences.length > 1
-                ? 'Ejemplo: @image1 empieza la escena y @image2 marca el estilo final...'
-                : 'Describe el movimiento de @image1...';
+            updateImageReferencePlaceholder();
             renderImageReferences();
             updateControlsForModel();
         } catch (err) {
-            alert(err.message || 'Error subiendo imágenes.');
+            updateImageReferencePlaceholder();
+            alert(err.name === 'AbortError'
+                ? 'La subida tardó demasiado. Prueba con una imagen más ligera.'
+                : (err.message || 'Error subiendo imágenes.'));
         } finally {
             bar.style.border = oldBorder;
             bar.style.background = oldBackground;
+            updateImageReferencePlaceholder();
         }
     }
 
