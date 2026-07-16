@@ -201,7 +201,7 @@
         h1 {
             margin: 0;
             max-width: 980px;
-            font-size: clamp(54px, 6.2vw, 104px);
+            font-size: clamp(52px, 5.85vw, 96px);
             line-height: .92;
             font-weight: 1000;
             letter-spacing: 0;
@@ -248,23 +248,6 @@
             background: rgba(251, 191, 36, .18);
             border-color: rgba(251, 191, 36, .5);
             color: #fde68a;
-        }
-
-        .contact-line {
-            width: fit-content;
-            max-width: 100%;
-            display: inline-flex;
-            align-items: center;
-            gap: 14px;
-            padding: 14px 22px;
-            border-radius: 999px;
-            background: #25d366;
-            color: #05140a;
-            font-size: clamp(22px, 2.25vw, 36px);
-            line-height: 1;
-            font-weight: 1000;
-            text-transform: uppercase;
-            box-shadow: 0 18px 54px rgba(37, 211, 102, .28);
         }
 
         .side-panel {
@@ -381,6 +364,7 @@
             gap: 14px;
             justify-items: center;
             text-align: center;
+            align-self: end;
         }
 
         .qr-card img {
@@ -405,6 +389,18 @@
             font-size: clamp(14px, 1.15vw, 18px);
             line-height: 1.2;
             font-weight: 850;
+        }
+
+        .qr-phone {
+            margin-top: 12px;
+            padding: 10px 14px;
+            border-radius: 999px;
+            background: #25d366;
+            color: #06140a;
+            font-size: clamp(19px, 1.55vw, 27px);
+            line-height: 1;
+            font-weight: 1000;
+            white-space: nowrap;
         }
 
         .ticker {
@@ -531,6 +527,155 @@
                 display: none;
             }
         }
+
+        @media (max-height: 820px) {
+            .layout {
+                padding: 20px 36px 44px;
+                gap: 10px;
+            }
+
+            .topbar {
+                min-height: 54px;
+            }
+
+            .logo-mark {
+                width: 50px;
+                height: 50px;
+                border-radius: 15px;
+            }
+
+            .brand {
+                gap: 12px;
+            }
+
+            .brand-name {
+                font-size: 34px;
+            }
+
+            .brand-url {
+                margin-top: 5px;
+                font-size: 18px;
+            }
+
+            .status-badge {
+                min-height: 44px;
+                padding: 10px 18px;
+                font-size: 18px;
+            }
+
+            .main-grid {
+                grid-template-columns: minmax(0, 1fr) minmax(250px, 310px);
+                gap: 22px;
+            }
+
+            .hero {
+                gap: 9px;
+                justify-content: center;
+            }
+
+            .eyebrow {
+                padding: 8px 14px;
+                font-size: 15px;
+            }
+
+            h1 {
+                max-width: 740px;
+                font-size: clamp(46px, 5.3vw, 74px);
+                line-height: .89;
+            }
+
+            .subtitle {
+                max-width: 760px;
+                font-size: clamp(19px, 1.75vw, 25px);
+                line-height: 1.12;
+            }
+
+            .service-lines {
+                gap: 7px;
+            }
+
+            .service-line {
+                padding: 8px 13px;
+                border-radius: 12px;
+                font-size: clamp(18px, 1.85vw, 25px);
+            }
+
+            .side-panel {
+                gap: 10px;
+            }
+
+            .qr-card {
+                padding: 13px;
+                gap: 8px;
+            }
+
+            .qr-card img {
+                width: clamp(122px, 11vw, 158px);
+                height: clamp(122px, 11vw, 158px);
+                border-radius: 10px;
+            }
+
+            .qr-card strong {
+                font-size: 21px;
+            }
+
+            .qr-card span {
+                margin-top: 4px;
+                font-size: 13px;
+            }
+
+            .qr-phone {
+                margin-top: 7px;
+                padding: 7px 10px;
+                font-size: 18px;
+            }
+
+            .info-card {
+                padding: 14px 16px;
+                border-radius: 17px;
+            }
+
+            .info-card strong {
+                margin-bottom: 5px;
+                font-size: 22px;
+            }
+
+            .info-card span {
+                font-size: 15px;
+                line-height: 1.18;
+            }
+
+            .summer-card {
+                min-height: 86px;
+                gap: 10px;
+            }
+
+            .schedule-card {
+                padding: 12px 16px;
+                border-radius: 16px;
+                gap: 12px;
+            }
+
+            .small-label {
+                margin-bottom: 6px;
+                padding: 5px 8px;
+                font-size: 12px;
+            }
+
+            .schedule-card strong {
+                margin-bottom: 4px;
+                font-size: 24px;
+            }
+
+            .schedule-card span {
+                font-size: 15px;
+            }
+
+            .ticker {
+                height: 34px;
+                font-size: 16px;
+            }
+        }
     </style>
 </head>
 
@@ -577,15 +722,15 @@
                         <div class="service-line">Web / SEO / Marketing / Redes sociales</div>
                     </div>
 
-                    <div class="contact-line">Más info: +34 614 403 913</div>
                 </section>
 
                 <aside class="side-panel">
                     <article class="qr-card">
-                        <img alt="QR WhatsApp KreateIA" src="https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=8&data=https%3A%2F%2Fwa.me%2F34614403913%3Ftext%3DHola%2520KreateIA%252C%2520quiero%2520m%25C3%25A1s%2520informaci%25C3%25B3n" />
+                        <img alt="QR WhatsApp KreateIA" src="/assets/tv/whatsapp-qr.png" />
                         <div>
                             <strong>WhatsApp</strong>
                             <span>Escanea y pide información</span>
+                            <div class="qr-phone">+34 614 403 913</div>
                         </div>
                     </article>
 
