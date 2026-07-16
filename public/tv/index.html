@@ -45,7 +45,7 @@
             height: 100%;
             object-fit: cover;
             transform: scale(1.04);
-            filter: saturate(1.2) contrast(1.1) brightness(.72);
+            filter: saturate(1.28) contrast(1.12) brightness(.9);
             background: #000000;
         }
 
@@ -54,8 +54,8 @@
             inset: 0;
             z-index: 2;
             background:
-                linear-gradient(90deg, rgba(0, 0, 0, .92), rgba(0, 0, 0, .62) 48%, rgba(0, 0, 0, .88)),
-                linear-gradient(0deg, rgba(0, 0, 0, .96), rgba(0, 0, 0, .18) 46%, rgba(0, 0, 0, .64));
+                linear-gradient(90deg, rgba(0, 0, 0, .78), rgba(0, 0, 0, .42) 48%, rgba(0, 0, 0, .7)),
+                linear-gradient(0deg, rgba(0, 0, 0, .82), rgba(0, 0, 0, .08) 46%, rgba(0, 0, 0, .48));
         }
 
         .color-wash {
@@ -786,6 +786,7 @@
 
     <script>
         const videos = [
+            '/assets/tv/background.mp4',
             'https://cdn.higgsfield.ai/user_3AvFCf0aoS6DTSHhwoX3QgsDzIR/hf_20260409_094557_c0e3952b-1ecf-4621-9b06-eb86a7fe29e8_min.mp4',
             'https://cdn.higgsfield.ai/user_3AvFCf0aoS6DTSHhwoX3QgsDzIR/hf_20260409_094505_e898193e-ec14-4ecc-92ed-be976174fc88_min.mp4',
             'https://cdn.higgsfield.ai/user_3AvFCf0aoS6DTSHhwoX3QgsDzIR/hf_20260409_094612_2b122af8-b47a-4518-9d91-9675dd8e3f41_min.mp4',
@@ -796,8 +797,10 @@
 
         const mainVideo = document.getElementById('mainVideo');
         let current = 0;
+        let retryingVideo = false;
 
         function playVideo(url) {
+            retryingVideo = false;
             mainVideo.pause();
             mainVideo.removeAttribute('src');
             mainVideo.load();
@@ -806,6 +809,7 @@
             mainVideo.muted = true;
             mainVideo.loop = true;
             mainVideo.playsInline = true;
+            mainVideo.preload = 'auto';
             mainVideo.play().catch(function () {});
         }
 
@@ -813,6 +817,23 @@
             current = index % videos.length;
             playVideo(videos[current]);
         }
+
+        mainVideo.addEventListener('error', function () {
+            if (retryingVideo) return;
+            retryingVideo = true;
+            setTimeout(function () {
+                setScene(current + 1);
+            }, 500);
+        });
+
+        mainVideo.addEventListener('stalled', function () {
+            if (mainVideo.readyState < 2 && !retryingVideo) {
+                retryingVideo = true;
+                setTimeout(function () {
+                    if (mainVideo.readyState < 2) setScene(current + 1);
+                }, 2500);
+            }
+        });
 
         setScene(0);
 
