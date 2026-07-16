@@ -32,9 +32,9 @@
             height: 100vh;
             overflow: hidden;
             background:
-                radial-gradient(circle at 12% 18%, rgba(37, 99, 235, .36), transparent 32%),
-                radial-gradient(circle at 86% 12%, rgba(245, 158, 11, .3), transparent 32%),
-                radial-gradient(circle at 72% 86%, rgba(14, 165, 233, .18), transparent 34%),
+                radial-gradient(circle at 12% 18%, rgba(20, 184, 166, .42), transparent 32%),
+                radial-gradient(circle at 86% 12%, rgba(251, 191, 36, .36), transparent 32%),
+                radial-gradient(circle at 72% 86%, rgba(56, 189, 248, .22), transparent 34%),
                 #030303;
         }
 
@@ -64,9 +64,9 @@
             z-index: 3;
             pointer-events: none;
             background:
-                radial-gradient(circle at 18% 28%, rgba(37, 99, 235, .24), transparent 34%),
-                radial-gradient(circle at 84% 24%, rgba(245, 158, 11, .22), transparent 30%),
-                radial-gradient(circle at 64% 76%, rgba(59, 130, 246, .16), transparent 36%);
+                radial-gradient(circle at 18% 28%, rgba(20, 184, 166, .26), transparent 34%),
+                radial-gradient(circle at 84% 24%, rgba(251, 191, 36, .26), transparent 30%),
+                radial-gradient(circle at 64% 76%, rgba(56, 189, 248, .18), transparent 36%);
             mix-blend-mode: screen;
         }
 
@@ -146,14 +146,14 @@
             min-height: 54px;
             padding: 13px 22px;
             border-radius: 999px;
-            background: #f59e0b;
+            background: #fbbf24;
             color: #050505;
             font-size: clamp(16px, 1.75vw, 24px);
             line-height: 1;
             font-weight: 1000;
             text-transform: uppercase;
             white-space: nowrap;
-            box-shadow: 0 0 46px rgba(245, 158, 11, .38);
+            box-shadow: 0 0 46px rgba(251, 191, 36, .38);
         }
 
         .status-dot {
@@ -201,8 +201,8 @@
         h1 {
             margin: 0;
             max-width: 1100px;
-            font-size: clamp(72px, 8vw, 145px);
-            line-height: .88;
+            font-size: clamp(58px, 6.65vw, 118px);
+            line-height: .9;
             font-weight: 1000;
             letter-spacing: 0;
             text-transform: uppercase;
@@ -210,17 +210,34 @@
 
         h1 span {
             display: block;
-            color: #f59e0b;
-            text-shadow: 0 0 48px rgba(245, 158, 11, .44);
+            color: #fbbf24;
+            text-shadow: 0 0 48px rgba(251, 191, 36, .44);
         }
 
         .subtitle {
             margin: 0;
             max-width: 980px;
             color: rgba(255, 255, 255, .94);
-            font-size: clamp(27px, 2.6vw, 48px);
+            font-size: clamp(26px, 2.35vw, 42px);
             line-height: 1.14;
             font-weight: 900;
+        }
+
+        .contact-line {
+            width: fit-content;
+            max-width: 100%;
+            display: inline-flex;
+            align-items: center;
+            gap: 14px;
+            padding: 16px 24px;
+            border-radius: 999px;
+            background: #25d366;
+            color: #05140a;
+            font-size: clamp(22px, 2.4vw, 42px);
+            line-height: 1;
+            font-weight: 1000;
+            text-transform: uppercase;
+            box-shadow: 0 18px 54px rgba(37, 211, 102, .28);
         }
 
         .tags {
@@ -246,8 +263,8 @@
         }
 
         .tag.hot {
-            background: rgba(245, 158, 11, .16);
-            border-color: rgba(245, 158, 11, .5);
+            background: rgba(251, 191, 36, .16);
+            border-color: rgba(251, 191, 36, .5);
             color: #fde68a;
         }
 
@@ -317,7 +334,7 @@
 
         .summer-card {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1.35fr .8fr .72fr;
             gap: 14px;
             min-height: 120px;
         }
@@ -336,8 +353,8 @@
         }
 
         .schedule-card.accent {
-            background: rgba(245, 158, 11, .17);
-            border-color: rgba(245, 158, 11, .48);
+            background: rgba(251, 191, 36, .17);
+            border-color: rgba(251, 191, 36, .48);
         }
 
         .schedule-card strong {
@@ -359,6 +376,44 @@
             font-size: clamp(15px, 1.35vw, 20px);
             line-height: 1.25;
             font-weight: 820;
+        }
+
+        .qr-card {
+            min-width: 0;
+            padding: clamp(14px, 1.6vw, 20px);
+            border-radius: 22px;
+            background: #ffffff;
+            color: #050505;
+            border: 1px solid rgba(255, 255, 255, .34);
+            box-shadow: 0 24px 70px rgba(0, 0, 0, .42);
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr);
+            gap: 14px;
+            align-items: center;
+        }
+
+        .qr-card img {
+            width: clamp(92px, 7.2vw, 132px);
+            height: clamp(92px, 7.2vw, 132px);
+            display: block;
+            border-radius: 14px;
+        }
+
+        .qr-card strong {
+            display: block;
+            font-size: clamp(20px, 1.9vw, 30px);
+            line-height: 1.02;
+            font-weight: 1000;
+            text-transform: uppercase;
+        }
+
+        .qr-card span {
+            display: block;
+            margin-top: 8px;
+            color: #334155;
+            font-size: clamp(13px, 1.15vw, 18px);
+            line-height: 1.2;
+            font-weight: 850;
         }
 
         .ticker {
@@ -447,6 +502,10 @@
             .summer-card {
                 grid-template-columns: 1fr;
             }
+
+            .qr-card {
+                grid-template-columns: auto 1fr;
+            }
         }
 
         @media (max-width: 760px) {
@@ -505,45 +564,48 @@
 
                 <div class="status-badge">
                     <span class="status-dot"></span>
-                    Matrícula abierta
+                    Verano 2026
                 </div>
             </header>
 
             <div class="main-grid">
                 <section class="hero">
-                    <div class="eyebrow">Precios especiales por inauguración</div>
+                    <div class="eyebrow">Academia IA · Servicios digitales · Verano</div>
 
                     <h1>
-                        Cursos IA
-                        <span>todos los niveles</span>
+                        Cursos de IA
+                        <span>para todos los niveles</span>
                     </h1>
 
                     <p class="subtitle">
-                        Aprende a ganar dinero con la IA. Formación presencial, servicios para empresas, páginas web, SEO y automatizaciones.
+                        Servicios para empresas · Web, SEO, marketing y redes sociales para crecer con inteligencia artificial.
                     </p>
 
+                    <div class="contact-line">Más info: +34 614 403 913</div>
+
                     <div class="tags">
-                        <div class="tag hot">Curso anual con portátil incluido</div>
-                        <div class="tag">Gana dinero con IA</div>
-                        <div class="tag">Empresas</div>
-                        <div class="tag">Web + SEO</div>
+                        <div class="tag hot">Cursos IA</div>
+                        <div class="tag">Servicios para empresas</div>
+                        <div class="tag">Web / SEO</div>
+                        <div class="tag">Marketing</div>
+                        <div class="tag">Redes sociales</div>
                     </div>
                 </section>
 
                 <aside class="side-panel">
                     <article class="info-card">
-                        <strong>Curso anual IA</strong>
-                        <span>Te regalamos un portátil nuevo. Matrícula ya abierta.</span>
+                        <strong>Cursos de IA para todos los niveles</strong>
+                        <span>Desde iniciación hasta formación avanzada para aplicar IA en tu día a día.</span>
                     </article>
 
                     <article class="info-card">
                         <strong>Servicios para empresas</strong>
-                        <span>Automatización, contenido, formación y soluciones con IA.</span>
+                        <span>Automatización, contenido, publicidad, estrategia digital y soluciones con IA.</span>
                     </article>
 
                     <article class="info-card">
-                        <strong>Páginas web y SEO</strong>
-                        <span>Webs profesionales, posicionamiento y estrategia digital.</span>
+                        <strong>Web · SEO · Marketing · Redes</strong>
+                        <span>Páginas web, posicionamiento, campañas y contenido para redes sociales.</span>
                     </article>
                 </aside>
             </div>
@@ -551,21 +613,29 @@
             <section class="summer-card">
                 <article class="schedule-card">
                     <div>
-                        <div class="small-label">Horario especial · Julio</div>
+                        <div class="small-label">Horario Julio</div>
                         <strong>Lunes a jueves</strong>
-                        <span>10:00 a 14:00 · 17:30 a 20:00</span>
+                        <span>10h a 14h · 17:30h a 20h</span>
                     </div>
                     <div>
                         <strong>Viernes</strong>
-                        <span>10:00 a 14:00</span>
+                        <span>10h a 14h</span>
                     </div>
                 </article>
 
                 <article class="schedule-card accent">
                     <div>
-                        <div class="small-label">Horario especial · Agosto</div>
-                        <strong>Lunes a jueves</strong>
-                        <span>10:00 a 14:00 · Viernes, sábados, domingos y festivos cerrado</span>
+                        <div class="small-label">Fin de semana</div>
+                        <strong>Sábado y domingo</strong>
+                        <span>Cerrado</span>
+                    </div>
+                </article>
+
+                <article class="qr-card">
+                    <img alt="QR WhatsApp KreateIA" src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=8&data=https%3A%2F%2Fwa.me%2F34614403913%3Ftext%3DHola%2520KreateIA%252C%2520quiero%2520m%25C3%25A1s%2520informaci%25C3%25B3n" />
+                    <div>
+                        <strong>WhatsApp</strong>
+                        <span>Escanea y pide información</span>
                     </div>
                 </article>
             </section>
@@ -573,22 +643,20 @@
 
         <footer class="ticker">
             <div class="ticker-track">
-                <span>Precios especiales por inauguración</span>
-                <span>Cursos IA todos los niveles</span>
-                <span>Aprende a ganar dinero con la IA</span>
+                <span>Cursos de IA para todos los niveles</span>
                 <span>Servicios para empresas</span>
-                <span>Páginas web y SEO</span>
-                <span>Horario julio · L-J 10:00-14:00 y 17:30-20:00 · V 10:00-14:00</span>
-                <span>Horario agosto · L-J 10:00-14:00 · Viernes, sábados, domingos y festivos cerrado</span>
-                <span>WWW.KREATEIA.COM</span>
-                <span>Precios especiales por inauguración</span>
-                <span>Cursos IA todos los niveles</span>
-                <span>Aprende a ganar dinero con la IA</span>
+                <span>Web · SEO · Marketing · Redes sociales</span>
+                <span>Más info en +34 614 403 913</span>
+                <span>Horario Julio · Lunes a jueves 10h-14h y 17:30h-20h · Viernes 10h-14h</span>
+                <span>Sábado y domingo cerrado</span>
+                <span>www.kreateia.com</span>
+                <span>Cursos de IA para todos los niveles</span>
                 <span>Servicios para empresas</span>
-                <span>Páginas web y SEO</span>
-                <span>Horario julio · L-J 10:00-14:00 y 17:30-20:00 · V 10:00-14:00</span>
-                <span>Horario agosto · L-J 10:00-14:00 · Viernes, sábados, domingos y festivos cerrado</span>
-                <span>WWW.KREATEIA.COM</span>
+                <span>Web · SEO · Marketing · Redes sociales</span>
+                <span>Más info en +34 614 403 913</span>
+                <span>Horario Julio · Lunes a jueves 10h-14h y 17:30h-20h · Viernes 10h-14h</span>
+                <span>Sábado y domingo cerrado</span>
+                <span>www.kreateia.com</span>
             </div>
         </footer>
     </main>
