@@ -119,7 +119,7 @@
     if (role === 'assistant') {
       const avatar = document.createElement('span');
       avatar.className = 'kia-message-dot';
-      avatar.textContent = 'IA';
+      avatar.textContent = 'K';
       avatar.setAttribute('aria-hidden', 'true');
       row.appendChild(avatar);
     }
@@ -145,7 +145,7 @@
 
     const avatar = document.createElement('span');
     avatar.className = 'kia-message-dot';
-    avatar.textContent = 'IA';
+    avatar.textContent = 'K';
     avatar.setAttribute('aria-hidden', 'true');
 
     typingNode = document.createElement('div');

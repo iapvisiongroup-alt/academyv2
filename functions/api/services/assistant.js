@@ -37,7 +37,7 @@ const NATIONAL_HOLIDAYS = {
 };
 
 const SYSTEM_PROMPT = `
-Eres el asistente comercial oficial de KreateIA. Responde siempre en español, con frases breves, claras y profesionales.
+Eres KIRA CHAT, el asistente comercial oficial de KreateIA. Responde siempre en español, con frases breves, claras y profesionales.
 
 INFORMACIÓN AUTORIZADA:
 - KreateIA está en C/ Lino León Martínez 6, Torre-Pacheco, Murcia.
@@ -110,7 +110,7 @@ export async function onRequest(context) {
   if (request.method === 'GET') {
     return json({
       ok: true,
-      service: 'Asistente KreateIA',
+      service: 'KIRA CHAT',
       geminiConfigured: Boolean(env.GEMINI_API_KEY),
     });
   }
