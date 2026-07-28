@@ -33,15 +33,8 @@
   <meta name="twitter:image" content="https://kreateia.com/assets/brand/kreateia-local.jpg" />
   <meta name="theme-color" content="#07111f" />
   <link rel="stylesheet" href="/servicios/chat.css" />
-
-  <!-- Google tag -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18195089658"></script>
-  <script>
-    window.dataLayer = window.dataLayer || [];
-    function gtag(){dataLayer.push(arguments);}
-    gtag('js', new Date());
-    gtag('config', 'AW-18195089658');
-  </script>
+  <link rel="stylesheet" href="/servicios/privacy.css" />
+  <script src="/servicios/privacy.js" defer></script>
 
   <style>
     :root {
@@ -1422,6 +1415,10 @@
         <a href="/">KreateIA Studio</a>
         <a href="/cursos/">Cursos</a>
         <a href="mailto:empresas@kreateia.com">Contacto</a>
+        <a href="/privacidad/">Privacidad</a>
+        <a href="/cookies/">Cookies</a>
+        <a href="/aviso-legal/">Aviso legal</a>
+        <button class="footer-cookie-settings" type="button" data-cookie-settings>Configurar cookies</button>
       </div>
     </div>
   </footer>
@@ -1479,6 +1476,14 @@
         <button class="kia-quick" type="button" data-kia-quick="Quiero información sobre vídeos y contenido audiovisual."><span class="kia-quick-icon">▶</span><span>Vídeo y contenido</span></button>
         <button class="kia-quick booking" type="button" data-kia-quick="Quiero reservar una llamada gratuita."><span class="kia-quick-icon">✓</span><span>Reservar una llamada gratuita</span></button>
       </div>
+      <label class="kia-privacy-consent" data-kia-privacy-notice>
+        <input type="checkbox" data-kia-privacy-consent />
+        <span>
+          Acepto que KreateIA trate los datos que escriba para responder mi consulta y,
+          si reservo, gestionar la cita y enviarme su confirmación.
+          <a href="/privacidad/" target="_blank" rel="noopener">Leer privacidad</a>.
+        </span>
+      </label>
     </div>
 
     <div class="kia-chat-compose">
@@ -1494,7 +1499,7 @@
         <button class="kia-chat-send" data-kia-chat-send type="submit" aria-label="Enviar mensaje">↑</button>
       </form>
       <p class="kia-chat-privacy">
-        No compartas contraseñas ni datos bancarios. Tus datos de contacto solo se solicitarán para reservar una llamada.
+        No compartas contraseñas ni datos bancarios. La conversación se resume únicamente si confirmas una reserva.
       </p>
     </div>
   </aside>

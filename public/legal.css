@@ -1,0 +1,144 @@
+:root {
+  --ink: #07111f;
+  --blue: #1268e8;
+  --yellow: #ffc928;
+  --line: #dce4ee;
+  --muted: #536377;
+  --soft: #f4f7fb;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-width: 320px;
+  color: var(--ink);
+  background: var(--soft);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+a { color: var(--blue); }
+
+.legal-header {
+  border-bottom: 1px solid var(--line);
+  background: #fff;
+}
+
+.legal-nav {
+  width: min(940px, calc(100% - 32px));
+  min-height: 70px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.legal-brand {
+  color: var(--ink);
+  font-size: 20px;
+  font-weight: 950;
+  text-decoration: none;
+}
+
+.legal-brand span { color: #ff8a17; }
+
+.legal-back {
+  color: #32465e;
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.legal-shell {
+  width: min(940px, calc(100% - 32px));
+  margin: 28px auto 70px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #fff;
+  box-shadow: 0 18px 60px rgba(7, 17, 31, .08);
+}
+
+.legal-title {
+  padding: 30px;
+  color: #fff;
+  background: var(--ink);
+  border-bottom: 4px solid var(--blue);
+}
+
+.legal-title small {
+  color: var(--yellow);
+  font-size: 11px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.legal-title h1 {
+  margin: 8px 0 0;
+  font-size: clamp(30px, 5vw, 46px);
+  letter-spacing: 0;
+}
+
+.legal-content {
+  padding: 30px;
+}
+
+.legal-content h2 {
+  margin: 30px 0 9px;
+  font-size: 20px;
+}
+
+.legal-content h2:first-child { margin-top: 0; }
+
+.legal-content p,
+.legal-content li {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.72;
+}
+
+.legal-content ul { padding-left: 20px; }
+
+.legal-box {
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--blue);
+  border-radius: 7px;
+  padding: 15px;
+  background: #f7faff;
+}
+
+.legal-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+}
+
+.legal-table th,
+.legal-table td {
+  border: 1px solid var(--line);
+  padding: 11px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: left;
+  vertical-align: top;
+}
+
+.legal-table th {
+  color: var(--ink);
+  background: #f4f7fb;
+}
+
+.legal-update {
+  margin-top: 32px;
+  border-top: 1px solid var(--line);
+  padding-top: 15px;
+  color: #748398;
+  font-size: 11px;
+}
+
+@media (max-width: 640px) {
+  .legal-title,
+  .legal-content { padding: 22px 18px; }
+  .legal-table { display: block; overflow-x: auto; }
+}

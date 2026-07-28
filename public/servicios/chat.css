@@ -346,6 +346,12 @@
   background: #eef5ff;
 }
 
+.kia-quick:disabled {
+  opacity: .48;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .kia-quick-icon {
   width: 30px;
   height: 30px;
@@ -371,6 +377,46 @@
 .kia-quick.booking .kia-quick-icon {
   color: #493500;
   background: var(--kia-yellow);
+}
+
+.kia-privacy-consent {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 9px;
+  align-items: start;
+  margin: 2px 0 4px;
+  border: 1px solid var(--kia-line);
+  border-radius: 8px;
+  padding: 11px;
+  color: #5a6b80;
+  background: rgba(255, 255, 255, .96);
+  font-size: 10px;
+  line-height: 1.5;
+  transition: border-color .15s ease, background .15s ease, box-shadow .15s ease;
+}
+
+.kia-privacy-consent input {
+  width: 17px;
+  height: 17px;
+  margin: 1px 0 0;
+  accent-color: var(--kia-blue);
+}
+
+.kia-privacy-consent a {
+  color: var(--kia-blue-dark);
+  font-weight: 850;
+  text-decoration: underline;
+}
+
+.kia-privacy-consent.accepted {
+  border-color: rgba(21, 155, 105, .35);
+  background: #f1fbf6;
+}
+
+.kia-privacy-consent.needs-attention {
+  border-color: #dc8b00;
+  background: #fff7dc;
+  box-shadow: 0 0 0 3px rgba(255, 201, 40, .2);
 }
 
 .kia-slot-list {

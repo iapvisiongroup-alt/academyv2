@@ -9,6 +9,8 @@ const MAX_MESSAGES = 12;
 const MAX_TOTAL_CHARS = 8000;
 const MAX_BODY_BYTES = 32_000;
 const MAX_BOOKINGS_PER_IP_DAY = 2;
+const PRIVACY_POLICY_VERSION = '2026-07-28';
+const INTERNAL_BOOKING_EMAIL = 'empresas@kreateia.com';
 const ANNUAL_GROUP_START = '2026-09-11';
 const ANNUAL_GROUP_END = '2027-06-25';
 const ANNUAL_GROUP_TIMES = new Set(['17:00', '19:00']);
@@ -117,6 +119,7 @@ export async function onRequest(context) {
         && env.FIREBASE_CLIENT_EMAIL
         && env.FIREBASE_PRIVATE_KEY
       ),
+      mailConfigured: Boolean(env.GMAIL_SENDER),
     });
   }
 
@@ -138,6 +141,13 @@ export async function onRequest(context) {
     ]);
 
     const body = await request.json().catch(() => null);
+    if (body?.privacyConsent !== true) {
+      return json({
+        ok: false,
+        error: 'Debes aceptar el aviso de privacidad antes de utilizar KIRA CHAT.',
+      }, 400);
+    }
+
     const messages = sanitizeMessages(body?.messages);
     if (!messages.length) {
       return json({ ok: false, error: 'Escribe un mensaje para continuar.' }, 400);
@@ -181,7 +191,15 @@ export async function onRequest(context) {
       name: functionCall.name,
       args: functionCall.args || {},
       lastUserMessage: lastUserMessage(messages),
+      privacyConsentAt: cleanText(body?.privacyConsentAt, 40) || new Date().toISOString(),
+      conversation: messages,
     });
+
+    if (functionCall.name === 'reservar_llamada' && toolResult.ok && toolResult.notification) {
+      const notification = toolResult.notification;
+      delete toolResult.notification;
+      queueBookingEmails(context, env, notification);
+    }
 
     const second = await callGemini(env.GEMINI_API_KEY, model, {
       systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
@@ -230,7 +248,15 @@ export async function onRequest(context) {
   }
 }
 
-async function executeTool({ env, ip, name, args, lastUserMessage: lastMessage }) {
+async function executeTool({
+  env,
+  ip,
+  name,
+  args,
+  lastUserMessage: lastMessage,
+  privacyConsentAt,
+  conversation,
+}) {
   if (name === 'consultar_disponibilidad') {
     return getAvailability(env, clamp(Number(args.days || 14), 7, 21));
   }
@@ -244,7 +270,10 @@ async function executeTool({ env, ip, name, args, lastUserMessage: lastMessage }
       };
     }
 
-    return createServiceBooking(env, ip, args);
+    return createServiceBooking(env, ip, args, {
+      privacyConsentAt,
+      conversation,
+    });
   }
 
   return { ok: false, error: 'Función no autorizada.' };
@@ -331,8 +360,10 @@ async function getAvailability(env, daysToShow) {
   };
 }
 
-async function createServiceBooking(env, ip, args) {
+async function createServiceBooking(env, ip, args, privacyContext = {}) {
   const booking = validateBookingArgs(args);
+  const conversationSummary = cleanText(booking.topic, 700);
+  const conversationExcerpt = buildConversationExcerpt(privacyContext.conversation);
 
   if (weekdayForDate(booking.date) === 0 || weekdayForDate(booking.date) === 6) {
     return { ok: false, error: 'Ese día no está disponible.' };
@@ -407,6 +438,11 @@ async function createServiceBooking(env, ip, args) {
     status: 'booked',
     internalStatus: 'new_service_lead',
     notes: booking.topic,
+    conversationSummary,
+    conversationExcerpt,
+    privacyConsent: true,
+    privacyConsentAt: privacyContext.privacyConsentAt || new Date().toISOString(),
+    privacyPolicyVersion: PRIVACY_POLICY_VERSION,
     source: 'services_ai_chat',
     createdAt: now,
     createdAtIso: now.toISOString(),
@@ -467,7 +503,237 @@ async function createServiceBooking(env, ip, args) {
       timezone: 'Europe/Madrid',
       name: booking.name,
     },
+    notification: {
+      bookingId,
+      name: booking.name,
+      company: booking.company,
+      phone: booking.phone,
+      email: booking.email,
+      topic: conversationSummary,
+      conversationExcerpt,
+      date: booking.date,
+      time: booking.time,
+      timezone: 'Europe/Madrid',
+    },
   };
+}
+
+function queueBookingEmails(context, env, booking) {
+  const task = sendBookingEmails(env, booking).catch(error => {
+    console.error(JSON.stringify({
+      event: 'service_booking_email_error',
+      bookingId: booking.bookingId,
+      message: error?.message || 'unknown',
+    }));
+  });
+
+  if (typeof context?.waitUntil === 'function') {
+    context.waitUntil(task);
+  } else {
+    return task;
+  }
+}
+
+async function sendBookingEmails(env, booking) {
+  if (!env.GMAIL_SENDER) {
+    throw new Error('Falta GMAIL_SENDER para enviar confirmaciones.');
+  }
+
+  const accessToken = await getGmailDelegatedToken(env);
+  const [internalResult, customerResult] = await Promise.allSettled([
+    sendGmail(accessToken, buildInternalBookingEmail(env.GMAIL_SENDER, booking)),
+    sendGmail(accessToken, buildCustomerBookingEmail(env.GMAIL_SENDER, booking)),
+  ]);
+
+  if (internalResult.status === 'rejected') throw internalResult.reason;
+  if (customerResult.status === 'rejected') throw customerResult.reason;
+}
+
+function buildInternalBookingEmail(sender, booking) {
+  const dateLabel = formatSpanishDate(booking.date);
+  const whatsappPhone = String(booking.phone || '').replace(/[^\d+]/g, '');
+  const transcript = escapeHtml(booking.conversationExcerpt || 'Sin extracto disponible.')
+    .replace(/\n/g, '<br>');
+
+  return {
+    to: INTERNAL_BOOKING_EMAIL,
+    from: `KreateIA <${sender}>`,
+    replyTo: booking.email,
+    subject: `Nueva llamada agendada · ${booking.name} · ${booking.date} ${booking.time}`,
+    html: emailLayout({
+      eyebrow: 'Nueva oportunidad comercial',
+      title: 'KIRA ha agendado una llamada',
+      intro: `La reserva está confirmada para el <strong>${escapeHtml(dateLabel)}</strong> a las <strong>${escapeHtml(booking.time)}</strong>.`,
+      body: `
+        ${emailDataTable([
+          ['Nombre', booking.name],
+          ['Empresa o actividad', booking.company],
+          ['Teléfono', booking.phone],
+          ['Email', booking.email],
+          ['Motivo', booking.topic],
+          ['Fecha y hora', `${dateLabel} · ${booking.time} · Europe/Madrid`],
+          ['Reserva', booking.bookingId],
+        ])}
+        <div style="margin-top:18px;padding:16px;border:1px solid #dbe5f0;background:#f7faff;border-radius:8px">
+          <div style="margin-bottom:8px;color:#536377;font-size:11px;font-weight:800;text-transform:uppercase">Resumen de la conversación</div>
+          <div style="color:#172b45;font-size:13px;line-height:1.65">${transcript}</div>
+        </div>
+        <div style="margin-top:18px">
+          <a href="https://wa.me/${encodeURIComponent(whatsappPhone.replace(/^\+/, ''))}" style="display:inline-block;margin-right:8px;padding:11px 15px;color:#fff;background:#159b69;border-radius:7px;text-decoration:none;font-size:13px;font-weight:800">Abrir WhatsApp</a>
+          <a href="mailto:${encodeURIComponent(booking.email)}" style="display:inline-block;padding:11px 15px;color:#fff;background:#1268e8;border-radius:7px;text-decoration:none;font-size:13px;font-weight:800">Responder por email</a>
+        </div>
+      `,
+      footer: 'Aviso interno generado por KIRA CHAT. El cliente ha aceptado el tratamiento de sus datos para gestionar esta solicitud.',
+    }),
+  };
+}
+
+function buildCustomerBookingEmail(sender, booking) {
+  const dateLabel = formatSpanishDate(booking.date);
+
+  return {
+    to: booking.email,
+    from: `KreateIA <${sender}>`,
+    replyTo: sender,
+    subject: `Tu llamada con KreateIA está confirmada · ${booking.date} ${booking.time}`,
+    html: emailLayout({
+      eyebrow: 'Reserva confirmada',
+      title: `Gracias, ${booking.name}`,
+      intro: 'Tu llamada gratuita con el equipo de KreateIA ha quedado reservada.',
+      body: `
+        ${emailDataTable([
+          ['Fecha', dateLabel],
+          ['Hora', `${booking.time} · Europe/Madrid`],
+          ['Motivo', booking.topic],
+          ['Referencia', booking.bookingId],
+        ])}
+        <p style="margin:20px 0 0;color:#536377;font-size:13px;line-height:1.65">
+          Nos pondremos en contacto contigo usando el teléfono o email que nos facilitaste.
+          Para cambiar o cancelar la cita, responde a este correo o escribe por WhatsApp al
+          <a href="https://wa.me/34614403913" style="color:#1268e8">614 403 913</a>.
+        </p>
+      `,
+      footer: 'KreateIA · C/ Lino León Martínez 6, Torre-Pacheco, Murcia · empresas@kreateia.com',
+    }),
+  };
+}
+
+function emailLayout({ eyebrow, title, intro, body, footer }) {
+  return `
+    <!doctype html>
+    <html lang="es">
+    <body style="margin:0;background:#eef3f8;font-family:Arial,Helvetica,sans-serif;color:#07111f">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:28px 14px;background:#eef3f8">
+        <tr><td align="center">
+          <table role="presentation" width="640" cellpadding="0" cellspacing="0" style="width:640px;max-width:100%;overflow:hidden;border:1px solid #dce4ee;border-radius:10px;background:#fff">
+            <tr><td style="padding:24px 28px;border-bottom:4px solid #1268e8;background:#07111f;color:#fff">
+              <div style="color:#ffc928;font-size:11px;font-weight:900;text-transform:uppercase">KreateIA</div>
+              <div style="margin-top:8px;font-size:25px;font-weight:900">${escapeHtml(title)}</div>
+              <div style="margin-top:5px;color:#b7c5d7;font-size:12px">${escapeHtml(eyebrow)}</div>
+            </td></tr>
+            <tr><td style="padding:28px">
+              <p style="margin:0 0 20px;color:#243a54;font-size:15px;line-height:1.65">${intro}</p>
+              ${body}
+            </td></tr>
+            <tr><td style="padding:17px 28px;background:#f7f9fc;color:#68778b;font-size:11px;line-height:1.5">${escapeHtml(footer)}</td></tr>
+          </table>
+        </td></tr>
+      </table>
+    </body>
+    </html>
+  `;
+}
+
+function emailDataTable(rows) {
+  return `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #dce4ee;border-collapse:separate;border-spacing:0;border-radius:8px;overflow:hidden">
+      ${rows.map(([label, value]) => `
+        <tr>
+          <td style="width:34%;padding:11px 13px;border-bottom:1px solid #e7edf4;background:#f7f9fc;color:#637287;font-size:12px">${escapeHtml(label)}</td>
+          <td style="padding:11px 13px;border-bottom:1px solid #e7edf4;color:#10243d;font-size:13px;font-weight:700">${escapeHtml(value)}</td>
+        </tr>
+      `).join('')}
+    </table>
+  `;
+}
+
+async function sendGmail(accessToken, mail) {
+  const mime = [
+    `To: ${mail.to}`,
+    `From: ${mail.from}`,
+    `Reply-To: ${mail.replyTo}`,
+    `Subject: ${mail.subject}`,
+    'MIME-Version: 1.0',
+    'Content-Type: text/html; charset=UTF-8',
+    'Content-Transfer-Encoding: 8bit',
+    '',
+    mail.html,
+  ].join('\r\n');
+
+  const response = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ raw: base64Url(new TextEncoder().encode(mime)) }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data?.error?.message || 'Gmail API no pudo enviar el correo.');
+  return data;
+}
+
+async function getGmailDelegatedToken(env) {
+  const serviceEmail = env.GOOGLE_CLIENT_EMAIL || env.FIREBASE_CLIENT_EMAIL;
+  const privateKey = env.GOOGLE_PRIVATE_KEY || env.FIREBASE_PRIVATE_KEY;
+  const now = Math.floor(Date.now() / 1000);
+  const jwt = await signJwt(
+    { alg: 'RS256', typ: 'JWT' },
+    {
+      iss: serviceEmail,
+      sub: env.GMAIL_SENDER,
+      aud: 'https://oauth2.googleapis.com/token',
+      iat: now,
+      exp: now + 3600,
+      scope: 'https://www.googleapis.com/auth/gmail.send',
+    },
+    privateKey
+  );
+  const response = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion: jwt,
+    }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data.access_token) {
+    throw new Error(data.error_description || data.error || 'No se pudo autorizar Gmail.');
+  }
+  return data.access_token;
+}
+
+function buildConversationExcerpt(messages) {
+  return (Array.isArray(messages) ? messages : [])
+    .slice(-8)
+    .map(message => {
+      const speaker = message.role === 'assistant' ? 'KIRA' : 'Cliente';
+      return `${speaker}: ${cleanText(message.content, 420)}`;
+    })
+    .filter(Boolean)
+    .join('\n')
+    .slice(0, 3000);
+}
+
+function escapeHtml(value) {
+  return String(value || '').replace(/[&<>"']/g, character => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;',
+  }[character]));
 }
 
 function validateBookingArgs(args) {

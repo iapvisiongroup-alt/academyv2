@@ -1,0 +1,234 @@
+.footer-cookie-settings {
+  border: 0;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+}
+
+.footer-cookie-settings:hover {
+  color: var(--blue);
+}
+
+.cookie-banner {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  left: 18px;
+  z-index: 300;
+  width: min(1080px, calc(100% - 36px));
+  margin: 0 auto;
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  border: 1px solid #ced9e7;
+  border-left: 5px solid #1268e8;
+  border-radius: 8px;
+  padding: 18px;
+  color: #07111f;
+  background: #fff;
+  box-shadow: 0 24px 80px rgba(7, 17, 31, .24);
+}
+
+.cookie-banner.open {
+  display: flex;
+}
+
+.cookie-banner-copy {
+  max-width: 650px;
+}
+
+.cookie-banner-copy strong {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 16px;
+}
+
+.cookie-banner-copy p {
+  margin: 0;
+  color: #536377;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.cookie-banner-copy a,
+.cookie-detail a {
+  color: #0b4fb8;
+  font-weight: 800;
+  text-decoration: underline;
+}
+
+.cookie-banner-actions,
+.cookie-modal-card footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.cookie-button {
+  min-height: 42px;
+  border: 1px solid #cad6e5;
+  border-radius: 7px;
+  padding: 9px 13px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.cookie-button.primary {
+  border-color: #1268e8;
+  color: #fff;
+  background: #1268e8;
+}
+
+.cookie-button.primary.reject {
+  border-color: #20364f;
+  color: #fff;
+  background: #20364f;
+}
+
+.cookie-button.secondary {
+  color: #20364f;
+  background: #f7f9fc;
+}
+
+.cookie-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 320;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(7, 17, 31, .64);
+  backdrop-filter: blur(8px);
+}
+
+.cookie-modal.open {
+  display: flex;
+}
+
+body.cookie-modal-open {
+  overflow: hidden;
+}
+
+.cookie-modal-card {
+  width: min(620px, 100%);
+  overflow: hidden;
+  border: 1px solid #d7e1ed;
+  border-radius: 9px;
+  background: #fff;
+  box-shadow: 0 30px 100px rgba(7, 17, 31, .32);
+}
+
+.cookie-modal-card header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 22px;
+  color: #fff;
+  background: #07111f;
+}
+
+.cookie-modal-card header span {
+  color: #ffc928;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.cookie-modal-card h2 {
+  margin: 5px 0 0;
+  font-size: 23px;
+}
+
+.cookie-modal-close {
+  width: 36px;
+  height: 36px;
+  border: 1px solid rgba(255, 255, 255, .2);
+  border-radius: 6px;
+  color: #fff;
+  background: rgba(255, 255, 255, .08);
+  cursor: pointer;
+  font-size: 21px;
+}
+
+.cookie-modal-body {
+  display: grid;
+  gap: 10px;
+  padding: 20px 22px;
+}
+
+.cookie-choice {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  align-items: center;
+  border: 1px solid #dce4ee;
+  border-radius: 8px;
+  padding: 14px;
+  background: #f8fafc;
+}
+
+.cookie-choice strong {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 14px;
+}
+
+.cookie-choice p,
+.cookie-detail {
+  margin: 0;
+  color: #617086;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.cookie-choice input {
+  width: 22px;
+  height: 22px;
+  accent-color: #1268e8;
+}
+
+.cookie-required {
+  color: #159b69;
+  font-size: 10px;
+  font-weight: 850;
+}
+
+.cookie-modal-card footer {
+  border-top: 1px solid #dce4ee;
+  padding: 15px 22px;
+  background: #f8fafc;
+}
+
+@media (max-width: 760px) {
+  .cookie-banner {
+    right: 10px;
+    bottom: 10px;
+    left: 10px;
+    width: calc(100% - 20px);
+    align-items: stretch;
+    flex-direction: column;
+    gap: 14px;
+    padding: 15px;
+  }
+
+  .cookie-banner-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .cookie-banner-actions .primary {
+    grid-column: 1 / -1;
+  }
+
+  .cookie-modal-card footer {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+}

@@ -8,12 +8,15 @@
   const sendButton = document.querySelector('[data-kia-chat-send]');
   const quickActions = document.querySelector('[data-kia-quick-actions]');
   const quickTitle = document.querySelector('[data-kia-quick-title]');
+  const privacyConsent = document.querySelector('[data-kia-privacy-consent]');
+  const privacyNotice = document.querySelector('[data-kia-privacy-notice]');
 
   if (!launcher || !panel || !closeButton || !body || !form || !input || !sendButton) return;
 
   const messages = [];
   let sending = false;
   let typingNode = null;
+  let privacyConsentAt = '';
 
   launcher.addEventListener('click', openChat);
   closeButton.addEventListener('click', closeChat);
@@ -26,6 +29,13 @@
     event.preventDefault();
     sendUserMessage(input.value);
   });
+
+  if (privacyConsent) {
+    privacyConsent.addEventListener('change', () => {
+      privacyConsentAt = privacyConsent.checked ? new Date().toISOString() : '';
+      updateConsentState();
+    });
+  }
 
   input.addEventListener('input', () => {
     input.style.height = 'auto';
@@ -54,6 +64,7 @@
     setTimeout(() => input.focus(), 50);
     scrollToBottom();
     track('services_ai_chat_open');
+    updateConsentState();
   }
 
   function closeChat() {
@@ -68,6 +79,11 @@
   async function sendUserMessage(rawText) {
     const text = String(rawText || '').trim().slice(0, 1200);
     if (!text || sending) return;
+    if (!privacyConsent?.checked) {
+      privacyNotice?.classList.add('needs-attention');
+      privacyConsent?.focus();
+      return;
+    }
 
     input.value = '';
     input.style.height = 'auto';
@@ -82,7 +98,11 @@
       const response = await fetch('/api/services/assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: messages.slice(-12) }),
+        body: JSON.stringify({
+          messages: messages.slice(-12),
+          privacyConsent: true,
+          privacyConsentAt,
+        }),
       });
       const data = await response.json().catch(() => ({}));
       removeTyping();
@@ -194,8 +214,21 @@
 
   function setSending(value) {
     sending = value;
-    input.disabled = value;
-    sendButton.disabled = value;
+    updateConsentState();
+  }
+
+  function updateConsentState() {
+    const accepted = Boolean(privacyConsent?.checked);
+    input.disabled = sending || !accepted;
+    sendButton.disabled = sending || !accepted;
+    document.querySelectorAll('[data-kia-quick]').forEach(button => {
+      button.disabled = sending || !accepted;
+    });
+    privacyNotice?.classList.toggle('accepted', accepted);
+    if (accepted) privacyNotice?.classList.remove('needs-attention');
+    input.placeholder = accepted
+      ? 'Escribe tu consulta...'
+      : 'Acepta el aviso de privacidad para comenzar';
   }
 
   function scrollToBottom() {
@@ -211,4 +244,6 @@
       });
     }
   }
+
+  updateConsentState();
 })();
