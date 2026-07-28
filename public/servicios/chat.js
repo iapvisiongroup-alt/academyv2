@@ -7,16 +7,13 @@
   const input = document.querySelector('[data-kia-chat-input]');
   const sendButton = document.querySelector('[data-kia-chat-send]');
   const quickActions = document.querySelector('[data-kia-quick-actions]');
+  const quickTitle = document.querySelector('[data-kia-quick-title]');
 
   if (!launcher || !panel || !closeButton || !body || !form || !input || !sendButton) return;
 
   const messages = [];
   let sending = false;
   let typingNode = null;
-
-  const initialText = 'Hola, soy el asistente de KreateIA. Puedo orientarte sobre nuestros servicios, cursos o ayudarte a reservar una llamada gratuita. ¿Qué necesitas mejorar?';
-  addMessage('assistant', initialText, false);
-  if (quickActions) body.appendChild(quickActions);
 
   launcher.addEventListener('click', openChat);
   closeButton.addEventListener('click', closeChat);
@@ -75,6 +72,7 @@
     input.value = '';
     input.style.height = 'auto';
     if (quickActions) quickActions.hidden = true;
+    if (quickTitle) quickTitle.hidden = true;
 
     addMessage('user', text, true);
     setSending(true);
@@ -115,10 +113,22 @@
   }
 
   function addMessage(role, text, includeInHistory) {
+    const row = document.createElement('div');
+    row.className = `kia-message-row ${role}`;
+
+    if (role === 'assistant') {
+      const avatar = document.createElement('span');
+      avatar.className = 'kia-message-dot';
+      avatar.textContent = 'IA';
+      avatar.setAttribute('aria-hidden', 'true');
+      row.appendChild(avatar);
+    }
+
     const node = document.createElement('div');
     node.className = `kia-message ${role}`;
     node.textContent = text;
-    body.appendChild(node);
+    row.appendChild(node);
+    body.appendChild(row);
 
     if (includeInHistory && (role === 'user' || role === 'assistant')) {
       messages.push({ role, content: text });
@@ -130,11 +140,22 @@
 
   function showTyping() {
     removeTyping();
+    const row = document.createElement('div');
+    row.className = 'kia-message-row assistant';
+
+    const avatar = document.createElement('span');
+    avatar.className = 'kia-message-dot';
+    avatar.textContent = 'IA';
+    avatar.setAttribute('aria-hidden', 'true');
+
     typingNode = document.createElement('div');
     typingNode.className = 'kia-message kia-typing';
     typingNode.setAttribute('aria-label', 'El asistente está escribiendo');
     typingNode.innerHTML = '<i></i><i></i><i></i>';
-    body.appendChild(typingNode);
+    row.appendChild(avatar);
+    row.appendChild(typingNode);
+    typingNode = row;
+    body.appendChild(row);
     scrollToBottom();
   }
 

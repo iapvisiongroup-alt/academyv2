@@ -1441,7 +1441,10 @@
     aria-controls="kia-chat-panel"
   >
     <span class="kia-chat-launcher-mark" aria-hidden="true">IA</span>
-    Asistente KreateIA
+    <span class="kia-chat-launcher-copy">
+      <strong>¿Te ayudamos?</strong>
+      <small>Pregunta o reserva una llamada</small>
+    </span>
   </button>
 
   <aside
@@ -1454,21 +1457,27 @@
     <header class="kia-chat-head">
       <div class="kia-chat-agent">
         <span class="kia-chat-avatar" aria-hidden="true">IA</span>
-        <span>
+        <div class="kia-chat-agent-copy">
           <strong>Asistente KreateIA</strong>
-          <span>Servicios, cursos y reservas</span>
-        </span>
+          <span>Soluciones digitales para tu negocio</span>
+          <span class="kia-chat-status">Disponible ahora</span>
+        </div>
       </div>
       <button class="kia-chat-close" type="button" data-kia-chat-close aria-label="Cerrar chat">×</button>
     </header>
 
     <div class="kia-chat-body" data-kia-chat-body aria-live="polite">
+      <div class="kia-welcome" data-kia-welcome>
+        <span class="kia-welcome-label">Cuéntanos qué necesitas</span>
+        <p>Te orientaré sobre la solución más adecuada y, si quieres, buscaré una hora libre para hablar con nuestro equipo.</p>
+      </div>
+      <p class="kia-quick-title" data-kia-quick-title>Elige una opción para empezar</p>
       <div class="kia-quick-actions" data-kia-quick-actions>
-        <button class="kia-quick" type="button" data-kia-quick="Quiero conseguir más clientes para mi empresa.">Conseguir clientes</button>
-        <button class="kia-quick" type="button" data-kia-quick="Quiero crear o mejorar mi página web.">Web y SEO</button>
-        <button class="kia-quick" type="button" data-kia-quick="Quiero automatizar tareas en mi empresa.">Automatizar tareas</button>
-        <button class="kia-quick" type="button" data-kia-quick="Quiero información sobre vídeos y contenido audiovisual.">Vídeo y contenido</button>
-        <button class="kia-quick" type="button" data-kia-quick="Quiero reservar una llamada gratuita.">Agendar llamada</button>
+        <button class="kia-quick" type="button" data-kia-quick="Quiero conseguir más clientes para mi empresa."><span class="kia-quick-icon">+</span><span>Conseguir más clientes</span></button>
+        <button class="kia-quick" type="button" data-kia-quick="Quiero crear o mejorar mi página web."><span class="kia-quick-icon">W</span><span>Crear o mejorar mi web</span></button>
+        <button class="kia-quick" type="button" data-kia-quick="Quiero automatizar tareas en mi empresa."><span class="kia-quick-icon">IA</span><span>Automatizar mi empresa</span></button>
+        <button class="kia-quick" type="button" data-kia-quick="Quiero información sobre vídeos y contenido audiovisual."><span class="kia-quick-icon">▶</span><span>Vídeo y contenido</span></button>
+        <button class="kia-quick booking" type="button" data-kia-quick="Quiero reservar una llamada gratuita."><span class="kia-quick-icon">✓</span><span>Reservar una llamada gratuita</span></button>
       </div>
     </div>
 
