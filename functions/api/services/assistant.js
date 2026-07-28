@@ -139,7 +139,7 @@ export async function onRequest(context) {
     }
 
     const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
-    const model = String(env.GEMINI_MODEL || 'gemini-2.5-flash-lite').trim();
+    const model = String(env.GEMINI_MODEL || 'gemini-flash-lite-latest').trim();
     const contents = messages.map(message => ({
       role: message.role === 'assistant' ? 'model' : 'user',
       parts: [{ text: message.content }],
