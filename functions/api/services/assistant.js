@@ -112,6 +112,11 @@ export async function onRequest(context) {
       ok: true,
       service: 'KIRA CHAT',
       geminiConfigured: Boolean(env.GEMINI_API_KEY),
+      firebaseConfigured: Boolean(
+        env.FIREBASE_PROJECT_ID
+        && env.FIREBASE_CLIENT_EMAIL
+        && env.FIREBASE_PRIVATE_KEY
+      ),
     });
   }
 
