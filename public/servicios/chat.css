@@ -1,0 +1,301 @@
+.kia-chat-launcher {
+  position: fixed;
+  right: 18px;
+  bottom: 78px;
+  z-index: 120;
+  min-height: 50px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(255, 255, 255, .5);
+  border-radius: 999px;
+  padding: 10px 16px 10px 11px;
+  color: #fff;
+  background: #1268e8;
+  box-shadow: 0 16px 44px rgba(7, 17, 31, .28);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.kia-chat-launcher:hover {
+  background: #0b4fb8;
+}
+
+.kia-chat-launcher-mark {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: #07111f;
+  background: #ffc928;
+  font-size: 12px;
+  font-weight: 950;
+}
+
+.kia-chat-panel {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 150;
+  width: min(400px, calc(100vw - 36px));
+  height: min(650px, calc(100vh - 36px));
+  display: none;
+  grid-template-rows: auto 1fr auto;
+  overflow: hidden;
+  border: 1px solid #dce4ee;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 30px 90px rgba(7, 17, 31, .34);
+}
+
+.kia-chat-panel.open {
+  display: grid;
+}
+
+.kia-chat-head {
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 15px;
+  color: #fff;
+  background: #07111f;
+}
+
+.kia-chat-agent {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+
+.kia-chat-avatar {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: #07111f;
+  background: #ffc928;
+  font-size: 13px;
+  font-weight: 950;
+}
+
+.kia-chat-agent strong,
+.kia-chat-agent span {
+  display: block;
+}
+
+.kia-chat-agent strong {
+  font-size: 14px;
+}
+
+.kia-chat-agent span {
+  margin-top: 3px;
+  color: rgba(255, 255, 255, .6);
+  font-size: 10px;
+}
+
+.kia-chat-close {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(255, 255, 255, .16);
+  border-radius: 50%;
+  color: #fff;
+  background: rgba(255, 255, 255, .08);
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.kia-chat-body {
+  overflow-y: auto;
+  padding: 16px;
+  background: #f4f7fb;
+  overscroll-behavior: contain;
+}
+
+.kia-message {
+  width: fit-content;
+  max-width: 88%;
+  margin-bottom: 10px;
+  border: 1px solid #dce4ee;
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: #14243a;
+  background: #fff;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.kia-message.user {
+  margin-left: auto;
+  border-color: #1268e8;
+  color: #fff;
+  background: #1268e8;
+}
+
+.kia-message.system {
+  width: 100%;
+  max-width: 100%;
+  border-color: #f2d37a;
+  color: #6a4a00;
+  background: #fff8df;
+  font-size: 11px;
+}
+
+.kia-typing {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 58px;
+}
+
+.kia-typing i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #8ba0b8;
+  animation: kia-pulse 1s infinite ease-in-out;
+}
+
+.kia-typing i:nth-child(2) {
+  animation-delay: .15s;
+}
+
+.kia-typing i:nth-child(3) {
+  animation-delay: .3s;
+}
+
+@keyframes kia-pulse {
+  0%, 100% { opacity: .28; transform: translateY(0); }
+  50% { opacity: 1; transform: translateY(-2px); }
+}
+
+.kia-quick-actions,
+.kia-slot-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 6px 0 14px;
+}
+
+.kia-quick,
+.kia-slot {
+  min-height: 36px;
+  border: 1px solid #c7d7ed;
+  border-radius: 999px;
+  padding: 8px 11px;
+  color: #0b4fb8;
+  background: #fff;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.kia-quick:hover,
+.kia-slot:hover {
+  border-color: #1268e8;
+  background: #eaf2ff;
+}
+
+.kia-slot-day {
+  width: 100%;
+  margin: 10px 0 6px;
+  color: #536377;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.kia-chat-compose {
+  border-top: 1px solid #dce4ee;
+  padding: 11px;
+  background: #fff;
+}
+
+.kia-chat-form {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: end;
+}
+
+.kia-chat-input {
+  width: 100%;
+  min-height: 43px;
+  max-height: 110px;
+  resize: none;
+  border: 1px solid #cdd8e5;
+  border-radius: 8px;
+  outline: none;
+  padding: 11px 12px;
+  color: #07111f;
+  background: #fff;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.kia-chat-input:focus {
+  border-color: #1268e8;
+  box-shadow: 0 0 0 3px rgba(18, 104, 232, .1);
+}
+
+.kia-chat-send {
+  width: 43px;
+  height: 43px;
+  border: 0;
+  border-radius: 8px;
+  color: #07111f;
+  background: #ffc928;
+  cursor: pointer;
+  font-size: 20px;
+  font-weight: 950;
+}
+
+.kia-chat-send:disabled,
+.kia-chat-input:disabled {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+.kia-chat-privacy {
+  margin: 8px 2px 0;
+  color: #7b899a;
+  font-size: 9px;
+  line-height: 1.35;
+}
+
+@media (max-width: 640px) {
+  .kia-chat-launcher {
+    right: 12px;
+    bottom: 12px;
+  }
+
+  .kia-chat-panel {
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .kia-chat-head {
+    padding-top: max(14px, env(safe-area-inset-top));
+  }
+
+  .kia-chat-compose {
+    padding-bottom: max(11px, env(safe-area-inset-bottom));
+  }
+}

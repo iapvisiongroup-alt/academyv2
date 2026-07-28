@@ -32,6 +32,7 @@
   />
   <meta name="twitter:image" content="https://kreateia.com/assets/brand/kreateia-local.jpg" />
   <meta name="theme-color" content="#07111f" />
+  <link rel="stylesheet" href="/servicios/chat.css" />
 
   <!-- Google tag -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18195089658"></script>
@@ -1431,6 +1432,65 @@
     data-track="whatsapp_floating"
     aria-label="Contactar con KreateIA por WhatsApp"
   >WhatsApp</a>
+
+  <button
+    class="kia-chat-launcher"
+    type="button"
+    data-kia-chat-launcher
+    aria-expanded="false"
+    aria-controls="kia-chat-panel"
+  >
+    <span class="kia-chat-launcher-mark" aria-hidden="true">IA</span>
+    Asistente KreateIA
+  </button>
+
+  <aside
+    id="kia-chat-panel"
+    class="kia-chat-panel"
+    data-kia-chat-panel
+    aria-hidden="true"
+    aria-label="Asistente de KreateIA"
+  >
+    <header class="kia-chat-head">
+      <div class="kia-chat-agent">
+        <span class="kia-chat-avatar" aria-hidden="true">IA</span>
+        <span>
+          <strong>Asistente KreateIA</strong>
+          <span>Servicios, cursos y reservas</span>
+        </span>
+      </div>
+      <button class="kia-chat-close" type="button" data-kia-chat-close aria-label="Cerrar chat">×</button>
+    </header>
+
+    <div class="kia-chat-body" data-kia-chat-body aria-live="polite">
+      <div class="kia-quick-actions" data-kia-quick-actions>
+        <button class="kia-quick" type="button" data-kia-quick="Quiero conseguir más clientes para mi empresa.">Conseguir clientes</button>
+        <button class="kia-quick" type="button" data-kia-quick="Quiero crear o mejorar mi página web.">Web y SEO</button>
+        <button class="kia-quick" type="button" data-kia-quick="Quiero automatizar tareas en mi empresa.">Automatizar tareas</button>
+        <button class="kia-quick" type="button" data-kia-quick="Quiero información sobre vídeos y contenido audiovisual.">Vídeo y contenido</button>
+        <button class="kia-quick" type="button" data-kia-quick="Quiero reservar una llamada gratuita.">Agendar llamada</button>
+      </div>
+    </div>
+
+    <div class="kia-chat-compose">
+      <form class="kia-chat-form" data-kia-chat-form>
+        <textarea
+          class="kia-chat-input"
+          data-kia-chat-input
+          rows="1"
+          maxlength="1200"
+          aria-label="Mensaje"
+          placeholder="Escribe tu consulta..."
+        ></textarea>
+        <button class="kia-chat-send" data-kia-chat-send type="submit" aria-label="Enviar mensaje">↑</button>
+      </form>
+      <p class="kia-chat-privacy">
+        No compartas contraseñas ni datos bancarios. Tus datos de contacto solo se solicitarán para reservar una llamada.
+      </p>
+    </div>
+  </aside>
+
+  <script src="/servicios/chat.js" defer></script>
 
   <script>
     const menuButton = document.querySelector('.menu-button');
