@@ -1,0 +1,1506 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>Servicios digitales para empresas en Murcia | KreateIA</title>
+  <meta
+    name="description"
+    content="Web, SEO local, marketing, automatizaciones, aplicaciones y contenido audiovisual para empresas de Murcia y toda España. Consulta inicial con KreateIA."
+  />
+  <meta name="robots" content="index, follow, max-image-preview:large" />
+  <link rel="canonical" href="https://kreateia.com/servicios/" />
+  <link rel="icon" type="image/jpeg" href="/assets/brand/kreateia-local.jpg" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="es_ES" />
+  <meta property="og:site_name" content="KreateIA" />
+  <meta property="og:title" content="KreateIA Servicios | Soluciones digitales para empresas" />
+  <meta
+    property="og:description"
+    content="Ayudamos a empresas a conseguir clientes, ahorrar tiempo y mejorar su presencia digital con soluciones claras y medibles."
+  />
+  <meta property="og:url" content="https://kreateia.com/servicios/" />
+  <meta property="og:image" content="https://kreateia.com/assets/brand/kreateia-local.jpg" />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="KreateIA Servicios para empresas" />
+  <meta
+    name="twitter:description"
+    content="Web, SEO, marketing, automatizaciones, apps y contenido audiovisual para empresas."
+  />
+  <meta name="twitter:image" content="https://kreateia.com/assets/brand/kreateia-local.jpg" />
+  <meta name="theme-color" content="#07111f" />
+
+  <!-- Google tag -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18195089658"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'AW-18195089658');
+  </script>
+
+  <style>
+    :root {
+      --ink: #07111f;
+      --ink-soft: #14243a;
+      --blue: #1268e8;
+      --blue-dark: #0b4fb8;
+      --orange: #ff8a17;
+      --yellow: #ffc928;
+      --green: #159b69;
+      --paper: #ffffff;
+      --soft: #f4f7fb;
+      --line: #dce4ee;
+      --muted: #536377;
+      --max: 1180px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+      scroll-padding-top: 84px;
+    }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      color: var(--ink);
+      background: var(--paper);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body.menu-open {
+      overflow: hidden;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    img {
+      display: block;
+      max-width: 100%;
+    }
+
+    .skip-link {
+      position: fixed;
+      top: 8px;
+      left: 8px;
+      z-index: 200;
+      padding: 10px 14px;
+      color: #fff;
+      background: var(--ink);
+      transform: translateY(-150%);
+    }
+
+    .skip-link:focus {
+      transform: translateY(0);
+    }
+
+    .site-header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      border-bottom: 1px solid rgba(220, 228, 238, .9);
+      background: rgba(255, 255, 255, .94);
+      backdrop-filter: blur(16px);
+    }
+
+    .nav {
+      width: min(var(--max), calc(100% - 36px));
+      min-height: 74px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 11px;
+      flex: 0 0 auto;
+    }
+
+    .brand-mark {
+      width: 42px;
+      height: 42px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .brand-mark img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: 50% 30%;
+    }
+
+    .brand-name {
+      font-size: 21px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .brand-name span {
+      color: var(--orange);
+    }
+
+    .brand-label {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 26px;
+    }
+
+    .nav-links > a:not(.button) {
+      color: #344357;
+      font-size: 13px;
+      font-weight: 750;
+    }
+
+    .nav-links > a:not(.button):hover {
+      color: var(--blue);
+    }
+
+    .menu-button {
+      width: 42px;
+      height: 42px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      color: var(--ink);
+      background: #fff;
+      cursor: pointer;
+    }
+
+    .menu-button span,
+    .menu-button::before,
+    .menu-button::after {
+      width: 18px;
+      height: 2px;
+      display: block;
+      border-radius: 2px;
+      background: currentColor;
+      content: "";
+    }
+
+    .menu-button span {
+      margin: 4px 0;
+    }
+
+    .button {
+      min-height: 46px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      padding: 11px 18px;
+      color: #fff;
+      background: var(--blue);
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 850;
+      text-align: center;
+      transition: background .15s ease, transform .15s ease, border-color .15s ease;
+    }
+
+    .button:hover {
+      background: var(--blue-dark);
+      transform: translateY(-1px);
+    }
+
+    .button.orange {
+      color: var(--ink);
+      background: var(--yellow);
+    }
+
+    .button.orange:hover {
+      background: #ffd85c;
+    }
+
+    .button.secondary {
+      border-color: rgba(255, 255, 255, .42);
+      color: #fff;
+      background: rgba(7, 17, 31, .22);
+    }
+
+    .button.secondary:hover {
+      background: rgba(7, 17, 31, .48);
+    }
+
+    .button.light {
+      border-color: var(--line);
+      color: var(--ink);
+      background: #fff;
+    }
+
+    .button.light:hover {
+      border-color: var(--blue);
+      color: var(--blue);
+      background: #fff;
+    }
+
+    .hero {
+      position: relative;
+      min-height: min(700px, calc(100vh - 74px));
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      color: #fff;
+      background: var(--ink);
+    }
+
+    .hero-media {
+      position: absolute;
+      inset: 0;
+    }
+
+    .hero-media img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: 68% 50%;
+    }
+
+    .hero-media::after {
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(90deg, rgba(7, 17, 31, .98) 0%, rgba(7, 17, 31, .92) 43%, rgba(7, 17, 31, .35) 72%, rgba(7, 17, 31, .18) 100%),
+        linear-gradient(0deg, rgba(7, 17, 31, .82) 0%, transparent 45%);
+      content: "";
+    }
+
+    .hero-inner {
+      position: relative;
+      z-index: 2;
+      width: min(var(--max), calc(100% - 36px));
+      margin: 0 auto;
+      padding: 78px 0 96px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      margin: 0 0 18px;
+      color: var(--yellow);
+      font-size: 12px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .eyebrow::before {
+      width: 28px;
+      height: 3px;
+      background: currentColor;
+      content: "";
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      overflow-wrap: break-word;
+    }
+
+    .hero h1 {
+      max-width: 780px;
+      margin: 0;
+      font-size: clamp(42px, 6.4vw, 78px);
+      line-height: .98;
+      font-weight: 950;
+      letter-spacing: 0;
+    }
+
+    .hero-copy {
+      max-width: 650px;
+      margin: 24px 0 0;
+      color: rgba(255, 255, 255, .78);
+      font-size: 18px;
+      line-height: 1.62;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 30px;
+    }
+
+    .hero-proof {
+      max-width: 740px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 1px;
+      margin-top: 46px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, .18);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, .18);
+    }
+
+    .hero-proof div {
+      min-height: 84px;
+      padding: 16px;
+      background: rgba(7, 17, 31, .72);
+    }
+
+    .hero-proof strong {
+      display: block;
+      font-size: 14px;
+    }
+
+    .hero-proof span {
+      display: block;
+      margin-top: 5px;
+      color: rgba(255, 255, 255, .62);
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .band {
+      padding: 86px 0;
+    }
+
+    .band.soft {
+      background: var(--soft);
+    }
+
+    .band.dark {
+      color: #fff;
+      background: var(--ink);
+    }
+
+    .container {
+      width: min(var(--max), calc(100% - 36px));
+      margin: 0 auto;
+    }
+
+    .intro-grid {
+      display: grid;
+      grid-template-columns: .8fr 1.2fr;
+      gap: 72px;
+      align-items: start;
+    }
+
+    .section-kicker {
+      margin: 0 0 13px;
+      color: var(--blue);
+      font-size: 12px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .dark .section-kicker {
+      color: var(--yellow);
+    }
+
+    .section-title {
+      margin: 0;
+      font-size: clamp(30px, 4vw, 50px);
+      line-height: 1.05;
+      font-weight: 930;
+      letter-spacing: 0;
+    }
+
+    .section-copy {
+      max-width: 720px;
+      margin: 16px 0 0;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.7;
+    }
+
+    .dark .section-copy {
+      color: rgba(255, 255, 255, .66);
+    }
+
+    .problem-list {
+      display: grid;
+      gap: 0;
+      border-top: 1px solid var(--line);
+    }
+
+    .problem {
+      display: grid;
+      grid-template-columns: 48px 1fr;
+      gap: 16px;
+      padding: 20px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .problem-number {
+      color: var(--orange);
+      font-size: 13px;
+      font-weight: 950;
+    }
+
+    .problem strong {
+      display: block;
+      font-size: 17px;
+    }
+
+    .problem p {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    .section-head {
+      max-width: 790px;
+      margin-bottom: 34px;
+    }
+
+    .service-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .service-card {
+      min-height: 325px;
+      display: flex;
+      flex-direction: column;
+      padding: 24px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .service-tag {
+      width: fit-content;
+      display: inline-flex;
+      align-items: center;
+      min-height: 28px;
+      border-radius: 999px;
+      padding: 5px 9px;
+      color: var(--blue-dark);
+      background: #eaf2ff;
+      font-size: 10px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .service-card:nth-child(2) .service-tag {
+      color: #8a4b00;
+      background: #fff2d9;
+    }
+
+    .service-card:nth-child(3) .service-tag {
+      color: #08704b;
+      background: #e6f7f0;
+    }
+
+    .service-card h3 {
+      margin: 24px 0 10px;
+      font-size: 24px;
+      line-height: 1.1;
+    }
+
+    .service-card > p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .service-list {
+      display: grid;
+      gap: 8px;
+      margin: 22px 0 0;
+      padding: 18px 0 0;
+      border-top: 1px solid var(--line);
+      list-style: none;
+    }
+
+    .service-list li {
+      position: relative;
+      padding-left: 17px;
+      color: #344357;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .service-list li::before {
+      position: absolute;
+      top: 7px;
+      left: 0;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--blue);
+      content: "";
+    }
+
+    .proof-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 56px;
+      align-items: center;
+    }
+
+    .location-image {
+      position: relative;
+      overflow: hidden;
+      min-height: 460px;
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .location-image img {
+      width: 100%;
+      height: 100%;
+      min-height: 460px;
+      object-fit: cover;
+    }
+
+    .location-caption {
+      position: absolute;
+      right: 16px;
+      bottom: 16px;
+      left: 16px;
+      padding: 14px 16px;
+      border-radius: 8px;
+      color: #fff;
+      background: rgba(7, 17, 31, .88);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .proof-points {
+      display: grid;
+      gap: 0;
+      margin-top: 28px;
+      border-top: 1px solid rgba(255, 255, 255, .16);
+    }
+
+    .proof-point {
+      display: grid;
+      grid-template-columns: 34px 1fr;
+      gap: 13px;
+      padding: 18px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, .16);
+    }
+
+    .proof-point span {
+      color: var(--yellow);
+      font-weight: 950;
+    }
+
+    .proof-point strong {
+      display: block;
+      font-size: 15px;
+    }
+
+    .proof-point p {
+      margin: 5px 0 0;
+      color: rgba(255, 255, 255, .61);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .process {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 0;
+      margin-top: 38px;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .process-step {
+      min-height: 240px;
+      padding: 26px 22px;
+      border-right: 1px solid var(--line);
+    }
+
+    .process-step:last-child {
+      border-right: 0;
+    }
+
+    .process-step > span {
+      color: var(--orange);
+      font-size: 12px;
+      font-weight: 950;
+    }
+
+    .process-step h3 {
+      margin: 34px 0 10px;
+      font-size: 20px;
+    }
+
+    .process-step p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .faq {
+      max-width: 880px;
+      margin: 36px auto 0;
+      border-top: 1px solid var(--line);
+    }
+
+    details {
+      border-bottom: 1px solid var(--line);
+    }
+
+    summary {
+      position: relative;
+      padding: 20px 46px 20px 0;
+      cursor: pointer;
+      font-size: 16px;
+      font-weight: 850;
+      list-style: none;
+    }
+
+    summary::-webkit-details-marker {
+      display: none;
+    }
+
+    summary::after {
+      position: absolute;
+      top: 18px;
+      right: 4px;
+      color: var(--blue);
+      content: "+";
+      font-size: 22px;
+      font-weight: 500;
+    }
+
+    details[open] summary::after {
+      content: "−";
+    }
+
+    details p {
+      max-width: 760px;
+      margin: -5px 0 20px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.65;
+    }
+
+    .contact-layout {
+      display: grid;
+      grid-template-columns: .85fr 1.15fr;
+      gap: 72px;
+      align-items: start;
+    }
+
+    .contact-methods {
+      display: grid;
+      gap: 12px;
+      margin-top: 28px;
+    }
+
+    .contact-method {
+      display: grid;
+      grid-template-columns: 110px 1fr;
+      gap: 15px;
+      padding-top: 12px;
+      border-top: 1px solid rgba(255, 255, 255, .15);
+    }
+
+    .contact-method span {
+      color: rgba(255, 255, 255, .48);
+      font-size: 11px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .contact-method a,
+    .contact-method strong {
+      font-size: 14px;
+    }
+
+    .lead-form {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      padding: 26px;
+      border: 1px solid rgba(255, 255, 255, .18);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, .06);
+    }
+
+    .field {
+      display: grid;
+      gap: 7px;
+    }
+
+    .field.full {
+      grid-column: 1 / -1;
+    }
+
+    .field label {
+      color: rgba(255, 255, 255, .68);
+      font-size: 11px;
+      font-weight: 850;
+    }
+
+    .field input,
+    .field select,
+    .field textarea {
+      width: 100%;
+      min-height: 46px;
+      border: 1px solid rgba(255, 255, 255, .18);
+      border-radius: 7px;
+      outline: none;
+      padding: 11px 12px;
+      color: #fff;
+      background: rgba(255, 255, 255, .08);
+    }
+
+    .field select option {
+      color: var(--ink);
+      background: #fff;
+    }
+
+    .field textarea {
+      min-height: 104px;
+      resize: vertical;
+    }
+
+    .field input:focus,
+    .field select:focus,
+    .field textarea:focus {
+      border-color: var(--yellow);
+      box-shadow: 0 0 0 3px rgba(255, 201, 40, .12);
+    }
+
+    .form-note {
+      grid-column: 1 / -1;
+      margin: 0;
+      color: rgba(255, 255, 255, .48);
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    .lead-form .button {
+      grid-column: 1 / -1;
+      width: 100%;
+    }
+
+    .site-footer {
+      color: rgba(255, 255, 255, .64);
+      background: #030914;
+    }
+
+    .footer-inner {
+      width: min(var(--max), calc(100% - 36px));
+      margin: 0 auto;
+      padding: 30px 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      font-size: 12px;
+    }
+
+    .footer-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 18px;
+    }
+
+    .whatsapp {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 90;
+      min-height: 48px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(255, 255, 255, .38);
+      border-radius: 999px;
+      padding: 11px 16px;
+      color: #fff;
+      background: #128c5e;
+      box-shadow: 0 14px 36px rgba(7, 17, 31, .24);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 22px;
+      left: 50%;
+      z-index: 180;
+      width: min(480px, calc(100% - 36px));
+      padding: 13px 16px;
+      border-radius: 8px;
+      color: #fff;
+      background: var(--ink);
+      box-shadow: 0 18px 50px rgba(7, 17, 31, .28);
+      font-size: 13px;
+      font-weight: 800;
+      text-align: center;
+      transform: translateX(-50%);
+    }
+
+    @media (max-width: 940px) {
+      .menu-button {
+        display: inline-flex;
+        flex-direction: column;
+      }
+
+      .nav-links {
+        position: fixed;
+        top: 74px;
+        right: 0;
+        left: 0;
+        display: none;
+        align-items: stretch;
+        padding: 18px;
+        border-bottom: 1px solid var(--line);
+        background: #fff;
+        box-shadow: 0 18px 35px rgba(7, 17, 31, .12);
+      }
+
+      .nav-links.open {
+        display: grid;
+      }
+
+      .nav-links > a:not(.button) {
+        padding: 10px 4px;
+      }
+
+      .intro-grid,
+      .proof-layout,
+      .contact-layout {
+        grid-template-columns: 1fr;
+        gap: 38px;
+      }
+
+      .service-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .process {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .process-step:nth-child(2) {
+        border-right: 0;
+      }
+
+      .process-step:nth-child(-n+2) {
+        border-bottom: 1px solid var(--line);
+      }
+    }
+
+    @media (max-width: 640px) {
+      .nav {
+        width: min(100% - 24px, var(--max));
+      }
+
+      .brand-label {
+        display: none;
+      }
+
+      .hero {
+        min-height: 0;
+        align-items: flex-end;
+      }
+
+      .hero-media img {
+        object-position: 58% 42%;
+      }
+
+      .hero-media::after {
+        background:
+          linear-gradient(0deg, rgba(7, 17, 31, .99) 0%, rgba(7, 17, 31, .92) 58%, rgba(7, 17, 31, .5) 100%);
+      }
+
+      .hero-inner {
+        width: calc(100% - 28px);
+        padding: 126px 0 30px;
+      }
+
+      .hero h1 {
+        font-size: 36px;
+      }
+
+      .hero-copy {
+        margin-top: 18px;
+        font-size: 15px;
+        line-height: 1.52;
+      }
+
+      .hero-actions {
+        display: grid;
+        margin-top: 22px;
+      }
+
+      .hero-proof {
+        display: none;
+      }
+
+      .band {
+        padding: 64px 0;
+      }
+
+      .container {
+        width: calc(100% - 28px);
+      }
+
+      .service-grid,
+      .process,
+      .lead-form {
+        grid-template-columns: 1fr;
+      }
+
+      .service-card {
+        min-height: 0;
+      }
+
+      .process-step {
+        min-height: 0;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .process-step:last-child {
+        border-bottom: 0;
+      }
+
+      .location-image,
+      .location-image img {
+        min-height: 330px;
+      }
+
+      .field,
+      .field.full {
+        grid-column: 1;
+      }
+
+      .contact-method {
+        grid-template-columns: 82px 1fr;
+      }
+
+      .footer-inner {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .whatsapp {
+        display: none;
+      }
+    }
+  </style>
+
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": ["ProfessionalService", "LocalBusiness"],
+          "@id": "https://kreateia.com/servicios/#business",
+          "name": "KreateIA Servicios",
+          "url": "https://kreateia.com/servicios/",
+          "image": "https://kreateia.com/assets/brand/kreateia-local.jpg",
+          "telephone": "+34614403913",
+          "email": "empresas@kreateia.com",
+          "priceRange": "€€",
+          "address": {
+            "@type": "PostalAddress",
+            "streetAddress": "Calle Lino León Martínez 6",
+            "addressLocality": "Torre-Pacheco",
+            "addressRegion": "Murcia",
+            "addressCountry": "ES"
+          },
+          "areaServed": [
+            { "@type": "AdministrativeArea", "name": "Región de Murcia" },
+            { "@type": "Country", "name": "España" }
+          ],
+          "description": "Servicios de web, SEO local, marketing, automatizaciones, aplicaciones y contenido audiovisual para empresas."
+        },
+        {
+          "@type": "FAQPage",
+          "@id": "https://kreateia.com/servicios/#faq",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "¿Trabajáis solamente con empresas de Murcia?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Atendemos presencialmente en Torre-Pacheco y la Región de Murcia, y desarrollamos proyectos digitales para empresas de toda España."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "¿La consulta inicial tiene coste?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "La primera consulta es gratuita y sirve para entender el negocio, detectar prioridades y confirmar si KreateIA puede aportar una solución útil."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "¿Puedo contratar solamente un servicio?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "Sí. Se puede contratar una web, una auditoría SEO, contenido audiovisual, una automatización o una aplicación concreta sin contratar el resto."
+              }
+            }
+          ]
+        }
+      ]
+    }
+  </script>
+</head>
+
+<body>
+  <a class="skip-link" href="#contenido">Saltar al contenido</a>
+
+  <header class="site-header">
+    <nav class="nav" aria-label="Navegación principal">
+      <a class="brand" href="/servicios/" aria-label="KreateIA Servicios, inicio">
+        <span class="brand-mark">
+          <img src="/assets/brand/kreateia-local.jpg" alt="" width="42" height="42" />
+        </span>
+        <span>
+          <span class="brand-name">Kreate<span>IA</span></span>
+          <span class="brand-label">Servicios para empresas</span>
+        </span>
+      </a>
+
+      <button class="menu-button" type="button" aria-label="Abrir menú" aria-expanded="false">
+        <span></span>
+      </button>
+
+      <div class="nav-links">
+        <a href="#soluciones">Soluciones</a>
+        <a href="#metodo">Cómo trabajamos</a>
+        <a href="#preguntas">Preguntas</a>
+        <a href="/cursos/">Cursos</a>
+        <a class="button" href="#contacto">Solicitar diagnóstico</a>
+      </div>
+    </nav>
+  </header>
+
+  <main id="contenido">
+    <section class="hero">
+      <div class="hero-media" aria-hidden="true">
+        <img src="/assets/brand/kreateia-local.jpg" alt="" width="1200" height="792" fetchpriority="high" />
+      </div>
+
+      <div class="hero-inner">
+        <p class="eyebrow">KreateIA Servicios</p>
+        <h1>Soluciones digitales que ayudan a tu empresa a vender y trabajar mejor.</h1>
+        <p class="hero-copy">
+          Creamos webs, posicionamiento SEO, campañas, automatizaciones, aplicaciones y contenido audiovisual con un objetivo sencillo: conseguir resultados útiles para tu negocio.
+        </p>
+
+        <div class="hero-actions">
+          <a class="button orange" href="#contacto">Solicitar diagnóstico gratuito</a>
+          <a
+            class="button secondary"
+            href="https://wa.me/34614403913?text=Hola%2C%20quiero%20consultar%20un%20proyecto%20para%20mi%20empresa."
+            data-track="whatsapp_direct"
+          >Hablar por WhatsApp</a>
+        </div>
+
+        <div class="hero-proof" aria-label="Ventajas de KreateIA">
+          <div>
+            <strong>Presencia real</strong>
+            <span>Atención desde Torre-Pacheco, Murcia.</span>
+          </div>
+          <div>
+            <strong>Propuesta clara</strong>
+            <span>Alcance, precio y plazos antes de empezar.</span>
+          </div>
+          <div>
+            <strong>Un único equipo</strong>
+            <span>Estrategia, diseño, tecnología y contenido.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="band">
+      <div class="container intro-grid">
+        <div>
+          <p class="section-kicker">Primero, el problema</p>
+          <h2 class="section-title">La tecnología solo sirve si mejora algo concreto.</h2>
+          <p class="section-copy">
+            No empezamos vendiendo herramientas. Primero entendemos dónde pierde tiempo o clientes tu empresa y después planteamos la solución adecuada.
+          </p>
+        </div>
+
+        <div class="problem-list">
+          <div class="problem">
+            <span class="problem-number">01</span>
+            <div>
+              <strong>Necesitas conseguir más clientes</strong>
+              <p>Mejoramos tu web, visibilidad en Google, campañas y proceso de contacto.</p>
+            </div>
+          </div>
+          <div class="problem">
+            <span class="problem-number">02</span>
+            <div>
+              <strong>Tu equipo pierde tiempo en tareas repetitivas</strong>
+              <p>Conectamos herramientas, automatizamos procesos y creamos sistemas internos.</p>
+            </div>
+          </div>
+          <div class="problem">
+            <span class="problem-number">03</span>
+            <div>
+              <strong>Tu contenido no representa la calidad del negocio</strong>
+              <p>Producimos imágenes, vídeos, anuncios y publicaciones adaptadas a cada canal.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="soluciones" class="band soft">
+      <div class="container">
+        <div class="section-head">
+          <p class="section-kicker">Soluciones para empresas</p>
+          <h2 class="section-title">Tres áreas, una estrategia común.</h2>
+          <p class="section-copy">
+            Puedes contratar un servicio concreto o combinar varias soluciones dentro de un proyecto completo.
+          </p>
+        </div>
+
+        <div class="service-grid">
+          <article class="service-card">
+            <span class="service-tag">Captación</span>
+            <h3>Conseguir clientes</h3>
+            <p>Construimos una presencia digital preparada para que te encuentren, entiendan tu propuesta y contacten.</p>
+            <ul class="service-list">
+              <li>Páginas web y landing pages</li>
+              <li>SEO local y posicionamiento</li>
+              <li>Google Ads y Meta Ads</li>
+              <li>Embudos y formularios de captación</li>
+            </ul>
+          </article>
+
+          <article class="service-card">
+            <span class="service-tag">Eficiencia</span>
+            <h3>Ahorrar tiempo</h3>
+            <p>Eliminamos trabajo manual y centralizamos procesos para que el equipo pueda centrarse en lo importante.</p>
+            <ul class="service-list">
+              <li>Automatizaciones con IA</li>
+              <li>Aplicaciones personalizadas</li>
+              <li>Agentes y asistentes internos</li>
+              <li>Reservas, presupuestos e informes</li>
+            </ul>
+          </article>
+
+          <article class="service-card">
+            <span class="service-tag">Contenido</span>
+            <h3>Comunicar mejor</h3>
+            <p>Creamos contenido profesional para mostrar productos, servicios y campañas con una imagen coherente.</p>
+            <ul class="service-list">
+              <li>Vídeos publicitarios y anuncios</li>
+              <li>Fotografía de producto con IA</li>
+              <li>Contenido para redes sociales</li>
+              <li>Creatividades y campañas audiovisuales</li>
+            </ul>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="band dark">
+      <div class="container proof-layout">
+        <div class="location-image">
+          <img
+            src="/assets/brand/kreateia-local.jpg"
+            alt="Identidad visual de KreateIA en su espacio de Torre-Pacheco"
+            width="1200"
+            height="792"
+            loading="lazy"
+          />
+          <div class="location-caption">C/ Lino León Martínez 6 · Torre-Pacheco · Murcia</div>
+        </div>
+
+        <div>
+          <p class="section-kicker">Una empresa real</p>
+          <h2 class="section-title">Cerca para escucharte. Preparados para trabajar en toda España.</h2>
+          <p class="section-copy">
+            Puedes reunirte con nosotros en Torre-Pacheco o desarrollar todo el proyecto a distancia. Tendrás un contacto directo y sabrás quién se responsabiliza de cada fase.
+          </p>
+
+          <div class="proof-points">
+            <div class="proof-point">
+              <span>01</span>
+              <div>
+                <strong>Diagnóstico antes de presupuestar</strong>
+                <p>Revisamos tu situación y priorizamos lo que puede aportar más valor.</p>
+              </div>
+            </div>
+            <div class="proof-point">
+              <span>02</span>
+              <div>
+                <strong>Desarrollo y acompañamiento</strong>
+                <p>No entregamos una herramienta sin explicar cómo usarla y medirla.</p>
+              </div>
+            </div>
+            <div class="proof-point">
+              <span>03</span>
+              <div>
+                <strong>Sin soluciones innecesarias</strong>
+                <p>Si una idea no compensa su coste, te lo diremos antes de empezar.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="metodo" class="band">
+      <div class="container">
+        <div class="section-head">
+          <p class="section-kicker">Cómo trabajamos</p>
+          <h2 class="section-title">Un proceso entendible de principio a fin.</h2>
+        </div>
+
+        <div class="process">
+          <article class="process-step">
+            <span>Paso 01</span>
+            <h3>Nos cuentas el problema</h3>
+            <p>Conocemos el negocio, tus clientes, recursos y el resultado que buscas.</p>
+          </article>
+          <article class="process-step">
+            <span>Paso 02</span>
+            <h3>Analizamos prioridades</h3>
+            <p>Revisamos presencia digital, competencia, procesos y oportunidades.</p>
+          </article>
+          <article class="process-step">
+            <span>Paso 03</span>
+            <h3>Recibes una propuesta</h3>
+            <p>Definimos entregables, precio, calendario y responsabilidades.</p>
+          </article>
+          <article class="process-step">
+            <span>Paso 04</span>
+            <h3>Ejecutamos y medimos</h3>
+            <p>Construimos, probamos, entregamos y revisamos el funcionamiento real.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="preguntas" class="band soft">
+      <div class="container">
+        <div class="section-head" style="margin-inline:auto;text-align:center">
+          <p class="section-kicker">Preguntas frecuentes</p>
+          <h2 class="section-title">Antes de empezar</h2>
+        </div>
+
+        <div class="faq">
+          <details>
+            <summary>¿Trabajáis solamente con empresas de Murcia?</summary>
+            <p>Atendemos presencialmente en Torre-Pacheco y la Región de Murcia, pero desarrollamos proyectos digitales para empresas de toda España.</p>
+          </details>
+          <details>
+            <summary>¿La consulta inicial tiene coste?</summary>
+            <p>No. La primera conversación sirve para entender tu situación, detectar prioridades y confirmar si podemos ofrecerte una solución útil.</p>
+          </details>
+          <details>
+            <summary>¿Puedo contratar solamente un servicio?</summary>
+            <p>Sí. Puedes contratar una web, una auditoría SEO, contenido audiovisual, una automatización o una aplicación concreta sin contratar el resto.</p>
+          </details>
+          <details>
+            <summary>¿Cuánto cuesta un proyecto?</summary>
+            <p>Depende del alcance, las integraciones y el volumen de trabajo. Antes de empezar recibirás una propuesta cerrada con entregables, precio y plazos.</p>
+          </details>
+          <details>
+            <summary>¿Trabajáis con autónomos y pequeños negocios?</summary>
+            <p>Sí. Adaptamos el proyecto al tamaño y necesidades reales del negocio, evitando sistemas sobredimensionados.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <section id="contacto" class="band dark">
+      <div class="container contact-layout">
+        <div>
+          <p class="section-kicker">Diagnóstico inicial</p>
+          <h2 class="section-title">Cuéntanos qué quieres mejorar.</h2>
+          <p class="section-copy">
+            Responde cuatro preguntas y abriremos WhatsApp con la información preparada. Así podremos darte una primera orientación mucho más útil.
+          </p>
+
+          <div class="contact-methods">
+            <div class="contact-method">
+              <span>Teléfono</span>
+              <a href="tel:+34614403913" data-track="phone_click">+34 614 403 913</a>
+            </div>
+            <div class="contact-method">
+              <span>Email</span>
+              <a href="mailto:empresas@kreateia.com" data-track="email_click">empresas@kreateia.com</a>
+            </div>
+            <div class="contact-method">
+              <span>Dirección</span>
+              <strong>C/ Lino León Martínez 6, Torre-Pacheco</strong>
+            </div>
+          </div>
+        </div>
+
+        <form id="lead-form" class="lead-form">
+          <div class="field">
+            <label for="lead-name">Nombre</label>
+            <input id="lead-name" name="name" autocomplete="name" required />
+          </div>
+          <div class="field">
+            <label for="lead-company">Empresa o actividad</label>
+            <input id="lead-company" name="company" autocomplete="organization" required />
+          </div>
+          <div class="field">
+            <label for="lead-phone">Teléfono</label>
+            <input id="lead-phone" name="phone" type="tel" autocomplete="tel" required />
+          </div>
+          <div class="field">
+            <label for="lead-service">Qué necesitas</label>
+            <select id="lead-service" name="service" required>
+              <option value="">Selecciona una opción</option>
+              <option>Web y SEO</option>
+              <option>Marketing y captación</option>
+              <option>Automatización o aplicación</option>
+              <option>Vídeo y contenido audiovisual</option>
+              <option>Consultoría de IA</option>
+              <option>No lo tengo claro</option>
+            </select>
+          </div>
+          <div class="field full">
+            <label for="lead-message">¿Qué problema quieres resolver?</label>
+            <textarea id="lead-message" name="message" required placeholder="Cuéntanos brevemente qué quieres conseguir o qué no está funcionando."></textarea>
+          </div>
+          <p class="form-note">
+            Al continuar se abrirá WhatsApp con estos datos. No almacenamos la información introducida en este formulario.
+          </p>
+          <button class="button orange" type="submit">Enviar consulta por WhatsApp</button>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <span>© 2026 KreateIA · Torre-Pacheco, Murcia</span>
+      <div class="footer-links">
+        <a href="/">KreateIA Studio</a>
+        <a href="/cursos/">Cursos</a>
+        <a href="mailto:empresas@kreateia.com">Contacto</a>
+      </div>
+    </div>
+  </footer>
+
+  <a
+    class="whatsapp"
+    href="https://wa.me/34614403913?text=Hola%2C%20quiero%20informaci%C3%B3n%20sobre%20los%20servicios%20de%20KreateIA."
+    data-track="whatsapp_floating"
+    aria-label="Contactar con KreateIA por WhatsApp"
+  >WhatsApp</a>
+
+  <script>
+    const menuButton = document.querySelector('.menu-button');
+    const navLinks = document.querySelector('.nav-links');
+
+    function closeMenu() {
+      navLinks.classList.remove('open');
+      menuButton.setAttribute('aria-expanded', 'false');
+      document.body.classList.remove('menu-open');
+    }
+
+    menuButton.addEventListener('click', () => {
+      const open = navLinks.classList.toggle('open');
+      menuButton.setAttribute('aria-expanded', String(open));
+      document.body.classList.toggle('menu-open', open);
+    });
+
+    navLinks.querySelectorAll('a').forEach(link => {
+      link.addEventListener('click', closeMenu);
+    });
+
+    document.querySelectorAll('[data-track]').forEach(link => {
+      link.addEventListener('click', () => {
+        if (typeof gtag === 'function') {
+          gtag('event', link.dataset.track, {
+            page_location: window.location.href,
+            transport_type: 'beacon'
+          });
+        }
+      });
+    });
+
+    const form = document.querySelector('#lead-form');
+
+    form.addEventListener('submit', event => {
+      event.preventDefault();
+
+      if (!form.reportValidity()) return;
+
+      const data = new FormData(form);
+      const message = [
+        'Hola, quiero solicitar un diagnóstico para mi empresa.',
+        '',
+        'Nombre: ' + data.get('name'),
+        'Empresa/actividad: ' + data.get('company'),
+        'Teléfono: ' + data.get('phone'),
+        'Servicio: ' + data.get('service'),
+        'Necesidad: ' + data.get('message'),
+        '',
+        'Origen: kreateia.com/servicios/'
+      ].join('\n');
+
+      let redirected = false;
+      const openWhatsApp = () => {
+        if (redirected) return;
+        redirected = true;
+        window.location.href = 'https://wa.me/34614403913?text=' + encodeURIComponent(message);
+      };
+
+      if (typeof gtag === 'function') {
+        gtag('event', 'conversion', {
+          send_to: 'AW-18195089658/VFp1CNTdqbwcEPqRjORD',
+          event_callback: openWhatsApp
+        });
+
+        setTimeout(openWhatsApp, 900);
+      } else {
+        openWhatsApp();
+      }
+    });
+  </script>
+</body>
+</html>
