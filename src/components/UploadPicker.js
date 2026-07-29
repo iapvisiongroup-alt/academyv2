@@ -1,5 +1,5 @@
 import { muapi } from '../lib/muapi.js';
-import { getUploadHistory, saveUpload, removeUpload, generateThumbnail } from '../lib/uploadHistory.js';
+import { getUploadHistory, saveUpload, removeUpload, generateThumbnail, normalizeImageFile } from '../lib/uploadHistory.js';
 
 /**
  * Creates a self-contained upload picker: a trigger button + history panel.
@@ -312,11 +312,12 @@ export function createUploadPicker({ anchorContainer, onSelect, onClear, maxImag
         try {
             if (maxImages === 1) {
                 const file = files[0];
+                const normalizedFile = await normalizeImageFile(file);
                 const [uploadedUrl, thumbnail] = await Promise.all([
-                    muapi.uploadFile(file), // Ahora va directo por Cloudflare
-                    generateThumbnail(file)
+                    muapi.uploadFile(normalizedFile),
+                    generateThumbnail(normalizedFile)
                 ]);
-                const entry = { id: Date.now().toString(), name: file.name, uploadedUrl, thumbnail, timestamp: new Date().toISOString() };
+                const entry = { id: Date.now().toString(), name: normalizedFile.name, uploadedUrl, thumbnail, timestamp: new Date().toISOString() };
                 saveUpload(entry);
                 selectedEntries = [{ url: uploadedUrl, thumbnail }];
                 updateTrigger();
@@ -326,11 +327,12 @@ export function createUploadPicker({ anchorContainer, onSelect, onClear, maxImag
                 const toUpload = files.slice(0, Math.max(slots, 1));
 
                 const results = await Promise.all(toUpload.map(async (file) => {
+                    const normalizedFile = await normalizeImageFile(file);
                     const [uploadedUrl, thumbnail] = await Promise.all([
-                        muapi.uploadFile(file),
-                        generateThumbnail(file)
+                        muapi.uploadFile(normalizedFile),
+                        generateThumbnail(normalizedFile)
                     ]);
-                    return { id: Date.now().toString() + Math.random(), name: file.name, uploadedUrl, thumbnail, timestamp: new Date().toISOString() };
+                    return { id: Date.now().toString() + Math.random(), name: normalizedFile.name, uploadedUrl, thumbnail, timestamp: new Date().toISOString() };
                 }));
 
                 results.forEach(entry => {

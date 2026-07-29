@@ -1,4 +1,4 @@
-const STORAGE_KEY = 'kreateia_uploads_v2';
+const STORAGE_KEY = 'kreateia_uploads_v3';
 const MAX_UPLOADS = 20;
 
 export function getUploadHistory() {
@@ -47,6 +47,49 @@ export async function generateThumbnail(file) {
             URL.revokeObjectURL(objectUrl);
             resolve(null);
         };
+        img.src = objectUrl;
+    });
+}
+
+export async function normalizeImageFile(file) {
+    return new Promise((resolve, reject) => {
+        const objectUrl = URL.createObjectURL(file);
+        const img = new Image();
+
+        img.onload = () => {
+            const maxSide = 4096;
+            const scale = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
+            const width = Math.max(1, Math.round(img.naturalWidth * scale));
+            const height = Math.max(1, Math.round(img.naturalHeight * scale));
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, width, height);
+            ctx.drawImage(img, 0, 0, width, height);
+            URL.revokeObjectURL(objectUrl);
+
+            canvas.toBlob(blob => {
+                if (!blob) {
+                    reject(new Error('No se pudo preparar la imagen de referencia.'));
+                    return;
+                }
+
+                const baseName = String(file.name || 'referencia').replace(/\.[^.]+$/, '');
+                resolve(new File([blob], `${baseName}.jpg`, {
+                    type: 'image/jpeg',
+                    lastModified: Date.now(),
+                }));
+            }, 'image/jpeg', 0.95);
+        };
+
+        img.onerror = () => {
+            URL.revokeObjectURL(objectUrl);
+            reject(new Error('Formato de imagen no compatible. Usa JPG, PNG o WebP.'));
+        };
+
         img.src = objectUrl;
     });
 }

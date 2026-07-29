@@ -7,7 +7,10 @@ import {
 } from '../lib/models.js';
 import { AuthModal } from './AuthModal.js';
 import { createUploadPicker } from './UploadPicker.js';
-import { generateThumbnail as generateDroppedImageThumbnail } from '../lib/uploadHistory.js';
+import {
+    generateThumbnail as generateDroppedImageThumbnail,
+    normalizeImageFile,
+} from '../lib/uploadHistory.js';
 import { createControlBtn, createDropdownSystem } from './dropdowns.js';
 import { auth, db, APP_ID } from '../lib/firebase.js';
 import {
@@ -573,9 +576,10 @@ export function ImageStudio() {
             const entries = [];
 
             for (const file of selectedFiles) {
+                const normalizedFile = await normalizeImageFile(file);
                 const [url, thumbnail] = await Promise.all([
-                    uploadDroppedImageFile(file, token),
-                    generateDroppedImageThumbnail(file),
+                    uploadDroppedImageFile(normalizedFile, token),
+                    generateDroppedImageThumbnail(normalizedFile),
                 ]);
                 entries.push({ url, thumbnail });
             }
