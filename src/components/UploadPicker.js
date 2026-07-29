@@ -377,5 +377,17 @@ export function createUploadPicker({ anchorContainer, onSelect, onClear, maxImag
         fireOnSelect();
     };
 
-    return { trigger, panel, reset, setMaxImages, getSelectedUrls, setImage };
+    const setImages = (entries) => {
+        selectedEntries = (entries || [])
+            .filter(entry => entry?.url)
+            .slice(0, maxImages)
+            .map(entry => ({
+                url: entry.url,
+                thumbnail: entry.thumbnail || entry.url,
+            }));
+        updateTrigger();
+        fireOnSelect();
+    };
+
+    return { trigger, panel, reset, setMaxImages, getSelectedUrls, setImage, setImages };
 }

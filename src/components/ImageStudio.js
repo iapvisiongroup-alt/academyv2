@@ -7,6 +7,7 @@ import {
 } from '../lib/models.js';
 import { AuthModal } from './AuthModal.js';
 import { createUploadPicker } from './UploadPicker.js';
+import { generateThumbnail as generateDroppedImageThumbnail } from '../lib/uploadHistory.js';
 import { createControlBtn, createDropdownSystem } from './dropdowns.js';
 import { auth, db, APP_ID } from '../lib/firebase.js';
 import {
@@ -514,14 +515,17 @@ export function ImageStudio() {
 
         try {
             const token = await auth.currentUser.getIdToken();
-            const urls = [];
+            const entries = [];
 
             for (const file of selectedFiles) {
-                const url = await uploadDroppedImageFile(file, token);
-                urls.push(url);
+                const [url, thumbnail] = await Promise.all([
+                    uploadDroppedImageFile(file, token),
+                    generateDroppedImageThumbnail(file),
+                ]);
+                entries.push({ url, thumbnail });
             }
 
-            applyPickedImages(urls);
+            picker.setImages(entries);
         } catch (err) {
             alert(err.message || 'No se pudo subir la imagen.');
             textarea.placeholder = 'Describe la imagen que quieres crear...';
