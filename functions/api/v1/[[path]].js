@@ -14,8 +14,8 @@ const ROUTE_MAP = {
     // IMAGEN
     'generate/image/create':       { endpoint: 'nano-banana-2',                    cost: 16 },
     'generate/image/edit':         { endpoint: 'nano-banana-2-edit',               cost:  8 },
-    'generate/image/t2-create':    { endpoint: 'gpt-image-2-text-to-image',         costType: 'gptImage2' },
-    'generate/image/t2-edit':      { endpoint: 'gpt-image-2-image-to-image',        costType: 'gptImage2' },
+    'generate/image/t2-create':    { endpoint: 'openai-gpt-image-2-create',         costType: 'gptImage2' },
+    'generate/image/t2-edit':      { endpoint: 'openai-gpt-image-2-edit',           costType: 'gptImage2' },
 
     // VÍDEO — coste por 5s * 1.35 margen, escala con duration
     'generate/video/standard':     { endpoint: 'seedance-v2.0-t2v',                  costType: 'video', base5s: 0.75 },
@@ -60,8 +60,12 @@ function calculateCost(route, body) {
     let cost = mapped.cost ?? 0;
 
     if (mapped.costType === 'gptImage2') {
-        const resolution = String(body?.resolution || '2K').toLowerCase();
-        cost = resolution === '4k' ? 31 : 19;
+        const resolution = String(body?.resolution || '1K').toLowerCase();
+        const referenceCost = route === 'generate/image/t2-edit'
+            ? Math.min(16, Array.isArray(body?.images_list) ? body.images_list.length : 0) * 5
+            : 0;
+        const baseCost = resolution === '4k' ? 245 : resolution === '2k' ? 125 : 30;
+        cost = baseCost + referenceCost;
     }
 
     // Coste imagen — escala con resolución
@@ -95,12 +99,16 @@ function normalizeGptImage2Request(route, body) {
 
     const allowedAspectRatios = new Set(['auto', '1:1', '16:9', '9:16', '4:3', '3:4']);
     const requestedAspectRatio = String(body?.aspect_ratio || 'auto');
-    const requestedResolution = String(body?.resolution || '2K').toUpperCase();
+    const requestedResolution = String(body?.resolution || '1K').toUpperCase();
 
     const normalized = {
         prompt: String(body?.prompt || '').trim(),
         aspect_ratio: allowedAspectRatios.has(requestedAspectRatio) ? requestedAspectRatio : 'auto',
-        resolution: requestedResolution === '4K' ? '4K' : '2K',
+        resolution: requestedResolution === '4K'
+            ? '4K'
+            : requestedResolution === '2K'
+                ? '2K'
+                : '1K',
         quality: 'high',
     };
 
@@ -511,16 +519,21 @@ async function fetchExternalImage(url) {
     return { bytes, contentType };
 }
 
-async function uploadImageToFirebaseStorage({ sourceUrl, uid, env, accessToken }) {
+async function uploadImageBytesToFirebaseStorage({
+    bytes,
+    contentType,
+    uid,
+    env,
+    accessToken,
+    source = 'kreateia-generated-media',
+}) {
     const bucket = getFirebaseStorageBucket(env);
-    if (!bucket || !env.FIREBASE_PROJECT_ID || !accessToken) return sourceUrl;
-    if (!looksLikeMediaUrl(sourceUrl) || isOwnStorageUrl(sourceUrl, env)) return sourceUrl;
-
-    const image = await fetchExternalImage(sourceUrl);
-    if (!image) return sourceUrl;
+    if (!bucket || !env.FIREBASE_PROJECT_ID || !accessToken) {
+        throw new Error('Firebase Storage no está configurado.');
+    }
 
     const downloadToken = crypto.randomUUID();
-    const ext = extensionFromContentType(image.contentType);
+    const ext = extensionFromContentType(contentType);
     const objectName = [
         'users',
         safeStorageNamePart(uid || 'anonymous'),
@@ -531,26 +544,27 @@ async function uploadImageToFirebaseStorage({ sourceUrl, uid, env, accessToken }
     const boundary = `kreateia-${randomStorageId()}`;
     const metadata = {
         name: objectName,
-        contentType: image.contentType,
+        contentType,
         metadata: {
             firebaseStorageDownloadTokens: downloadToken,
-            source: 'kreateia-generated-media',
+            source,
         },
     };
 
+    const imageBytes = bytes instanceof ArrayBuffer ? new Uint8Array(bytes) : new Uint8Array(bytes);
     const encoder = new TextEncoder();
     const prefix = encoder.encode(
         `--${boundary}\r\n`
         + 'Content-Type: application/json; charset=UTF-8\r\n\r\n'
         + JSON.stringify(metadata)
         + `\r\n--${boundary}\r\n`
-        + `${image.contentType ? `Content-Type: ${image.contentType}\r\n` : ''}\r\n`
+        + `${contentType ? `Content-Type: ${contentType}\r\n` : ''}\r\n`
     );
     const suffix = encoder.encode(`\r\n--${boundary}--`);
-    const body = new Uint8Array(prefix.byteLength + image.bytes.byteLength + suffix.byteLength);
+    const body = new Uint8Array(prefix.byteLength + imageBytes.byteLength + suffix.byteLength);
     body.set(prefix, 0);
-    body.set(new Uint8Array(image.bytes), prefix.byteLength);
-    body.set(suffix, prefix.byteLength + image.bytes.byteLength);
+    body.set(imageBytes, prefix.byteLength);
+    body.set(suffix, prefix.byteLength + imageBytes.byteLength);
 
     const uploadRes = await fetch(
         `https://storage.googleapis.com/upload/storage/v1/b/${encodeURIComponent(bucket)}/o?uploadType=multipart`,
@@ -566,11 +580,280 @@ async function uploadImageToFirebaseStorage({ sourceUrl, uid, env, accessToken }
 
     if (!uploadRes.ok) {
         const err = await uploadRes.text().catch(() => '');
-        console.error('[API] No se pudo persistir imagen:', uploadRes.status, err.slice(0, 200));
-        return sourceUrl;
+        throw new Error(`No se pudo guardar la imagen (${uploadRes.status}): ${err.slice(0, 200)}`);
     }
 
     return `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(bucket)}/o/${encodeURIComponent(objectName)}?alt=media&token=${downloadToken}`;
+}
+
+async function uploadImageToFirebaseStorage({ sourceUrl, uid, env, accessToken }) {
+    const bucket = getFirebaseStorageBucket(env);
+    if (!bucket || !env.FIREBASE_PROJECT_ID || !accessToken) return sourceUrl;
+    if (!looksLikeMediaUrl(sourceUrl) || isOwnStorageUrl(sourceUrl, env)) return sourceUrl;
+
+    const image = await fetchExternalImage(sourceUrl);
+    if (!image) return sourceUrl;
+
+    try {
+        return await uploadImageBytesToFirebaseStorage({
+            bytes: image.bytes,
+            contentType: image.contentType,
+            uid,
+            env,
+            accessToken,
+        });
+    } catch (e) {
+        console.error('[API] No se pudo persistir imagen:', e.message);
+        return sourceUrl;
+    }
+}
+
+function getOpenAIImageSize(aspectRatio, resolution) {
+    const ratio = String(aspectRatio || 'auto');
+    const selectedResolution = String(resolution || '1K').toUpperCase();
+    const sizes1K = {
+        '1:1': '1024x1024',
+        '16:9': '1536x864',
+        '9:16': '864x1536',
+        '4:3': '1280x960',
+        '3:4': '960x1280',
+    };
+    const sizes2K = {
+        '1:1': '2048x2048',
+        '16:9': '2048x1152',
+        '9:16': '1152x2048',
+        '4:3': '2048x1536',
+        '3:4': '1536x2048',
+    };
+    const sizes4K = {
+        '1:1': '2880x2880',
+        '16:9': '3840x2160',
+        '9:16': '2160x3840',
+        '4:3': '3264x2448',
+        '3:4': '2448x3264',
+    };
+
+    const sizes = selectedResolution === '4K'
+        ? sizes4K
+        : selectedResolution === '2K'
+            ? sizes2K
+            : sizes1K;
+    return sizes[ratio] || 'auto';
+}
+
+function decodeBase64Image(value) {
+    const binary = atob(String(value || ''));
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes;
+}
+
+async function callOpenAIImage2({ route, body, env, uid, accessToken, cost }) {
+    const isEdit = route === 'generate/image/t2-edit';
+    const endpoint = isEdit
+        ? 'https://api.openai.com/v1/images/edits'
+        : 'https://api.openai.com/v1/images/generations';
+    const size = getOpenAIImageSize(body?.aspect_ratio, body?.resolution);
+    const headers = {
+        Authorization: `Bearer ${env.OPENAI_API_KEY}`,
+    };
+    let requestBody;
+
+    if (isEdit) {
+        const imageUrls = Array.isArray(body?.images_list)
+            ? body.images_list.filter(value => typeof value === 'string' && value).slice(0, 16)
+            : [];
+        if (!imageUrls.length) throw new Error('Añade al menos una imagen de referencia.');
+
+        const form = new FormData();
+        form.set('model', 'gpt-image-2');
+        form.set('prompt', String(body?.prompt || '').trim());
+        form.set('size', size);
+        form.set('quality', 'high');
+        form.set('output_format', 'jpeg');
+        form.set('output_compression', '92');
+        form.set('stream', 'true');
+        form.set('partial_images', '1');
+
+        for (let i = 0; i < imageUrls.length; i++) {
+            const image = await fetchExternalImage(imageUrls[i]);
+            if (!image) throw new Error(`No se pudo leer la referencia ${i + 1}.`);
+            const ext = extensionFromContentType(image.contentType);
+            form.append(
+                'image[]',
+                new Blob([image.bytes], { type: image.contentType }),
+                `referencia-${i + 1}.${ext}`
+            );
+        }
+
+        requestBody = form;
+    } else {
+        headers['Content-Type'] = 'application/json';
+        requestBody = JSON.stringify({
+            model: 'gpt-image-2',
+            prompt: String(body?.prompt || '').trim(),
+            size,
+            quality: 'high',
+            output_format: 'jpeg',
+            output_compression: 92,
+            stream: true,
+            partial_images: 1,
+        });
+    }
+
+    const response = await fetch(endpoint, {
+        method: 'POST',
+        headers,
+        body: requestBody,
+    });
+
+    if (!response.ok) {
+        const responseText = await response.text();
+        let data = {};
+        try {
+            data = JSON.parse(responseText || '{}');
+        } catch {}
+
+        const error = new Error(
+            data?.error?.message
+            || `OpenAI devolvió ${response.status}. Inténtalo de nuevo en unos minutos.`
+        );
+        error.status = response.status;
+        throw error;
+    }
+
+    if (!response.body) throw new Error('OpenAI no inició la transmisión de la imagen.');
+
+    const encoder = new TextEncoder();
+    const decoder = new TextDecoder();
+    const openAIReader = response.body.getReader();
+    const userDocPath = `artifacts/${env.FIREBASE_APP_ID}/public/data/users/${uid}`;
+
+    return new Response(new ReadableStream({
+        async start(controller) {
+            let buffer = '';
+            let finished = false;
+            let refunded = false;
+
+            const send = payload => {
+                if (!finished) controller.enqueue(encoder.encode(JSON.stringify(payload) + '\n'));
+            };
+
+            const heartbeat = setInterval(() => {
+                send({ type: 'progress' });
+            }, 8000);
+
+            const refund = async () => {
+                if (refunded || !(cost > 0) || !uid || !accessToken) return;
+                refunded = true;
+                await firestoreRefund(
+                    env.FIREBASE_PROJECT_ID,
+                    userDocPath,
+                    cost,
+                    accessToken
+                );
+            };
+
+            try {
+                send({ type: 'progress' });
+
+                while (true) {
+                    const { value, done } = await openAIReader.read();
+                    buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop() || '';
+
+                    for (const rawLine of lines) {
+                        const line = rawLine.trim();
+                        if (!line.startsWith('data:')) continue;
+
+                        const rawEvent = line.slice(5).trim();
+                        if (!rawEvent || rawEvent === '[DONE]') continue;
+
+                        let event;
+                        try {
+                            event = JSON.parse(rawEvent);
+                        } catch {
+                            continue;
+                        }
+
+                        if (event.type === 'error') {
+                            throw new Error(event.error?.message || event.message || 'OpenAI no pudo generar la imagen.');
+                        }
+
+                        if (event.type === 'image_generation.partial_image'
+                            || event.type === 'image_edit.partial_image') {
+                            send({ type: 'progress', partial: true });
+                            continue;
+                        }
+
+                        if (event.type !== 'image_generation.completed'
+                            && event.type !== 'image_edit.completed') {
+                            continue;
+                        }
+
+                        const base64 = event.b64_json || event.data?.[0]?.b64_json;
+                        if (!base64) throw new Error('OpenAI no devolvió la imagen final.');
+
+                        const url = await uploadImageBytesToFirebaseStorage({
+                            bytes: decodeBase64Image(base64),
+                            contentType: 'image/jpeg',
+                            uid,
+                            env,
+                            accessToken,
+                            source: 'openai-gpt-image-2',
+                        });
+
+                        send({
+                            type: 'completed',
+                            result: {
+                                url,
+                                image_url: url,
+                                status: 'completed',
+                                model: 'gpt-image-2',
+                                size,
+                                quality: 'high',
+                                usage: event.usage || null,
+                            },
+                        });
+                        finished = true;
+                        clearInterval(heartbeat);
+                        controller.close();
+                        await openAIReader.cancel().catch(() => {});
+                        return;
+                    }
+
+                    if (done) break;
+                }
+
+                throw new Error('OpenAI terminó sin devolver la imagen final.');
+            } catch (error) {
+                try {
+                    await refund();
+                } catch (refundError) {
+                    console.error('[OpenAI] Error reembolsando créditos:', refundError.message);
+                }
+
+                console.error('[OpenAI] Error GPT Image 2 durante stream:', error.message);
+                send({ type: 'error', error: error.message || 'No se pudo generar la imagen con OpenAI.' });
+                finished = true;
+                clearInterval(heartbeat);
+                controller.close();
+            }
+        },
+        async cancel() {
+            await openAIReader.cancel().catch(() => {});
+        },
+    }), {
+        status: 200,
+        headers: {
+            'Content-Type': 'text/event-stream; charset=utf-8',
+            'Cache-Control': 'no-cache, no-transform',
+            'X-Accel-Buffering': 'no',
+            'Access-Control-Allow-Origin': '*',
+        },
+    });
 }
 
 async function persistImageUrls(value, { uid, env, accessToken }) {
@@ -1005,11 +1288,18 @@ async function handleDynamicToolRun(context, body) {
 export async function onRequest(context) {
     const { request, env, params } = context;
 
-    if (!env.MUAPI_KEY) return jsonError('API Key no configurada', 500);
-
     const route = Array.isArray(params.path)
         ? params.path.join('/')
         : String(params.path || '');
+    const isOpenAIImageRoute = route === 'generate/image/t2-create'
+        || route === 'generate/image/t2-edit';
+
+    if (isOpenAIImageRoute && !env.OPENAI_API_KEY) {
+        return jsonError('Falta OPENAI_API_KEY en Cloudflare.', 500);
+    }
+    if (!isOpenAIImageRoute && !env.MUAPI_KEY) {
+        return jsonError('API Key no configurada', 500);
+    }
 
     // Media proxy — devuelve archivos con URL opaca kreateia-...
     if (route.startsWith('media/')) {
@@ -1090,6 +1380,35 @@ export async function onRequest(context) {
             if (!result.ok) return jsonError(result.message, 402);
         } catch (e) {
             return jsonError('ERROR_CREDITOS: ' + e.message, 500);
+        }
+    }
+
+    if (isOpenAIImageRoute) {
+        try {
+            return await callOpenAIImage2({
+                route,
+                body,
+                env,
+                uid,
+                accessToken: serviceAccessToken,
+                cost,
+            });
+        } catch (e) {
+            if (cost > 0 && uid && serviceAccessToken) {
+                try {
+                    await firestoreRefund(
+                        env.FIREBASE_PROJECT_ID,
+                        `artifacts/${env.FIREBASE_APP_ID}/public/data/users/${uid}`,
+                        cost,
+                        serviceAccessToken
+                    );
+                } catch (refundError) {
+                    console.error('[OpenAI] Error reembolsando créditos:', refundError.message);
+                }
+            }
+
+            console.error('[OpenAI] Error GPT Image 2:', e.message);
+            return jsonError(e.message || 'No se pudo generar la imagen con OpenAI.', e.status || 502);
         }
     }
 

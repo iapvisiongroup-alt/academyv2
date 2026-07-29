@@ -44,6 +44,58 @@ async function saveGenerationTask({ type, endpoint, requestId, prompt, userId })
     }
 }
 
+async function readImageApiResponse(response) {
+    const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+
+    if (!contentType.includes('text/event-stream')) {
+        return response.json().catch(() => ({}));
+    }
+
+    if (!response.body) {
+        throw new Error('El servidor no inició la generación.');
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let result = null;
+
+    const processLine = line => {
+        const value = line.trim();
+        if (!value) return;
+
+        let event;
+        try {
+            event = JSON.parse(value);
+        } catch {
+            return;
+        }
+
+        if (event.type === 'error') {
+            throw new Error(event.error || 'No se pudo generar la imagen.');
+        }
+
+        if (event.type === 'completed') {
+            result = event.result || null;
+        }
+    };
+
+    while (true) {
+        const { value, done } = await reader.read();
+        buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        lines.forEach(processLine);
+
+        if (done) break;
+    }
+
+    if (buffer.trim()) processLine(buffer);
+    if (!result) throw new Error('La generación terminó sin recibir una imagen.');
+    return result;
+}
+
 const ACTIVE_T2I = [
     { id: 'nano-banana-2', name: 'KreateImage 2', desc: 'Generación de imágenes en alta calidad' },
     { id: 'gpt-image-2', name: 'KreateImageT2', desc: 'Máxima precisión, texto y composición en calidad 4K' }
@@ -68,11 +120,11 @@ const STYLE_PRESETS = [
 
 const IMAGE_EDIT_QUALITY_OPTIONS = ['Normal', 'Alta', 'Máxima'];
 const GPT_IMAGE_2_IDS = new Set(['gpt-image-2', 'gpt-image-2-image-to-image']);
-const GPT_IMAGE_2_COSTS = { '2k': 19, '4k': 31 };
+const GPT_IMAGE_2_COSTS = { '1k': 30, '2k': 125, '4k': 245 };
 
 const getModelCost = (id, resolution = '720p') => {
     if (GPT_IMAGE_2_IDS.has(id)) {
-        return GPT_IMAGE_2_COSTS[String(resolution).toLowerCase()] || GPT_IMAGE_2_COSTS['2k'];
+        return GPT_IMAGE_2_COSTS[String(resolution).toLowerCase()] || GPT_IMAGE_2_COSTS['1k'];
     }
 
     const base = id === 'nano-banana-2' ? 16
@@ -261,7 +313,10 @@ export function ImageStudio() {
         const tool = getSelectedDynamicTool();
         if (tool) return getDynamicToolCost(tool, selectedResolution);
 
-        return getModelCost(selectedModel, selectedResolution);
+        const base = getModelCost(selectedModel, selectedResolution);
+        return selectedModel === 'gpt-image-2-image-to-image'
+            ? base + Math.min(16, uploadedImageUrls.length) * 5
+            : base;
     };
 
     function renderDynamicFields() {
@@ -960,7 +1015,7 @@ export function ImageStudio() {
                 });
             }
 
-            let res = await req.json().catch(() => ({}));
+            let res = await readImageApiResponse(req);
 
             if (!req.ok) {
                 throw new Error(res.error || res.message || 'Error en el servidor: ' + req.status);

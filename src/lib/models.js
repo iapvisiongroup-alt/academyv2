@@ -2078,12 +2078,12 @@ export const t2iModels = [
         "default": "auto"
       },
       "resolution": {
-        "enum": ["2K", "4K"],
+        "enum": ["1K", "2K", "4K"],
         "title": "Resolución",
         "name": "resolution",
         "type": "string",
         "description": "Resolución de salida en calidad máxima.",
-        "default": "2K"
+        "default": "1K"
       }
     }
   },
@@ -2598,12 +2598,12 @@ export const i2iModels = [
         "default": "auto"
       },
       "resolution": {
-        "enum": ["2K", "4K"],
+        "enum": ["1K", "2K", "4K"],
         "title": "Resolución",
         "name": "resolution",
         "type": "string",
         "description": "Resolución de salida en calidad máxima.",
-        "default": "2K"
+        "default": "1K"
       }
     }
   },
