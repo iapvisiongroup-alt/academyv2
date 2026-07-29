@@ -45,7 +45,7 @@ async function saveGenerationTask({ type, endpoint, requestId, prompt, userId })
 
 const ACTIVE_T2I = [
     { id: 'nano-banana-2', name: 'KreateImage 2', desc: 'Generación de imágenes en alta calidad' },
-    { id: 'gpt-image-2', name: 'KreateImageT2', desc: 'Máxima precisión, texto y composición hasta 4K' }
+    { id: 'gpt-image-2', name: 'KreateImageT2', desc: 'Máxima precisión, texto y composición en calidad 4K' }
 ];
 
 const ACTIVE_I2I = [
