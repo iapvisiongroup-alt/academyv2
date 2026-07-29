@@ -133,9 +133,15 @@ export class MuapiClient {
         const url = `${this.baseUrl}/api/v1/upload_file`;
         const formData = new FormData();
         formData.append('file', file);
+        const user = auth.currentUser;
+        if (!user) throw new Error('Debes iniciar sesión para subir archivos.');
+        const token = await user.getIdToken();
 
         const response = await fetch(url, {
             method: 'POST',
+            headers: {
+                Authorization: `Bearer ${token}`,
+            },
             body: formData
         });
 

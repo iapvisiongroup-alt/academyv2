@@ -1397,6 +1397,51 @@ export async function onRequest(context) {
 
     const contentType = request.headers.get('Content-Type') || '';
 
+    if (route === 'upload_file' && request.method === 'POST') {
+        try {
+            const idToken = getBearerToken(request);
+            if (!idToken) return jsonError('No autenticado', 401);
+
+            const uid = await verifyFirebaseToken(idToken, env.FIREBASE_API_KEY);
+            const accessToken = await getServiceAccountToken(env);
+            const form = await request.formData();
+            const file = form.get('file');
+
+            if (!file || typeof file.arrayBuffer !== 'function') {
+                return jsonError('No se recibió ningún archivo.', 400);
+            }
+
+            const fileType = String(file.type || 'application/octet-stream').toLowerCase();
+            if (!fileType.startsWith('image/') && !fileType.startsWith('video/')) {
+                return jsonError('Formato de archivo no permitido.', 400);
+            }
+
+            const url = await uploadImageBytesToFirebaseStorage({
+                bytes: await file.arrayBuffer(),
+                contentType: fileType,
+                uid,
+                env,
+                accessToken,
+                source: 'kreateia-user-upload',
+            });
+
+            return new Response(JSON.stringify({
+                url,
+                file_url: url,
+                status: 'completed',
+            }), {
+                status: 200,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Access-Control-Allow-Origin': '*',
+                },
+            });
+        } catch (error) {
+            console.error('[Upload] Error guardando referencia:', error.message);
+            return jsonError(error.message || 'No se pudo guardar el archivo.', 500);
+        }
+    }
+
     // Leer body
     let body = {};
     let rawBody = null;
