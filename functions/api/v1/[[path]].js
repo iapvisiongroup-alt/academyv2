@@ -672,8 +672,6 @@ async function callOpenAIImage2({ route, body, env, uid, accessToken, cost }) {
         form.set('quality', 'high');
         form.set('output_format', 'jpeg');
         form.set('output_compression', '92');
-        form.set('stream', 'true');
-        form.set('partial_images', '1');
 
         for (let i = 0; i < imageUrls.length; i++) {
             const image = await fetchExternalImage(imageUrls[i]);
@@ -720,6 +718,37 @@ async function callOpenAIImage2({ route, body, env, uid, accessToken, cost }) {
         );
         error.status = response.status;
         throw error;
+    }
+
+    if (isEdit) {
+        const data = await response.json().catch(() => ({}));
+        const base64 = data?.data?.[0]?.b64_json;
+        if (!base64) throw new Error('OpenAI no devolvió la imagen editada.');
+
+        const url = await uploadImageBytesToFirebaseStorage({
+            bytes: decodeBase64Image(base64),
+            contentType: 'image/jpeg',
+            uid,
+            env,
+            accessToken,
+            source: 'openai-gpt-image-2-edit',
+        });
+
+        return new Response(JSON.stringify({
+            url,
+            image_url: url,
+            status: 'completed',
+            model: 'gpt-image-2',
+            size,
+            quality: 'high',
+            usage: data?.usage || null,
+        }), {
+            status: 200,
+            headers: {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*',
+            },
+        });
     }
 
     if (!response.body) throw new Error('OpenAI no inició la transmisión de la imagen.');

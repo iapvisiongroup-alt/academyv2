@@ -845,14 +845,13 @@ export function ImageStudio() {
     const renderCard = (entry, isPrepend = false) => {
         galleryHeader.classList.remove('hidden');
 
-        const card = document.createElement('div');
+        const card = document.createElement('a');
         card.className = 'relative aspect-square rounded-xl md:rounded-2xl overflow-hidden bg-white/5 border border-white/10 group animate-fade-in-up cursor-pointer';
+        card.href = entry.url;
+        card.target = '_blank';
+        card.rel = 'noopener noreferrer';
+        card.setAttribute('aria-label', 'Abrir imagen generada');
         card.innerHTML = '<img src="' + entry.url + '" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" loading="lazy"><div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent opacity-0 group-hover:opacity-100 transition-opacity p-2 md:p-4 flex flex-col justify-end"><p class="text-white text-[10px] md:text-xs line-clamp-2 leading-tight">' + (entry.prompt || '') + '</p></div>';
-
-        card.onclick = async () => {
-            const blob = await fetch(entry.url).then(r => r.blob());
-            window.open(URL.createObjectURL(blob), '_blank');
-        };
 
         if (isPrepend) galleryGrid.prepend(card);
         else galleryGrid.appendChild(card);
