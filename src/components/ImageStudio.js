@@ -44,11 +44,13 @@ async function saveGenerationTask({ type, endpoint, requestId, prompt, userId })
 }
 
 const ACTIVE_T2I = [
-    { id: 'nano-banana-2', name: 'KreateImage 2', desc: 'Generación de imágenes en alta calidad' }
+    { id: 'nano-banana-2', name: 'KreateImage 2', desc: 'Generación de imágenes en alta calidad' },
+    { id: 'gpt-image-2', name: 'KreateImageT2', desc: 'Máxima precisión, texto y composición hasta 4K' }
 ];
 
 const ACTIVE_I2I = [
-    { id: 'nano-banana-2-edit', name: 'KreateImage 2 Edit', desc: 'Edición de imágenes con IA' }
+    { id: 'nano-banana-2-edit', name: 'KreateImage 2 Edit', desc: 'Edición de imágenes con IA' },
+    { id: 'gpt-image-2-image-to-image', name: 'KreateImageT2 Edit', desc: 'Edición premium con hasta 16 referencias y salida 4K' }
 ];
 
 const STYLE_PRESETS = [
@@ -64,8 +66,14 @@ const STYLE_PRESETS = [
 ];
 
 const IMAGE_EDIT_QUALITY_OPTIONS = ['Normal', 'Alta', 'Máxima'];
+const GPT_IMAGE_2_IDS = new Set(['gpt-image-2', 'gpt-image-2-image-to-image']);
+const GPT_IMAGE_2_COSTS = { '2k': 19, '4k': 31 };
 
 const getModelCost = (id, resolution = '720p') => {
+    if (GPT_IMAGE_2_IDS.has(id)) {
+        return GPT_IMAGE_2_COSTS[String(resolution).toLowerCase()] || GPT_IMAGE_2_COSTS['2k'];
+    }
+
     const base = id === 'nano-banana-2' ? 16
         : id === 'nano-banana-2-edit' ? 8
         : 8;
@@ -240,7 +248,10 @@ export function ImageStudio() {
         const tool = dynamicT2I.find(t => t.id === id);
         if (tool) return getDynamicResolutions(tool);
 
-        if (imageMode) return IMAGE_EDIT_QUALITY_OPTIONS;
+        if (imageMode) {
+            if (id === 'gpt-image-2-image-to-image') return getResolutionsForI2IModel(id);
+            return IMAGE_EDIT_QUALITY_OPTIONS;
+        }
 
         return getResolutionsForModel(id);
     };
@@ -719,6 +730,10 @@ export function ImageStudio() {
             }
 
             updateControlsForMode();
+
+            if (imageMode) {
+                picker.setMaxImages(getMaxImagesForI2IModel(selectedModel) || 1);
+            }
         });
     });
 
@@ -740,7 +755,11 @@ export function ImageStudio() {
 
         const res = (getCurrentResolutions(selectedModel) || []).map(v => ({ id: v, name: v }));
 
-        dd.openList(imageMode ? 'Calidad' : 'Resolución', res, selectedResolution, qualityBtn, (val) => {
+        const qualityTitle = imageMode && selectedModel !== 'gpt-image-2-image-to-image'
+            ? 'Calidad'
+            : 'Resolución';
+
+        dd.openList(qualityTitle, res, selectedResolution, qualityBtn, (val) => {
             selectedResolution = val;
 
             const l = container.querySelector('#quality-btn-label');
@@ -864,7 +883,9 @@ export function ImageStudio() {
             }
 
             if (imageMode) {
-                finalPrompt += getImageEditQualityPromptSuffix(selectedResolution);
+                if (selectedModel !== 'gpt-image-2-image-to-image') {
+                    finalPrompt += getImageEditQualityPromptSuffix(selectedResolution);
+                }
             }
 
             const token = await auth.currentUser.getIdToken();
@@ -894,19 +915,32 @@ export function ImageStudio() {
                     }),
                 });
             } else {
-                const route = imageMode ? 'generate/image/edit' : 'generate/image/create';
+                const route = selectedModel === 'gpt-image-2'
+                    ? 'generate/image/t2-create'
+                    : selectedModel === 'gpt-image-2-image-to-image'
+                        ? 'generate/image/t2-edit'
+                        : imageMode
+                            ? 'generate/image/edit'
+                            : 'generate/image/create';
+
+                endpointLabel = route;
 
                 const payload = imageMode
                     ? {
                         prompt: finalPrompt,
                         aspect_ratio: selectedAr,
                         images_list: uploadedImageUrls,
+                        ...(selectedModel === 'gpt-image-2-image-to-image' && {
+                            resolution: selectedResolution,
+                            quality: 'high',
+                        }),
                         ...(negativePrompt && { negative_prompt: negativePrompt }),
                     }
                     : {
                         prompt: finalPrompt,
                         aspect_ratio: selectedAr,
                         resolution: selectedResolution,
+                        ...(selectedModel === 'gpt-image-2' && { quality: 'high' }),
                         ...(negativePrompt && { negative_prompt: negativePrompt }),
                     };
 

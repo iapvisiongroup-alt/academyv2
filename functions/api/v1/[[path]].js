@@ -14,6 +14,8 @@ const ROUTE_MAP = {
     // IMAGEN
     'generate/image/create':       { endpoint: 'nano-banana-2',                    cost: 16 },
     'generate/image/edit':         { endpoint: 'nano-banana-2-edit',               cost:  8 },
+    'generate/image/t2-create':    { endpoint: 'gpt-image-2-text-to-image',         costType: 'gptImage2' },
+    'generate/image/t2-edit':      { endpoint: 'gpt-image-2-image-to-image',        costType: 'gptImage2' },
 
     // VÍDEO — coste por 5s * 1.35 margen, escala con duration
     'generate/video/standard':     { endpoint: 'seedance-v2.0-t2v',                  costType: 'video', base5s: 0.75 },
@@ -57,6 +59,11 @@ function calculateCost(route, body) {
 
     let cost = mapped.cost ?? 0;
 
+    if (mapped.costType === 'gptImage2') {
+        const resolution = String(body?.resolution || '2K').toLowerCase();
+        cost = resolution === '4k' ? 31 : 19;
+    }
+
     // Coste imagen — escala con resolución
     if (mapped.cost !== undefined && (route.includes('image') || route.includes('artist'))) {
         const defaultRes  = route.includes('artist') ? '2k' : '720p';
@@ -79,6 +86,31 @@ function calculateCost(route, body) {
     }
 
     return { cost, muapiEndpoint: mapped.endpoint };
+}
+
+function normalizeGptImage2Request(route, body) {
+    if (route !== 'generate/image/t2-create' && route !== 'generate/image/t2-edit') {
+        return body;
+    }
+
+    const allowedAspectRatios = new Set(['auto', '1:1', '16:9', '9:16', '4:3', '3:4']);
+    const requestedAspectRatio = String(body?.aspect_ratio || 'auto');
+    const requestedResolution = String(body?.resolution || '2K').toUpperCase();
+
+    const normalized = {
+        prompt: String(body?.prompt || '').trim(),
+        aspect_ratio: allowedAspectRatios.has(requestedAspectRatio) ? requestedAspectRatio : 'auto',
+        resolution: requestedResolution === '4K' ? '4K' : '2K',
+        quality: 'high',
+    };
+
+    if (route === 'generate/image/t2-edit') {
+        normalized.images_list = Array.isArray(body?.images_list)
+            ? body.images_list.filter(value => typeof value === 'string' && value).slice(0, 16)
+            : [];
+    }
+
+    return normalized;
 }
 
 // ─── Verificar token Firebase ─────────────────────────────────────────────────
@@ -959,6 +991,7 @@ export async function onRequest(context) {
             }
 
             body = await unwrapIncomingMediaUrls(body, env, request);
+            body = normalizeGptImage2Request(route, body);
             rawBody = JSON.stringify(body);
         } else {
             rawBody = await request.arrayBuffer();

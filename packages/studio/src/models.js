@@ -2058,6 +2058,36 @@ export const t2iModels = [
     }
   },
   {
+    "id": "gpt-image-2",
+    "name": "KreateImageT2",
+    "endpoint": "gpt-image-2-text-to-image",
+    "family": "gpt-image",
+    "inputs": {
+      "prompt": {
+        "description": "Describe la imagen que quieres generar.",
+        "type": "string",
+        "title": "Prompt",
+        "name": "prompt"
+      },
+      "aspect_ratio": {
+        "enum": ["auto", "1:1", "16:9", "9:16", "4:3", "3:4"],
+        "title": "Relación de aspecto",
+        "name": "aspect_ratio",
+        "type": "string",
+        "description": "Formato de la imagen final.",
+        "default": "auto"
+      },
+      "resolution": {
+        "enum": ["2K", "4K"],
+        "title": "Resolución",
+        "name": "resolution",
+        "type": "string",
+        "description": "Resolución de salida en calidad máxima.",
+        "default": "2K"
+      }
+    }
+  },
+  {
     "id": "seedream-5.0",
     "name": "Seedream 5.0",
     "endpoint": "seedream-5.0",
@@ -2544,6 +2574,39 @@ export const getResolutionsForVideoModel = (modelId) => {
 };
 // Auto-generated from schema_data.json — Image to Image models
 export const i2iModels = [
+  {
+    "id": "gpt-image-2-image-to-image",
+    "name": "KreateImageT2 Edit",
+    "endpoint": "gpt-image-2-image-to-image",
+    "family": "gpt-image",
+    "imageField": "images_list",
+    "hasPrompt": true,
+    "maxImages": 16,
+    "inputs": {
+      "prompt": {
+        "type": "string",
+        "title": "Prompt",
+        "name": "prompt",
+        "description": "Describe con precisión los cambios que quieres realizar."
+      },
+      "aspect_ratio": {
+        "enum": ["auto", "1:1", "16:9", "9:16", "4:3", "3:4"],
+        "title": "Relación de aspecto",
+        "name": "aspect_ratio",
+        "type": "string",
+        "description": "Formato de la imagen editada.",
+        "default": "auto"
+      },
+      "resolution": {
+        "enum": ["2K", "4K"],
+        "title": "Resolución",
+        "name": "resolution",
+        "type": "string",
+        "description": "Resolución de salida en calidad máxima.",
+        "default": "2K"
+      }
+    }
+  },
   {
     "id": "ai-image-upscaler",
     "name": "AI Image Upscaler",
