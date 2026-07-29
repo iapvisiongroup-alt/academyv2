@@ -915,6 +915,32 @@ async function handleDynamicToolRun(context, body) {
 
         responseBody = await muapiResponse.text();
 
+        if (route.startsWith('predictions/') && muapiResponse.ok) {
+            try {
+                const pollData = JSON.parse(responseBody);
+                const pollStatus = String(
+                    pollData?.status
+                    || pollData?.output?.status
+                    || pollData?.data?.status
+                    || 'unknown'
+                ).toLowerCase();
+                const hasResult = Boolean(
+                    pollData?.url
+                    || pollData?.image_url
+                    || pollData?.output?.url
+                    || pollData?.output?.image_url
+                    || pollData?.outputs?.length
+                    || pollData?.data?.outputs?.length
+                );
+
+                console.log('[MuAPI] Estado de generación', {
+                    status: pollStatus,
+                    has_result: hasResult,
+                    has_error: Boolean(pollData?.error || pollData?.message),
+                });
+            } catch {}
+        }
+
         if (!muapiResponse.ok) {
             console.error('[MuAPI] Petición rechazada', {
                 route,
@@ -1082,6 +1108,41 @@ export async function onRequest(context) {
         });
 
         responseBody = await muapiResponse.text();
+
+        if (route.startsWith('predictions/') && muapiResponse.ok) {
+            try {
+                const pollData = JSON.parse(responseBody);
+                const pollStatus = String(
+                    pollData?.status
+                    || pollData?.output?.status
+                    || pollData?.data?.status
+                    || 'unknown'
+                ).toLowerCase();
+                const hasResult = Boolean(
+                    pollData?.url
+                    || pollData?.image_url
+                    || pollData?.output?.url
+                    || pollData?.output?.image_url
+                    || pollData?.outputs?.length
+                    || pollData?.data?.outputs?.length
+                );
+
+                console.log('[MuAPI] Estado de generación', {
+                    status: pollStatus,
+                    has_result: hasResult,
+                    has_error: Boolean(pollData?.error || pollData?.message),
+                });
+            } catch {}
+        }
+
+        if (!muapiResponse.ok) {
+            console.error('[MuAPI] Petición rechazada', {
+                route,
+                endpoint: muapiEndpoint,
+                status: muapiResponse.status,
+                response: responseBody.slice(0, 1000),
+            });
+        }
     } catch (e) {
         if (cost > 0 && uid) {
             try {

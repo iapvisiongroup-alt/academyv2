@@ -8,8 +8,10 @@ import { onAuthStateChanged } from 'firebase/auth';
 const extractUrl = (d) => {
     if (!d) return null;
     return d.url || d.image_url || d.audio_url || d.video_url
-        || d.output?.url || d.output?.outputs?.[0]
-        || d.outputs?.[0] || d.images?.[0]?.url || null;
+        || d.output?.url || d.output?.image_url || d.output?.outputs?.[0]
+        || d.outputs?.[0]
+        || d.data?.url || d.data?.image_url || d.data?.outputs?.[0]
+        || d.images?.[0]?.url || null;
 };
 
 if (!document.querySelector('#gc-styles')) {
@@ -42,6 +44,7 @@ export function GenerationCenter() {
         if (polling.has(task.id))      return;
         if (task.status !== 'running') return;
         if (!task.request_id)          return;
+        if (window.__kreateiaActiveRequests?.has(task.request_id)) return;
 
         polling.add(task.id);
         let token = await auth.currentUser.getIdToken();
@@ -58,14 +61,26 @@ export function GenerationCenter() {
 
                 const data   = await resp.json();
                 const url    = extractUrl(data);
-                const status = String(data.status || data.output?.status || '').toLowerCase();
+                const status = String(
+                    data.status
+                    || data.output?.status
+                    || data.data?.status
+                    || data.detail?.status
+                    || ''
+                ).toLowerCase();
 
                 if (url) {
                     await updateDoc(task.ref, { status: 'completed', result_url: url, updatedAt: serverTimestamp() });
                     return;
                 }
                 if (status === 'failed' || status === 'error') {
-                    throw new Error(data.error || data.output?.error || 'La generación falló.');
+                    throw new Error(
+                        data.error
+                        || data.output?.error
+                        || data.data?.error
+                        || data.detail?.error
+                        || 'La generación falló.'
+                    );
                 }
             }
             throw new Error('Tiempo de espera agotado.');

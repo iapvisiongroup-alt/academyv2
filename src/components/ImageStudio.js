@@ -879,6 +879,8 @@ export function ImageStudio() {
         textarea.value = '';
         textarea.style.height = 'auto';
 
+        let activeRequestId = null;
+
         try {
             let finalPrompt = promptText || (imageMode ? 'Edición de imagen' : '');
 
@@ -965,9 +967,13 @@ export function ImageStudio() {
             }
 
             const requestId = res.request_id || res.id || (res.output && res.output.id) || null;
+            activeRequestId = requestId;
             let generationTaskRef = null;
 
             if (requestId && auth.currentUser) {
+                window.__kreateiaActiveRequests = window.__kreateiaActiveRequests || new Set();
+                window.__kreateiaActiveRequests.add(requestId);
+
                 generationTaskRef = await saveGenerationTask({
                     type: 'image',
                     endpoint: endpointLabel,
@@ -995,7 +1001,12 @@ export function ImageStudio() {
                     const p = await poll.json().catch(() => ({}));
 
                     if (!poll.ok) {
-                        throw new Error(p.error || 'Error consultando resultado: ' + poll.status);
+                        throw new Error(
+                            p.error
+                            || p.detail?.error
+                            || p.message
+                            || 'Error consultando resultado: ' + poll.status
+                        );
                     }
 
                     imageUrl = extractImageUrl(p);
@@ -1009,12 +1020,24 @@ export function ImageStudio() {
                         p.status
                         || (p.output && p.output.status)
                         || (p.data && p.data.status)
+                        || (p.detail && p.detail.status)
                         || ''
                     ).toLowerCase();
 
                     if (status === 'failed' || status === 'error') {
-                        throw new Error(p.error || p.message || 'Error en la generación.');
+                        throw new Error(
+                            p.error
+                            || (p.output && p.output.error)
+                            || (p.data && p.data.error)
+                            || (p.detail && p.detail.error)
+                            || p.message
+                            || 'Error en la generación.'
+                        );
                     }
+                }
+
+                if (!imageUrl) {
+                    throw new Error('La generación está tardando demasiado. No vuelvas a pagar: revisa el centro de generación en unos minutos.');
                 }
             }
 
@@ -1057,6 +1080,10 @@ export function ImageStudio() {
                     <button onclick="this.closest('.aspect-square').remove()" style="margin-top:4px;background:#ffffff11;border:1px solid #ffffff22;border-radius:8px;padding:4px 10px;font-size:9px;color:#fff;cursor:pointer">Cerrar</button>
                 </div>
             `;
+        } finally {
+            if (activeRequestId) {
+                window.__kreateiaActiveRequests?.delete(activeRequestId);
+            }
         }
     });
 
