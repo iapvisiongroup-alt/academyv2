@@ -124,8 +124,14 @@ const STYLE_PRESETS = [
 const IMAGE_EDIT_QUALITY_OPTIONS = ['Normal', 'Alta', 'Máxima'];
 const GPT_IMAGE_2_IDS = new Set(['gpt-image-2', 'gpt-image-2-image-to-image']);
 const GPT_IMAGE_2_COSTS = { '1k': 30, '2k': 125, '4k': 245 };
+const MUAPI_GPT_IMAGE_2_EDIT_COSTS = { '1k': 13, '2k': 13, '4k': 21 };
 
 const getModelCost = (id, resolution = '720p') => {
+    if (id === 'gpt-image-2-image-to-image') {
+        return MUAPI_GPT_IMAGE_2_EDIT_COSTS[String(resolution).toLowerCase()]
+            || MUAPI_GPT_IMAGE_2_EDIT_COSTS['2k'];
+    }
+
     if (GPT_IMAGE_2_IDS.has(id)) {
         return GPT_IMAGE_2_COSTS[String(resolution).toLowerCase()] || GPT_IMAGE_2_COSTS['1k'];
     }
@@ -316,10 +322,7 @@ export function ImageStudio() {
         const tool = getSelectedDynamicTool();
         if (tool) return getDynamicToolCost(tool, selectedResolution);
 
-        const base = getModelCost(selectedModel, selectedResolution);
-        return selectedModel === 'gpt-image-2-image-to-image'
-            ? base + Math.min(16, uploadedImageUrls.length) * 5
-            : base;
+        return getModelCost(selectedModel, selectedResolution);
     };
 
     function renderDynamicFields() {

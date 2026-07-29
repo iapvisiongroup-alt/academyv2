@@ -15,7 +15,7 @@ const ROUTE_MAP = {
     'generate/image/create':       { endpoint: 'nano-banana-2',                    cost: 16 },
     'generate/image/edit':         { endpoint: 'nano-banana-2-edit',               cost:  8 },
     'generate/image/t2-create':    { endpoint: 'openai-gpt-image-2-create',         costType: 'gptImage2' },
-    'generate/image/t2-edit':      { endpoint: 'openai-gpt-image-2-edit',           costType: 'gptImage2' },
+    'generate/image/t2-edit':      { endpoint: 'gpt-image-2-image-to-image',         costType: 'gptImage2' },
 
     // VÍDEO — coste por 5s * 1.35 margen, escala con duration
     'generate/video/standard':     { endpoint: 'seedance-v2.0-t2v',                  costType: 'video', base5s: 0.75 },
@@ -61,11 +61,12 @@ function calculateCost(route, body) {
 
     if (mapped.costType === 'gptImage2') {
         const resolution = String(body?.resolution || '1K').toLowerCase();
-        const referenceCost = route === 'generate/image/t2-edit'
-            ? Math.min(16, Array.isArray(body?.images_list) ? body.images_list.length : 0) * 5
-            : 0;
-        const baseCost = resolution === '4k' ? 245 : resolution === '2k' ? 125 : 30;
-        cost = baseCost + referenceCost;
+        if (route === 'generate/image/t2-edit') {
+            // MuAPI: 0,09 USD en 2K y 0,15 USD en 4K, con un margen del 40%.
+            cost = resolution === '4k' ? 21 : 13;
+        } else {
+            cost = resolution === '4k' ? 245 : resolution === '2k' ? 125 : 30;
+        }
     }
 
     // Coste imagen — escala con resolución
@@ -1295,8 +1296,7 @@ export async function onRequest(context) {
     const route = Array.isArray(params.path)
         ? params.path.join('/')
         : String(params.path || '');
-    const isOpenAIImageRoute = route === 'generate/image/t2-create'
-        || route === 'generate/image/t2-edit';
+    const isOpenAIImageRoute = route === 'generate/image/t2-create';
 
     if (isOpenAIImageRoute && !env.OPENAI_API_KEY) {
         return jsonError('Falta OPENAI_API_KEY en Cloudflare.', 500);

@@ -27,15 +27,27 @@
 
     /* Custom Scrollbar Refinement */
     ::-webkit-scrollbar {
-        @apply w-1.5 h-1.5;
+        width: 7px;
+        height: 7px;
     }
 
     ::-webkit-scrollbar-track {
-        @apply bg-transparent;
+        background: rgba(255, 255, 255, 0.025);
     }
 
     ::-webkit-scrollbar-thumb {
-        @apply bg-white/10 rounded-full hover:bg-white/20 transition-colors;
+        background: rgba(255, 255, 255, 0.24);
+        border: 2px solid #050505;
+        border-radius: 999px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: rgba(217, 255, 0, 0.62);
+    }
+
+    * {
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255, 255, 255, 0.24) rgba(255, 255, 255, 0.025);
     }
 }
 

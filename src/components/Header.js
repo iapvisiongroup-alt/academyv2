@@ -53,7 +53,7 @@ export function Header(navigate) {
         const nav = document.createElement('nav');
 
         if (isMobile) {
-            nav.className = 'flex md:hidden items-center gap-6 text-[13px] font-bold text-white/50 w-full h-12 px-4 overflow-x-auto custom-scrollbar bg-[#030303]/95 backdrop-blur-md border-b border-white/5 mask-edges shrink-0';
+            nav.className = 'flex md:hidden items-center gap-6 text-[13px] font-bold text-white/50 w-full h-12 px-4 overflow-x-auto no-scrollbar bg-[#030303]/95 backdrop-blur-md border-b border-white/5 mask-edges shrink-0';
         } else {
             nav.className = 'hidden md:flex items-center gap-6 text-[13px] font-bold text-white/50';
         }
@@ -188,8 +188,6 @@ export function Header(navigate) {
 
     const style = document.createElement('style');
     style.innerHTML = `
-        .custom-scrollbar::-webkit-scrollbar { display: none; }
-        .custom-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         @media (max-width: 768px) {
             .mask-edges {
                 -webkit-mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
