@@ -701,36 +701,13 @@ async function callOpenAIImage2({ route, body, env, uid, accessToken, cost }) {
         });
     }
 
-    const response = await fetch(endpoint, {
-        method: 'POST',
-        headers,
-        body: requestBody,
-    });
-
-    if (!response.ok) {
-        const responseText = await response.text();
-        let data = {};
-        try {
-            data = JSON.parse(responseText || '{}');
-        } catch {}
-
-        const error = new Error(
-            data?.error?.message
-            || `OpenAI devolvió ${response.status}. Inténtalo de nuevo en unos minutos.`
-        );
-        error.status = response.status;
-        throw error;
-    }
-
-    if (!response.body) throw new Error('OpenAI no inició la transmisión de la imagen.');
-
     const encoder = new TextEncoder();
-    const decoder = new TextDecoder();
-    const openAIReader = response.body.getReader();
     const userDocPath = `artifacts/${env.FIREBASE_APP_ID}/public/data/users/${uid}`;
+    let openAIReader = null;
 
     return new Response(new ReadableStream({
         async start(controller) {
+            const decoder = new TextDecoder();
             let buffer = '';
             let finished = false;
             let refunded = false;
@@ -756,6 +733,33 @@ async function callOpenAIImage2({ route, body, env, uid, accessToken, cost }) {
 
             try {
                 send({ type: 'progress' });
+
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers,
+                    body: requestBody,
+                });
+
+                if (!response.ok) {
+                    const responseText = await response.text();
+                    let data = {};
+                    try {
+                        data = JSON.parse(responseText || '{}');
+                    } catch {}
+
+                    const error = new Error(
+                        data?.error?.message
+                        || `OpenAI devolvió ${response.status}. Inténtalo de nuevo en unos minutos.`
+                    );
+                    error.status = response.status;
+                    throw error;
+                }
+
+                if (!response.body) {
+                    throw new Error('OpenAI no inició la transmisión de la imagen.');
+                }
+
+                openAIReader = response.body.getReader();
 
                 while (true) {
                     const { value, done } = await openAIReader.read();
@@ -843,7 +847,7 @@ async function callOpenAIImage2({ route, body, env, uid, accessToken, cost }) {
             }
         },
         async cancel() {
-            await openAIReader.cancel().catch(() => {});
+            if (openAIReader) await openAIReader.cancel().catch(() => {});
         },
     }), {
         status: 200,
