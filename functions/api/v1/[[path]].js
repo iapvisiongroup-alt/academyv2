@@ -914,6 +914,21 @@ async function handleDynamicToolRun(context, body) {
         });
 
         responseBody = await muapiResponse.text();
+
+        if (!muapiResponse.ok) {
+            console.error('[MuAPI] Petición rechazada', {
+                route,
+                endpoint: muapiEndpoint,
+                status: muapiResponse.status,
+                response: responseBody.slice(0, 1000),
+                input: {
+                    aspect_ratio: body?.aspect_ratio,
+                    resolution: body?.resolution,
+                    quality: body?.quality,
+                    images_count: Array.isArray(body?.images_list) ? body.images_list.length : 0,
+                },
+            });
+        }
     } catch (e) {
         if (cost > 0) {
             try {

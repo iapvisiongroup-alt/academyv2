@@ -49,8 +49,8 @@ const ACTIVE_T2I = [
 ];
 
 const ACTIVE_I2I = [
-    { id: 'nano-banana-2-edit', name: 'KreateImage 2 Edit', desc: 'Edición de imágenes con IA' },
-    { id: 'gpt-image-2-image-to-image', name: 'KreateImageT2 Edit', desc: 'Edición premium con hasta 16 referencias y salida 4K' }
+    { id: 'gpt-image-2-image-to-image', name: 'KreateImageT2 Edit', desc: 'Edición premium con hasta 16 referencias y salida 4K' },
+    { id: 'nano-banana-2-edit', name: 'KreateImage 2 Edit', desc: 'Edición de imágenes con IA' }
 ];
 
 const STYLE_PRESETS = [
