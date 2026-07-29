@@ -672,6 +672,8 @@ async function callOpenAIImage2({ route, body, env, uid, accessToken, cost }) {
         form.set('quality', 'high');
         form.set('output_format', 'jpeg');
         form.set('output_compression', '92');
+        form.set('stream', 'true');
+        form.set('partial_images', '1');
 
         for (let i = 0; i < imageUrls.length; i++) {
             const image = await fetchExternalImage(imageUrls[i]);
@@ -696,97 +698,6 @@ async function callOpenAIImage2({ route, body, env, uid, accessToken, cost }) {
             output_compression: 92,
             stream: true,
             partial_images: 1,
-        });
-    }
-
-    if (isEdit) {
-        const encoder = new TextEncoder();
-        const userDocPath = `artifacts/${env.FIREBASE_APP_ID}/public/data/users/${uid}`;
-
-        return new Response(new ReadableStream({
-            async start(controller) {
-                let closed = false;
-                let refunded = false;
-
-                const send = payload => {
-                    if (!closed) controller.enqueue(encoder.encode(JSON.stringify(payload) + '\n'));
-                };
-                const heartbeat = setInterval(() => send({ type: 'progress' }), 8000);
-
-                try {
-                    send({ type: 'progress' });
-
-                    const response = await fetch(endpoint, {
-                        method: 'POST',
-                        headers,
-                        body: requestBody,
-                    });
-
-                    const data = await response.json().catch(() => ({}));
-                    if (!response.ok) {
-                        const error = new Error(
-                            data?.error?.message
-                            || `OpenAI devolvió ${response.status}. Inténtalo de nuevo en unos minutos.`
-                        );
-                        error.status = response.status;
-                        throw error;
-                    }
-
-                    const base64 = data?.data?.[0]?.b64_json;
-                    if (!base64) throw new Error('OpenAI no devolvió la imagen editada.');
-
-                    const url = await uploadImageBytesToFirebaseStorage({
-                        bytes: decodeBase64Image(base64),
-                        contentType: 'image/jpeg',
-                        uid,
-                        env,
-                        accessToken,
-                        source: 'openai-gpt-image-2-edit',
-                    });
-
-                    send({
-                        type: 'completed',
-                        result: {
-                            url,
-                            image_url: url,
-                            status: 'completed',
-                            model: 'gpt-image-2',
-                            size,
-                            quality: 'high',
-                            usage: data?.usage || null,
-                        },
-                    });
-                } catch (error) {
-                    if (!refunded && cost > 0 && uid && accessToken) {
-                        refunded = true;
-                        try {
-                            await firestoreRefund(
-                                env.FIREBASE_PROJECT_ID,
-                                userDocPath,
-                                cost,
-                                accessToken
-                            );
-                        } catch (refundError) {
-                            console.error('[OpenAI] Error reembolsando créditos:', refundError.message);
-                        }
-                    }
-
-                    console.error('[OpenAI] Error GPT Image 2 Edit:', error.message);
-                    send({ type: 'error', error: error.message || 'No se pudo editar la imagen.' });
-                } finally {
-                    closed = true;
-                    clearInterval(heartbeat);
-                    controller.close();
-                }
-            },
-        }), {
-            status: 200,
-            headers: {
-                'Content-Type': 'text/event-stream; charset=utf-8',
-                'Cache-Control': 'no-cache, no-transform',
-                'X-Accel-Buffering': 'no',
-                'Access-Control-Allow-Origin': '*',
-            },
         });
     }
 
