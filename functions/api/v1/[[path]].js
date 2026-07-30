@@ -509,6 +509,9 @@ function getProviderMediaHeaders(url, env) {
         const hostname = new URL(url).hostname.toLowerCase();
         if ((hostname === 'api.muapi.ai' || hostname.endsWith('.muapi.ai')) && env.MUAPI_KEY) {
             headers.set('x-api-key', env.MUAPI_KEY);
+            headers.set('Accept', 'image/avif,image/webp,image/apng,image/*,*/*;q=0.8');
+            headers.set('Referer', 'https://muapi.ai/');
+            headers.set('User-Agent', 'Mozilla/5.0 (compatible; KreateIA/1.0; +https://kreateia.com)');
         }
     } catch {}
 
