@@ -399,9 +399,13 @@ async function mediaKey(secret) {
     return crypto.subtle.importKey('raw', hash, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
 }
 
+function getMediaSecret(env) {
+    return env.MEDIA_SECRET || env.FIREBASE_PRIVATE_KEY || env.MUAPI_KEY || '';
+}
+
 async function encryptMediaUrl(url, env) {
     const code = randomCode();
-    const key  = await mediaKey(env.MEDIA_SECRET);
+    const key  = await mediaKey(getMediaSecret(env));
     const iv   = crypto.getRandomValues(new Uint8Array(12));
 
     const enc = new Uint8Array(await crypto.subtle.encrypt(
@@ -421,7 +425,7 @@ async function decryptMediaToken(token, env) {
     const packed = unb64u(token);
     const iv     = packed.slice(0, 12);
     const data   = packed.slice(12);
-    const key    = await mediaKey(env.MEDIA_SECRET);
+    const key    = await mediaKey(getMediaSecret(env));
 
     const dec = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
     return JSON.parse(new TextDecoder().decode(dec));
@@ -440,6 +444,7 @@ function looksLikeMediaUrl(value) {
         'cloudfront.net',
         'd3adwkbyhxyrtq',
         'storage.googleapis.com',
+        'firebasestorage.googleapis.com',
         'replicate.delivery',
         'pbxt.replicate',
         'lh3.googleusercontent',
@@ -479,6 +484,11 @@ function extensionFromContentType(contentType) {
     if (type.includes('image/webp')) return 'webp';
     if (type.includes('image/gif')) return 'gif';
     if (type.includes('image/jpeg') || type.includes('image/jpg')) return 'jpg';
+    if (type.includes('video/mp4')) return 'mp4';
+    if (type.includes('video/webm')) return 'webm';
+    if (type.includes('video/quicktime')) return 'mov';
+    if (type.includes('audio/mpeg')) return 'mp3';
+    if (type.includes('audio/wav')) return 'wav';
     return 'bin';
 }
 
@@ -650,57 +660,26 @@ function decodeBase64Image(value) {
 }
 
 async function callOpenAIImage2({ route, body, env, uid, accessToken, cost }) {
-    const isEdit = route === 'generate/image/t2-edit';
-    const endpoint = isEdit
-        ? 'https://api.openai.com/v1/images/edits'
-        : 'https://api.openai.com/v1/images/generations';
+    if (route !== 'generate/image/t2-create') {
+        throw new Error('OpenAI solo está habilitado para crear imágenes desde texto.');
+    }
+
+    const endpoint = 'https://api.openai.com/v1/images/generations';
     const size = getOpenAIImageSize(body?.aspect_ratio, body?.resolution);
     const headers = {
         Authorization: `Bearer ${env.OPENAI_API_KEY}`,
+        'Content-Type': 'application/json',
     };
-    let requestBody;
-
-    if (isEdit) {
-        const imageUrls = Array.isArray(body?.images_list)
-            ? body.images_list.filter(value => typeof value === 'string' && value).slice(0, 16)
-            : [];
-        if (!imageUrls.length) throw new Error('Añade al menos una imagen de referencia.');
-
-        const form = new FormData();
-        form.set('model', 'gpt-image-2');
-        form.set('prompt', String(body?.prompt || '').trim());
-        form.set('size', size);
-        form.set('quality', 'high');
-        form.set('output_format', 'jpeg');
-        form.set('output_compression', '92');
-        form.set('stream', 'true');
-        form.set('partial_images', '1');
-
-        for (let i = 0; i < imageUrls.length; i++) {
-            const image = await fetchExternalImage(imageUrls[i]);
-            if (!image) throw new Error(`No se pudo leer la referencia ${i + 1}.`);
-            const ext = extensionFromContentType(image.contentType);
-            form.append(
-                'image[]',
-                new Blob([image.bytes], { type: image.contentType }),
-                `referencia-${i + 1}.${ext}`
-            );
-        }
-
-        requestBody = form;
-    } else {
-        headers['Content-Type'] = 'application/json';
-        requestBody = JSON.stringify({
-            model: 'gpt-image-2',
-            prompt: String(body?.prompt || '').trim(),
-            size,
-            quality: 'high',
-            output_format: 'jpeg',
-            output_compression: 92,
-            stream: true,
-            partial_images: 1,
-        });
-    }
+    const requestBody = JSON.stringify({
+        model: 'gpt-image-2',
+        prompt: String(body?.prompt || '').trim(),
+        size,
+        quality: 'high',
+        output_format: 'jpeg',
+        output_compression: 92,
+        stream: true,
+        partial_images: 1,
+    });
 
     const encoder = new TextEncoder();
     const userDocPath = `artifacts/${env.FIREBASE_APP_ID}/public/data/users/${uid}`;
@@ -889,12 +868,12 @@ async function persistImageUrls(value, { uid, env, accessToken }) {
 }
 
 async function wrapMediaUrls(value, env, request) {
-    if (!env.MEDIA_SECRET) return value;
+    if (!getMediaSecret(env)) return value;
 
     if (looksLikeMediaUrl(value)) {
         const { code, token } = await encryptMediaUrl(value, env);
         const origin = new URL(request.url).origin;
-        return `${origin}/api/v1/media/kreateia-${code}/${token}`;
+        return `${origin}/api/v1/media/kreateia-${code}/${token}/KreateIA-${code}`;
     }
 
     if (Array.isArray(value)) {
@@ -931,7 +910,7 @@ function getOwnMediaToken(value, request) {
 }
 
 async function unwrapIncomingMediaUrls(value, env, request) {
-    if (!env.MEDIA_SECRET) return value;
+    if (!getMediaSecret(env)) return value;
 
     const token = getOwnMediaToken(value, request);
     if (token) {
@@ -957,7 +936,7 @@ async function unwrapIncomingMediaUrls(value, env, request) {
 }
 
 async function handleMediaProxy(route, request, env) {
-    if (!env.MEDIA_SECRET) return jsonError('MEDIA_SECRET no configurado', 500);
+    if (!getMediaSecret(env)) return jsonError('Proxy multimedia no configurado', 500);
 
     const parts = route.split('/');
     const token = parts[2];
@@ -971,13 +950,39 @@ async function handleMediaProxy(route, request, env) {
         return jsonError('Media token inválido', 400);
     }
 
-    return new Response(null, {
-        status: 302,
-        headers: {
-            Location: payload.url,
-            'Cache-Control': 'public, max-age=86400',
-            'Access-Control-Allow-Origin': '*',
-        },
+    const upstreamHeaders = new Headers();
+    const range = request.headers.get('Range');
+    if (range) upstreamHeaders.set('Range', range);
+
+    let upstream;
+    try {
+        upstream = await fetch(payload.url, { headers: upstreamHeaders });
+    } catch {
+        return jsonError('No se pudo cargar el archivo multimedia', 502);
+    }
+
+    if (!upstream.ok && upstream.status !== 206) {
+        return jsonError('El archivo multimedia ya no está disponible', upstream.status);
+    }
+
+    const contentType = upstream.headers.get('Content-Type') || 'application/octet-stream';
+    const extension = extensionFromContentType(contentType);
+    const headers = new Headers({
+        'Content-Type': contentType,
+        'Content-Disposition': `inline; filename="KreateIA-${payload.code}.${extension}"`,
+        'Cache-Control': 'public, max-age=86400',
+        'Access-Control-Allow-Origin': '*',
+        'X-Content-Type-Options': 'nosniff',
+    });
+
+    ['Accept-Ranges', 'Content-Range', 'Content-Length', 'ETag', 'Last-Modified'].forEach(name => {
+        const value = upstream.headers.get(name);
+        if (value) headers.set(name, value);
+    });
+
+    return new Response(upstream.body, {
+        status: upstream.status,
+        headers,
     });
 }
 
@@ -1272,7 +1277,7 @@ async function handleDynamicToolRun(context, body) {
                 accessToken,
             });
 
-            if (env.MEDIA_SECRET) {
+            if (getMediaSecret(env)) {
                 parsed = await wrapMediaUrls(parsed, env, request);
             }
 
@@ -1339,10 +1344,11 @@ export async function onRequest(context) {
                 accessToken,
                 source: 'kreateia-user-upload',
             });
+            const publicUrl = await wrapMediaUrls(url, env, request);
 
             return new Response(JSON.stringify({
-                url,
-                file_url: url,
+                url: publicUrl,
+                file_url: publicUrl,
                 status: 'completed',
             }), {
                 status: 200,
@@ -1574,7 +1580,7 @@ export async function onRequest(context) {
                 });
             }
 
-            if (env.MEDIA_SECRET) {
+            if (getMediaSecret(env)) {
                 parsed = await wrapMediaUrls(parsed, env, request);
             }
 
