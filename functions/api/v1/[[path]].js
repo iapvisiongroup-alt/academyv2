@@ -502,11 +502,28 @@ function isLikelyXmlAccessDenied(text) {
         || /<Message>\s*Access Denied\s*<\/Message>/i.test(text || '');
 }
 
-async function fetchExternalImage(url) {
+function getProviderMediaHeaders(url, env) {
+    const headers = new Headers();
+
+    try {
+        const hostname = new URL(url).hostname.toLowerCase();
+        if ((hostname === 'api.muapi.ai' || hostname.endsWith('.muapi.ai')) && env.MUAPI_KEY) {
+            headers.set('x-api-key', env.MUAPI_KEY);
+        }
+    } catch {}
+
+    return headers;
+}
+
+async function fetchExternalImage(url, env) {
+    const providerHeaders = getProviderMediaHeaders(url, env);
     let headContentType = '';
 
     try {
-        const head = await fetch(url, { method: 'HEAD' });
+        const head = await fetch(url, {
+            method: 'HEAD',
+            headers: providerHeaders,
+        });
         headContentType = head.headers.get('content-type') || '';
 
         if (head.ok && headContentType && !headContentType.toLowerCase().startsWith('image/')) {
@@ -514,7 +531,7 @@ async function fetchExternalImage(url) {
         }
     } catch {}
 
-    const res = await fetch(url);
+    const res = await fetch(url, { headers: providerHeaders });
     const contentType = res.headers.get('content-type') || headContentType || 'application/octet-stream';
 
     if (!res.ok) return null;
@@ -602,7 +619,7 @@ async function uploadImageToFirebaseStorage({ sourceUrl, uid, env, accessToken }
     if (!bucket || !env.FIREBASE_PROJECT_ID || !accessToken) return sourceUrl;
     if (!looksLikeMediaUrl(sourceUrl) || isOwnStorageUrl(sourceUrl, env)) return sourceUrl;
 
-    const image = await fetchExternalImage(sourceUrl);
+    const image = await fetchExternalImage(sourceUrl, env);
     if (!image) return sourceUrl;
 
     try {
@@ -950,7 +967,7 @@ async function handleMediaProxy(route, request, env) {
         return jsonError('Media token inválido', 400);
     }
 
-    const upstreamHeaders = new Headers();
+    const upstreamHeaders = getProviderMediaHeaders(payload.url, env);
     const range = request.headers.get('Range');
     if (range) upstreamHeaders.set('Range', range);
 
