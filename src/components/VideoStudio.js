@@ -850,6 +850,26 @@ export function VideoStudio() {
         document.head.appendChild(s);
     }
 
+    try {
+        const transferRaw = sessionStorage.getItem('kreateia:video-reference');
+        sessionStorage.removeItem('kreateia:video-reference');
+
+        if (transferRaw) {
+            const transfer = JSON.parse(transferRaw);
+            const isRecent = Date.now() - Number(transfer.createdAt || 0) < 5 * 60 * 1000;
+
+            if (isRecent && transfer.url) {
+                picker.setImages([{
+                    url: transfer.url,
+                    thumbnail: transfer.url,
+                }]);
+                textarea.placeholder = 'Describe cómo quieres animar @image1...';
+            }
+        }
+    } catch (error) {
+        console.warn('[KreateVideo] No se pudo cargar la imagen transferida:', error.message);
+    }
+
     updateControlsForModel();
     return container;
 }

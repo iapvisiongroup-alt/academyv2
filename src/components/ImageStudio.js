@@ -861,13 +861,53 @@ export function ImageStudio() {
     const renderCard = (entry, isPrepend = false) => {
         galleryHeader.classList.remove('hidden');
 
-        const card = document.createElement('a');
-        card.className = 'relative aspect-square rounded-xl md:rounded-2xl overflow-hidden bg-white/5 border border-white/10 group animate-fade-in-up cursor-pointer';
-        card.href = entry.url;
-        card.target = '_blank';
-        card.rel = 'noopener noreferrer';
-        card.setAttribute('aria-label', 'Abrir imagen generada');
-        card.innerHTML = '<img src="' + entry.url + '" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" loading="lazy"><div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent opacity-0 group-hover:opacity-100 transition-opacity p-2 md:p-4 flex flex-col justify-end"><p class="text-white text-[10px] md:text-xs line-clamp-2 leading-tight">' + (entry.prompt || '') + '</p></div>';
+        const card = document.createElement('article');
+        card.className = 'relative aspect-square rounded-xl md:rounded-2xl overflow-hidden bg-white/5 border border-white/10 group animate-fade-in-up';
+        card.innerHTML = `
+            <img class="generated-image w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" loading="lazy" alt="Imagen generada con KreateIA">
+            <div class="absolute inset-0 bg-gradient-to-t from-black/95 via-black/10 to-transparent p-2.5 md:p-4 flex flex-col justify-end">
+                <p class="generated-prompt text-white/85 text-[10px] md:text-xs line-clamp-2 leading-tight mb-2 md:mb-3"></p>
+                <div class="grid grid-cols-2 gap-1.5 md:gap-2">
+                    <button type="button" class="edit-image-btn min-h-9 px-2.5 py-2 bg-white/15 hover:bg-white/25 border border-white/20 text-white rounded-lg text-[10px] md:text-xs font-black transition-colors flex items-center justify-center gap-1.5" title="Editar esta imagen">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4Z"/></svg>
+                        Editar
+                    </button>
+                    <button type="button" class="animate-image-btn min-h-9 px-2.5 py-2 bg-[#f59e0b] hover:bg-[#fbbf24] border border-[#fbbf24] text-black rounded-lg text-[10px] md:text-xs font-black transition-colors flex items-center justify-center gap-1.5" title="Animar en KreateVideo">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                        Animar
+                    </button>
+                </div>
+                <button type="button" class="open-image-btn absolute top-2 right-2 w-8 h-8 rounded-lg bg-black/55 hover:bg-black/80 border border-white/15 text-white flex items-center justify-center transition-colors" title="Abrir imagen" aria-label="Abrir imagen">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v7a1 1 0 01-1 1H4a1 1 0 01-1-1V7a1 1 0 011-1h7"/></svg>
+                </button>
+            </div>
+        `;
+
+        const image = card.querySelector('.generated-image');
+        image.src = entry.url;
+        card.querySelector('.generated-prompt').textContent = entry.prompt || 'Imagen creada con KreateIA';
+
+        card.querySelector('.open-image-btn').addEventListener('click', () => {
+            window.open(entry.url, '_blank', 'noopener,noreferrer');
+        });
+
+        card.querySelector('.edit-image-btn').addEventListener('click', () => {
+            picker.setImage(entry.url, entry.url);
+            container.scrollTo({ top: 0, behavior: 'smooth' });
+            setTimeout(() => textarea.focus(), 350);
+        });
+
+        card.querySelector('.animate-image-btn').addEventListener('click', () => {
+            sessionStorage.setItem('kreateia:video-reference', JSON.stringify({
+                url: entry.url,
+                prompt: entry.prompt || '',
+                createdAt: Date.now(),
+            }));
+
+            window.dispatchEvent(new CustomEvent('navigate', {
+                detail: { page: 'video' },
+            }));
+        });
 
         if (isPrepend) galleryGrid.prepend(card);
         else galleryGrid.appendChild(card);
