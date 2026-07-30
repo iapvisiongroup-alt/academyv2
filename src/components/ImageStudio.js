@@ -289,6 +289,9 @@ export function ImageStudio() {
     let publicToolsLoaded = false;
 
     const dd = createDropdownSystem();
+    const formatAspectRatioLabel = value => String(value || '').toLowerCase() === 'auto'
+        ? 'AUTO'
+        : value;
 
     const getCurrentModels = () => {
         return imageMode ? ACTIVE_I2I : [...ACTIVE_T2I, ...dynamicT2I];
@@ -446,7 +449,7 @@ export function ImageStudio() {
         if (mLabel) mLabel.textContent = selectedModelName;
 
         const aLabel = container.querySelector('#ar-btn-label');
-        if (aLabel) aLabel.textContent = selectedAr;
+        if (aLabel) aLabel.textContent = formatAspectRatioLabel(selectedAr);
 
         const validRes = getCurrentResolutions(selectedModel);
 
@@ -502,6 +505,7 @@ export function ImageStudio() {
             imageMode = true;
             selectedModel = ACTIVE_I2I[0].id;
             selectedModelName = ACTIVE_I2I[0].name;
+            selectedAr = 'auto';
             selectedResolution = 'Normal';
             updateControlsForMode();
             picker.setMaxImages(getMaxImagesForI2IModel(selectedModel));
@@ -559,6 +563,7 @@ export function ImageStudio() {
         imageMode = true;
         selectedModel = ACTIVE_I2I[0].id;
         selectedModelName = ACTIVE_I2I[0].name;
+        selectedAr = 'auto';
         selectedResolution = 'Normal';
 
         const maxImages = getMaxImagesForI2IModel(selectedModel) || 1;
@@ -607,6 +612,7 @@ export function ImageStudio() {
             imageMode = false;
             selectedModel = ACTIVE_T2I[0].id;
             selectedModelName = ACTIVE_T2I[0].name;
+            selectedAr = '1:1';
             selectedResolution = '720p';
             updateControlsForMode();
             picker.setMaxImages(1);
@@ -806,13 +812,16 @@ export function ImageStudio() {
     arBtn.addEventListener('click', (e) => {
         e.stopPropagation();
 
-        const ars = (getCurrentAspectRatios(selectedModel) || []).map(v => ({ id: v, name: v }));
+        const ars = (getCurrentAspectRatios(selectedModel) || []).map(v => ({
+            id: v,
+            name: formatAspectRatioLabel(v),
+        }));
 
         dd.openList('Relación de aspecto', ars, selectedAr, arBtn, (val) => {
             selectedAr = val;
 
             const l = container.querySelector('#ar-btn-label');
-            if (l) l.textContent = val;
+            if (l) l.textContent = formatAspectRatioLabel(val);
         });
     });
 
