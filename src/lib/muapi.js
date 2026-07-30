@@ -50,6 +50,9 @@ export class MuapiClient {
 
     async generateImage(params) {
         await this.chargeCredits('image', params.model);
+        const user = auth.currentUser;
+        if (!user) throw new Error('Debes iniciar sesión para generar contenido.');
+        const token = await user.getIdToken();
 
         const modelInfo = getModelById(params.model) || { endpoint: params.model };
         const endpoint = params.model === 'nano-banana-pro' ? 'nano-banana-pro' : (modelInfo?.endpoint || params.model);
@@ -71,7 +74,10 @@ export class MuapiClient {
         try {
             const response = await fetch(url, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    Authorization: `Bearer ${token}`,
+                },
                 body: JSON.stringify(finalPayload)
             });
 
@@ -98,13 +104,23 @@ export class MuapiClient {
     async pollForResult(requestId, maxAttempts = 60, interval = 2000) {
         // La URL de consulta también pasa por tu Proxy
         const pollUrl = `${this.baseUrl}/api/v1/predictions/${requestId}/result`;
+        const user = auth.currentUser;
+        if (!user) throw new Error('Debes iniciar sesión para consultar el resultado.');
+        let token = await user.getIdToken();
 
         for (let attempt = 1; attempt <= maxAttempts; attempt++) {
             await new Promise(resolve => setTimeout(resolve, interval));
             try {
+                if (attempt > 1 && attempt % 20 === 0) {
+                    token = await user.getIdToken(true);
+                }
+
                 const response = await fetch(pollUrl, {
                     method: 'GET',
-                    headers: { 'Content-Type': 'application/json' }
+                    headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${token}`,
+                    }
                 });
 
                 if (!response.ok) {

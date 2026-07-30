@@ -47,6 +47,22 @@ const FREE_ENDPOINTS = new Set([
     'upload_file',
 ]);
 
+const MAX_JSON_BODY_BYTES = 1_000_000;
+const MAX_IMAGE_UPLOAD_BYTES = 25 * 1024 * 1024;
+const MAX_VIDEO_UPLOAD_BYTES = 100 * 1024 * 1024;
+const ALLOWED_IMAGE_UPLOAD_TYPES = new Set([
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+    'image/gif',
+    'image/avif',
+]);
+const ALLOWED_VIDEO_UPLOAD_TYPES = new Set([
+    'video/mp4',
+    'video/webm',
+    'video/quicktime',
+]);
+
 function calculateCost(route, body) {
     // Polling de resultados — siempre gratis
     if (route.startsWith('predictions/')) return { cost: 0, muapiEndpoint: route };
@@ -490,6 +506,44 @@ function extensionFromContentType(contentType) {
     if (type.includes('audio/mpeg')) return 'mp3';
     if (type.includes('audio/wav')) return 'wav';
     return 'bin';
+}
+
+function hasBytes(bytes, offset, expected) {
+    return expected.every((value, index) => bytes[offset + index] === value);
+}
+
+function hasAscii(bytes, offset, expected) {
+    return expected.split('').every((value, index) => bytes[offset + index] === value.charCodeAt(0));
+}
+
+function uploadBytesMatchContentType(bytes, contentType) {
+    if (!(bytes instanceof Uint8Array) || bytes.byteLength < 12) return false;
+
+    if (contentType === 'image/jpeg') return hasBytes(bytes, 0, [0xff, 0xd8, 0xff]);
+    if (contentType === 'image/png') return hasBytes(bytes, 0, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    if (contentType === 'image/gif') return hasAscii(bytes, 0, 'GIF87a') || hasAscii(bytes, 0, 'GIF89a');
+    if (contentType === 'image/webp') return hasAscii(bytes, 0, 'RIFF') && hasAscii(bytes, 8, 'WEBP');
+    if (contentType === 'image/avif') {
+        return hasAscii(bytes, 4, 'ftyp')
+            && ['avif', 'avis'].some(brand => hasAscii(bytes, 8, brand));
+    }
+    if (contentType === 'video/webm') return hasBytes(bytes, 0, [0x1a, 0x45, 0xdf, 0xa3]);
+    if (contentType === 'video/mp4' || contentType === 'video/quicktime') {
+        return hasAscii(bytes, 4, 'ftyp');
+    }
+
+    return false;
+}
+
+function isSafeProxiedMediaType(contentType) {
+    const type = String(contentType || '').split(';')[0].trim().toLowerCase();
+    return ALLOWED_IMAGE_UPLOAD_TYPES.has(type)
+        || ALLOWED_VIDEO_UPLOAD_TYPES.has(type)
+        || type === 'audio/mpeg'
+        || type === 'audio/mp4'
+        || type === 'audio/wav'
+        || type === 'audio/x-wav'
+        || type === 'audio/ogg';
 }
 
 function randomStorageId() {
@@ -995,12 +1049,20 @@ async function handleMediaProxy(route, request, env) {
     }
 
     const contentType = upstream.headers.get('Content-Type') || 'application/octet-stream';
+    if (!isSafeProxiedMediaType(contentType)) {
+        console.error('[MediaProxy] Tipo multimedia bloqueado', {
+            contentType,
+        });
+        return jsonError('Tipo de archivo multimedia no permitido', 415);
+    }
+
     const extension = extensionFromContentType(contentType);
     const headers = new Headers({
         'Content-Type': contentType,
         'Content-Disposition': `inline; filename="KreateIA-${payload.code}.${extension}"`,
         'Cache-Control': 'public, max-age=86400',
         'Access-Control-Allow-Origin': '*',
+        'Content-Security-Policy': "default-src 'none'; sandbox",
         'X-Content-Type-Options': 'nosniff',
     });
 
@@ -1237,43 +1299,17 @@ async function handleDynamicToolRun(context, body) {
 
         responseBody = await muapiResponse.text();
 
-        if (route.startsWith('predictions/') && muapiResponse.ok) {
-            try {
-                const pollData = JSON.parse(responseBody);
-                const pollStatus = String(
-                    pollData?.status
-                    || pollData?.output?.status
-                    || pollData?.data?.status
-                    || 'unknown'
-                ).toLowerCase();
-                const hasResult = Boolean(
-                    pollData?.url
-                    || pollData?.image_url
-                    || pollData?.output?.url
-                    || pollData?.output?.image_url
-                    || pollData?.outputs?.length
-                    || pollData?.data?.outputs?.length
-                );
-
-                console.log('[MuAPI] Estado de generación', {
-                    status: pollStatus,
-                    has_result: hasResult,
-                    has_error: Boolean(pollData?.error || pollData?.message),
-                });
-            } catch {}
-        }
-
         if (!muapiResponse.ok) {
             console.error('[MuAPI] Petición rechazada', {
-                route,
-                endpoint: muapiEndpoint,
+                route: 'tools/run',
+                endpoint,
                 status: muapiResponse.status,
                 response: responseBody.slice(0, 1000),
                 input: {
-                    aspect_ratio: body?.aspect_ratio,
-                    resolution: body?.resolution,
-                    quality: body?.quality,
-                    images_count: Array.isArray(body?.images_list) ? body.images_list.length : 0,
+                    aspect_ratio: params?.aspect_ratio,
+                    resolution: params?.resolution,
+                    quality: params?.quality,
+                    images_count: Array.isArray(params?.images_list) ? params.images_list.length : 0,
                 },
             });
         }
@@ -1344,14 +1380,21 @@ export async function onRequest(context) {
         return handleMediaProxy(route, request, env);
     }
 
+    const idToken = getBearerToken(request);
+    if (!idToken) return jsonError('No autenticado', 401);
+
+    let authenticatedUser;
+    try {
+        authenticatedUser = await verifyFirebaseUser(idToken, env.FIREBASE_API_KEY);
+    } catch {
+        return jsonError('Token inválido o expirado', 401);
+    }
+
     const contentType = request.headers.get('Content-Type') || '';
 
     if (route === 'upload_file' && request.method === 'POST') {
         try {
-            const idToken = getBearerToken(request);
-            if (!idToken) return jsonError('No autenticado', 401);
-
-            const uid = await verifyFirebaseToken(idToken, env.FIREBASE_API_KEY);
+            const uid = authenticatedUser.uid;
             const accessToken = await getServiceAccountToken(env);
             const form = await request.formData();
             const file = form.get('file');
@@ -1361,12 +1404,29 @@ export async function onRequest(context) {
             }
 
             const fileType = String(file.type || 'application/octet-stream').toLowerCase();
-            if (!fileType.startsWith('image/') && !fileType.startsWith('video/')) {
+            const isImage = ALLOWED_IMAGE_UPLOAD_TYPES.has(fileType);
+            const isVideo = ALLOWED_VIDEO_UPLOAD_TYPES.has(fileType);
+            if (!isImage && !isVideo) {
                 return jsonError('Formato de archivo no permitido.', 400);
             }
 
+            const maxBytes = isImage ? MAX_IMAGE_UPLOAD_BYTES : MAX_VIDEO_UPLOAD_BYTES;
+            if (!Number.isFinite(file.size) || file.size <= 0 || file.size > maxBytes) {
+                return jsonError(
+                    isImage
+                        ? 'La imagen supera el límite de 25 MB.'
+                        : 'El vídeo supera el límite de 100 MB.',
+                    413
+                );
+            }
+
+            const bytes = new Uint8Array(await file.arrayBuffer());
+            if (!uploadBytesMatchContentType(bytes, fileType)) {
+                return jsonError('El contenido del archivo no coincide con su formato.', 400);
+            }
+
             const url = await uploadImageBytesToFirebaseStorage({
-                bytes: await file.arrayBuffer(),
+                bytes,
                 contentType: fileType,
                 uid,
                 env,
@@ -1399,10 +1459,14 @@ export async function onRequest(context) {
     if (request.method !== 'GET' && request.method !== 'HEAD') {
         if (contentType.includes('application/json')) {
             const text = await request.text();
+            if (new TextEncoder().encode(text).byteLength > MAX_JSON_BODY_BYTES) {
+                return jsonError('La petición es demasiado grande.', 413);
+            }
+
             try {
                 body = JSON.parse(text || '{}');
             } catch {
-                body = {};
+                return jsonError('JSON inválido.', 400);
             }
 
             body = await unwrapIncomingMediaUrls(body, env, request);
@@ -1431,14 +1495,7 @@ export async function onRequest(context) {
     let serviceAccessToken = null;
 
     if (cost > 0) {
-        const idToken = getBearerToken(request);
-        if (!idToken) return jsonError('No autenticado', 401);
-
-        try {
-            uid = await verifyFirebaseToken(idToken, env.FIREBASE_API_KEY);
-        } catch {
-            return jsonError('Token inválido o expirado', 401);
-        }
+        uid = authenticatedUser.uid;
 
         const missing = [
             'FIREBASE_CLIENT_EMAIL',
@@ -1466,6 +1523,8 @@ export async function onRequest(context) {
             return jsonError('ERROR_CREDITOS: ' + e.message, 500);
         }
     }
+
+    if (!uid) uid = authenticatedUser.uid;
 
     if (isOpenAIImageRoute) {
         try {
