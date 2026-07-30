@@ -979,6 +979,15 @@ async function handleMediaProxy(route, request, env) {
     }
 
     if (!upstream.ok && upstream.status !== 206) {
+        let upstreamHost = 'unknown';
+        try {
+            upstreamHost = new URL(payload.url).hostname;
+        } catch {}
+        console.error('[MediaProxy] Upstream rechazó el archivo', {
+            host: upstreamHost,
+            status: upstream.status,
+            contentType: upstream.headers.get('Content-Type') || '',
+        });
         return jsonError('El archivo multimedia ya no está disponible', upstream.status);
     }
 
