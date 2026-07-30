@@ -25,7 +25,7 @@ async function openAsBlob(url) {
 const COSTS = {
     CREATE_ARTIST:          32,
     CREATE_ARTIST_VOICE:    32,
-    CLONE_VOICE_LATER:       0,
+    CLONE_VOICE_LATER:      20,
     PHOTO_EXTRA:            16,
     SONG_CREATE:            20,
     SONG_EXTEND:            20,

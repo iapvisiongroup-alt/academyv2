@@ -9,6 +9,8 @@ const MAX_MESSAGES = 12;
 const MAX_TOTAL_CHARS = 8000;
 const MAX_BODY_BYTES = 32_000;
 const MAX_BOOKINGS_PER_IP_DAY = 2;
+const MAX_CHAT_REQUESTS_PER_WINDOW = 20;
+const CHAT_RATE_WINDOW_SECONDS = 5 * 60;
 const PRIVACY_POLICY_VERSION = '2026-07-28';
 const INTERNAL_BOOKING_EMAIL = 'empresas@kreateia.com';
 const ANNUAL_GROUP_START = '2026-09-11';
@@ -128,6 +130,22 @@ export async function onRequest(context) {
   }
 
   try {
+    const rateLimit = await checkEdgeRateLimit(
+      context,
+      request.headers.get('CF-Connecting-IP') || 'unknown',
+      'services-chat',
+      MAX_CHAT_REQUESTS_PER_WINDOW,
+      CHAT_RATE_WINDOW_SECONDS
+    );
+    if (!rateLimit.allowed) {
+      return json({
+        ok: false,
+        error: 'Has enviado demasiados mensajes seguidos. Espera unos minutos antes de continuar.',
+      }, 429, {
+        'Retry-After': String(rateLimit.retryAfter),
+      });
+    }
+
     const contentLength = Number(request.headers.get('Content-Length') || 0);
     if (contentLength > MAX_BODY_BYTES) {
       return json({ ok: false, error: 'La conversación es demasiado grande.' }, 413);
@@ -1081,17 +1099,57 @@ function requireEnv(env, keys) {
   if (missing.length) throw new Error(`Faltan variables: ${missing.join(', ')}`);
 }
 
+async function checkEdgeRateLimit(context, identity, namespace, limit, windowSeconds) {
+  if (typeof caches === 'undefined' || !caches.default) {
+    return { allowed: true, retryAfter: 0 };
+  }
+
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const bucket = Math.floor(nowSeconds / windowSeconds);
+  const bucketEndsAt = (bucket + 1) * windowSeconds;
+  const digest = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(`${namespace}:${identity}`)
+  );
+  const hash = Array.from(new Uint8Array(digest).slice(0, 12))
+    .map(value => value.toString(16).padStart(2, '0'))
+    .join('');
+  const key = new Request(`https://rate-limit.kreateia.internal/${namespace}/${hash}/${bucket}`);
+  const cached = await caches.default.match(key);
+  const current = cached ? Math.max(0, Number(await cached.text()) || 0) : 0;
+
+  if (current >= limit) {
+    return {
+      allowed: false,
+      retryAfter: Math.max(1, bucketEndsAt - nowSeconds),
+    };
+  }
+
+  const write = caches.default.put(key, new Response(String(current + 1), {
+    headers: {
+      'Cache-Control': `public, max-age=${windowSeconds}`,
+      'Content-Type': 'text/plain',
+    },
+  }));
+
+  if (typeof context.waitUntil === 'function') context.waitUntil(write);
+  else await write;
+
+  return { allowed: true, retryAfter: 0 };
+}
+
 function badRequest(message) {
   const error = new Error(message);
   error.status = 400;
   return error;
 }
 
-function json(data, status = 200) {
+function json(data, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
       ...CORS,
+      ...extraHeaders,
       'Content-Type': 'application/json; charset=utf-8',
       'Cache-Control': 'no-store',
       'X-Content-Type-Options': 'nosniff',

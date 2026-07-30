@@ -34,7 +34,7 @@ const ROUTE_MAP = {
     'generate/music/instrumental': { endpoint: 'suno-add-instrumental', cost: 20 },
     'generate/music/mashup':       { endpoint: 'suno-generate-mashup',  cost: 20 },
     'generate/music/sounds':       { endpoint: 'suno-generate-sounds',  cost:  4 },
-    'generate/music/clone-voice':  { endpoint: 'suno-voice-clone',      cost:  0 },
+    'generate/music/clone-voice':  { endpoint: 'suno-voice-clone',      cost: 20 },
     'generate/music/lyrics':       { endpoint: 'gpt-5-mini',            cost: 20 },
 
     // ARTISTA (foto)
@@ -50,6 +50,7 @@ const FREE_ENDPOINTS = new Set([
 const MAX_JSON_BODY_BYTES = 1_000_000;
 const MAX_IMAGE_UPLOAD_BYTES = 25 * 1024 * 1024;
 const MAX_VIDEO_UPLOAD_BYTES = 100 * 1024 * 1024;
+const MAX_UPLOADS_PER_HOUR = 30;
 const ALLOWED_IMAGE_UPLOAD_TYPES = new Set([
     'image/jpeg',
     'image/png',
@@ -173,6 +174,45 @@ async function verifyFirebaseToken(idToken, firebaseApiKey) {
 function getBearerToken(request) {
     const authHeader = request.headers.get('Authorization') || request.headers.get('authorization') || '';
     return authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : authHeader.trim();
+}
+
+async function checkEdgeRateLimit(context, identity, namespace, limit, windowSeconds) {
+    if (typeof caches === 'undefined' || !caches.default) {
+        return { allowed: true, retryAfter: 0 };
+    }
+
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    const bucket = Math.floor(nowSeconds / windowSeconds);
+    const bucketEndsAt = (bucket + 1) * windowSeconds;
+    const digest = await crypto.subtle.digest(
+        'SHA-256',
+        new TextEncoder().encode(`${namespace}:${identity}`)
+    );
+    const hash = Array.from(new Uint8Array(digest).slice(0, 12))
+        .map(value => value.toString(16).padStart(2, '0'))
+        .join('');
+    const key = new Request(`https://rate-limit.kreateia.internal/${namespace}/${hash}/${bucket}`);
+    const cached = await caches.default.match(key);
+    const current = cached ? Math.max(0, Number(await cached.text()) || 0) : 0;
+
+    if (current >= limit) {
+        return {
+            allowed: false,
+            retryAfter: Math.max(1, bucketEndsAt - nowSeconds),
+        };
+    }
+
+    const write = caches.default.put(key, new Response(String(current + 1), {
+        headers: {
+            'Cache-Control': `public, max-age=${windowSeconds}`,
+            'Content-Type': 'text/plain',
+        },
+    }));
+
+    if (typeof context.waitUntil === 'function') context.waitUntil(write);
+    else await write;
+
+    return { allowed: true, retryAfter: 0 };
 }
 
 // ─── Firestore helpers ────────────────────────────────────────────────────────
@@ -1395,6 +1435,21 @@ export async function onRequest(context) {
     if (route === 'upload_file' && request.method === 'POST') {
         try {
             const uid = authenticatedUser.uid;
+            const rateLimit = await checkEdgeRateLimit(
+                context,
+                uid,
+                'media-upload',
+                MAX_UPLOADS_PER_HOUR,
+                60 * 60
+            );
+            if (!rateLimit.allowed) {
+                return jsonError(
+                    'Has realizado demasiadas subidas. Espera antes de intentarlo de nuevo.',
+                    429,
+                    { 'Retry-After': String(rateLimit.retryAfter) }
+                );
+            }
+
             const accessToken = await getServiceAccountToken(env);
             const form = await request.formData();
             const file = form.get('file');
@@ -1696,12 +1751,13 @@ export async function onRequestOptions() {
     });
 }
 
-function jsonError(message, status = 400) {
+function jsonError(message, status = 400, extraHeaders = {}) {
     return new Response(JSON.stringify({ error: message }), {
         status,
         headers: {
             'Content-Type': 'application/json',
             'Access-Control-Allow-Origin': '*',
+            ...extraHeaders,
         },
     });
 }
