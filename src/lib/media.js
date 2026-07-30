@@ -11,7 +11,8 @@ function isSameOriginUrl(value) {
 export async function openMediaPrivately(url) {
     if (!url) throw new Error('No se encontró el archivo.');
 
-    const popup = window.open('', '_blank', 'noopener,noreferrer');
+    const popup = window.open('', '_blank');
+    if (popup) popup.opener = null;
 
     try {
         let response;
