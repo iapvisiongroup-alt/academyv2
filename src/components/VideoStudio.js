@@ -675,7 +675,7 @@ export function VideoStudio() {
         card.className = 'relative aspect-video rounded-xl md:rounded-2xl overflow-hidden bg-white/5 border border-white/10 group animate-fade-in-up';
         card.innerHTML = `
             <video src="${entry.url}" autoplay loop muted playsinline class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"></video>
-            <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-3 md:p-4">
+            <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-3 md:p-4">
                 <p class="text-white text-[10px] md:text-xs font-medium line-clamp-2 mb-2 leading-tight">${entry.prompt || 'Vídeo generado'}</p>
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-1.5">
@@ -686,7 +686,10 @@ export function VideoStudio() {
                         <button class="extend-btn p-1.5 md:p-2 bg-[#3B82F6]/20 hover:bg-[#3B82F6] text-[#3B82F6] hover:text-white rounded-lg transition-all border border-[#3B82F6]/30" title="Extender">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                         </button>
-                        <button class="download-btn p-1.5 md:p-2 bg-white/20 hover:bg-[#FFB000] hover:text-black text-white rounded-lg transition-all border border-white/20" title="Descargar">
+                        <button class="open-video-btn p-1.5 md:p-2 bg-white/20 hover:bg-white/35 text-white rounded-lg transition-all border border-white/20" title="Abrir vídeo" aria-label="Abrir vídeo">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v7a1 1 0 01-1 1H4a1 1 0 01-1-1V7a1 1 0 011-1h7"/></svg>
+                        </button>
+                        <button class="download-btn p-1.5 md:p-2 bg-[#FFB000]/20 hover:bg-[#FFB000] hover:text-black text-[#FFB000] rounded-lg transition-all border border-[#FFB000]/30" title="Descargar vídeo" aria-label="Descargar vídeo">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
                         </button>
                     </div>
@@ -704,6 +707,10 @@ export function VideoStudio() {
                 updateControlsForModel(); container.scrollTo({ top: 0, behavior: 'smooth' }); textarea.focus();
             });
         }
+        card.querySelector('.open-video-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            window.open(entry.url, '_blank', 'noopener,noreferrer');
+        });
         card.querySelector('.download-btn').addEventListener('click', (e) => { e.stopPropagation(); downloadFile(entry.url, `KreateVideo-${Date.now()}.mp4`); });
         if (isPrepend) galleryGrid.prepend(card); else galleryGrid.appendChild(card);
     };
