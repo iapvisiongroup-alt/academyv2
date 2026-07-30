@@ -132,14 +132,21 @@ export function Header(navigate) {
             rightPart.appendChild(loginBtn);
 
         } else {
-            const isAdminEmail = String(user.email || '').toLowerCase() === String(ADMIN_EMAIL || '').toLowerCase();
+            const isAdminEmail = new Set([
+                String(ADMIN_EMAIL || '').toLowerCase(),
+                'info@kreateia.com',
+            ]).has(String(user.email || '').toLowerCase());
 
             if (isAdminEmail) {
                 const adminBtn = document.createElement('button');
                 adminBtn.className = 'w-9 h-9 rounded-xl bg-gradient-to-br from-[#FFB000]/20 to-transparent border border-[#FFB000]/50 flex items-center justify-center text-xl shadow-[0_0_15px_rgba(255,176,0,0.2)] hover:scale-105 transition-transform mr-1 md:mr-2';
                 adminBtn.title = 'Panel de Control Maestro';
                 adminBtn.textContent = '👑';
-                adminBtn.onclick = () => document.body.appendChild(AdminPanel());
+                adminBtn.onclick = () => {
+                    if (!document.querySelector('#admin-panel-root')) {
+                        document.body.appendChild(AdminPanel());
+                    }
+                };
                 rightPart.appendChild(adminBtn);
             }
 

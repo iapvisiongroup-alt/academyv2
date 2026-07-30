@@ -9,10 +9,15 @@ import {
 
 export function AdminPanel() {
     const overlay = document.createElement('div');
+    overlay.id = 'admin-panel-root';
     overlay.className = 'fixed inset-0 bg-black/95 backdrop-blur-2xl flex items-center justify-center z-[9999] p-4 md:p-8 animate-fade-in';
 
     const currentUser = auth.currentUser;
-    const isAdminEmail = String(currentUser?.email || '').toLowerCase() === String(ADMIN_EMAIL || '').toLowerCase();
+    const adminEmails = new Set([
+        String(ADMIN_EMAIL || '').toLowerCase(),
+        'info@kreateia.com',
+    ]);
+    const isAdminEmail = adminEmails.has(String(currentUser?.email || '').toLowerCase());
 
     if (!currentUser || !isAdminEmail) {
         const denied = document.createElement('div');

@@ -9,6 +9,7 @@ const MAIN_ADMIN_EMAILS = new Set([
   'info@iapvision.com',
   'info@kreateia.com',
 ]);
+const FIREBASE_WEB_API_KEY = 'AIzaSyDVD2Sbu7nVbFfVkgujMcgOC_S0oDla-zQ';
 
 export async function onRequest(context) {
   const { request, env } = context;
@@ -26,30 +27,30 @@ export async function onRequest(context) {
   }
 
   try {
-    requireEnv(env, ['FIREBASE_API_KEY', 'FIREBASE_PROJECT_ID', 'FIREBASE_CLIENT_EMAIL', 'FIREBASE_PRIVATE_KEY']);
+    const firebase = resolveFirebaseConfig(env);
 
     const idToken = getBearerToken(request);
     if (!idToken) return json({ ok: false, error: 'Falta sesión admin.' }, 401);
 
-    const admin = await verifyFirebaseUser(idToken, env.FIREBASE_API_KEY);
+    const admin = await verifyFirebaseUser(idToken, firebase.apiKey);
     if (!MAIN_ADMIN_EMAILS.has(normalizeEmail(admin.email))) {
       return json({ ok: false, error: 'No autorizado.' }, 403);
     }
 
     const body = await request.json().catch(() => ({}));
     const action = String(body.action || '').trim();
-    const accessToken = await getFirebaseAccessToken(env);
+    const accessToken = await getFirebaseAccessToken(firebase);
     const appId = env.FIREBASE_APP_ID || env.APP_ID || APP_ID;
 
     if (action === 'listUsers') {
-      const users = await listUsers(env.FIREBASE_PROJECT_ID, appId, accessToken);
+      const users = await listUsers(firebase.projectId, appId, accessToken);
       return json({ ok: true, users });
     }
 
     if (action === 'setCredits') {
       const uid = cleanUid(body.uid);
       const credits = sanitizeCredits(body.credits);
-      const result = await setUserCredits(env.FIREBASE_PROJECT_ID, appId, accessToken, uid, credits, admin.email, 'setCredits');
+      const result = await setUserCredits(firebase.projectId, appId, accessToken, uid, credits, admin.email, 'setCredits');
       return json({ ok: true, ...result });
     }
 
@@ -58,10 +59,10 @@ export async function onRequest(context) {
       const amount = Math.trunc(Number(body.amount || 0));
       if (!Number.isFinite(amount) || amount === 0) throw new Error('Cantidad no válida.');
 
-      const user = await getUserDoc(env.FIREBASE_PROJECT_ID, appId, accessToken, uid);
+      const user = await getUserDoc(firebase.projectId, appId, accessToken, uid);
       const current = Math.max(0, Math.trunc(Number(user.credits || 0)));
       const credits = sanitizeCredits(current + amount);
-      const result = await setUserCredits(env.FIREBASE_PROJECT_ID, appId, accessToken, uid, credits, admin.email, 'adjustCredits');
+      const result = await setUserCredits(firebase.projectId, appId, accessToken, uid, credits, admin.email, 'adjustCredits');
       return json({ ok: true, ...result });
     }
 
@@ -184,18 +185,18 @@ async function verifyFirebaseUser(idToken, firebaseApiKey) {
   };
 }
 
-async function getFirebaseAccessToken(env) {
+async function getFirebaseAccessToken(firebase) {
   const now = Math.floor(Date.now() / 1000);
   const jwt = await signJwt(
     { alg: 'RS256', typ: 'JWT' },
     {
-      iss: env.FIREBASE_CLIENT_EMAIL,
+      iss: firebase.clientEmail,
       scope: 'https://www.googleapis.com/auth/datastore',
       aud: 'https://oauth2.googleapis.com/token',
       iat: now,
       exp: now + 3600,
     },
-    env.FIREBASE_PRIVATE_KEY
+    firebase.privateKey
   );
 
   const res = await fetch('https://oauth2.googleapis.com/token', {
@@ -211,6 +212,37 @@ async function getFirebaseAccessToken(env) {
   if (!res.ok || !data.access_token) throw new Error(data.error_description || 'No se pudo autenticar con Firebase.');
 
   return data.access_token;
+}
+
+function resolveFirebaseConfig(env) {
+  let serviceAccount = {};
+
+  if (env.FIREBASE_SERVICE_ACCOUNT) {
+    try {
+      serviceAccount = typeof env.FIREBASE_SERVICE_ACCOUNT === 'string'
+        ? JSON.parse(env.FIREBASE_SERVICE_ACCOUNT)
+        : env.FIREBASE_SERVICE_ACCOUNT;
+    } catch {
+      throw new Error('FIREBASE_SERVICE_ACCOUNT no contiene un JSON válido.');
+    }
+  }
+
+  const config = {
+    apiKey: env.FIREBASE_API_KEY || FIREBASE_WEB_API_KEY,
+    projectId: env.FIREBASE_PROJECT_ID || serviceAccount.project_id,
+    clientEmail: env.FIREBASE_CLIENT_EMAIL || serviceAccount.client_email,
+    privateKey: env.FIREBASE_PRIVATE_KEY || serviceAccount.private_key,
+  };
+
+  const missing = Object.entries(config)
+    .filter(([, value]) => !value)
+    .map(([key]) => key);
+
+  if (missing.length) {
+    throw new Error('Configuración Firebase incompleta: ' + missing.join(', '));
+  }
+
+  return config;
 }
 
 async function signJwt(header, payload, privateKey) {
@@ -301,11 +333,6 @@ function encodePath(path) {
 
 function firestoreBase(projectId) {
   return `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
-}
-
-function requireEnv(env, keys) {
-  const missing = keys.filter(key => !env[key]);
-  if (missing.length) throw new Error('Faltan variables: ' + missing.join(', '));
 }
 
 function json(data, status = 200) {
