@@ -22,8 +22,31 @@ const ROUTABLE_PAGES = new Set([
 let contentArea;
 let navToken = 0;
 
+async function importFresh(moduleLoader) {
+    try {
+        const module = await moduleLoader();
+        sessionStorage.removeItem('kreateia_chunk_reload');
+        return module;
+    } catch (error) {
+        const message = String(error?.message || '');
+        const isStaleChunk = message.includes('dynamically imported module')
+            || message.includes('Importing a module script failed')
+            || message.includes('error loading dynamically imported module');
+
+        if (isStaleChunk && sessionStorage.getItem('kreateia_chunk_reload') !== '1') {
+            sessionStorage.setItem('kreateia_chunk_reload', '1');
+            window.location.reload();
+            return null;
+        }
+
+        throw error;
+    }
+}
+
 function openAdminPanel() {
-    import('./components/AdminPanel.js').then(({ AdminPanel }) => {
+    importFresh(() => import('./components/AdminPanel.js')).then(module => {
+        if (!module) return;
+        const { AdminPanel } = module;
         if (!document.querySelector('#admin-panel-root')) {
             const panel = AdminPanel();
             panel.id = 'admin-panel-root';
@@ -81,22 +104,30 @@ function navigate(page, options = {}) {
         contentArea.appendChild(ImageStudio());
 
     } else if (safePage === 'video') {
-        import('./components/VideoStudio.js').then(({ VideoStudio }) => {
+        importFresh(() => import('./components/VideoStudio.js')).then(module => {
+            if (!module) return;
+            const { VideoStudio } = module;
             if (token === navToken) contentArea.appendChild(VideoStudio());
         });
 
     } else if (safePage === 'music') {
-        import('./components/KreateMusicStudio.js').then(({ KreateMusicStudio }) => {
+        importFresh(() => import('./components/KreateMusicStudio.js')).then(module => {
+            if (!module) return;
+            const { KreateMusicStudio } = module;
             if (token === navToken) contentArea.appendChild(KreateMusicStudio());
         });
 
     } else if (safePage === 'cinema') {
-        import('./components/CinemaStudio.js').then(({ CinemaStudio }) => {
+        importFresh(() => import('./components/CinemaStudio.js')).then(module => {
+            if (!module) return;
+            const { CinemaStudio } = module;
             if (token === navToken) contentArea.appendChild(CinemaStudio());
         });
 
     } else if (safePage === 'lipsync') {
-        import('./components/LipSyncStudio.js').then(({ LipSyncStudio }) => {
+        importFresh(() => import('./components/LipSyncStudio.js')).then(module => {
+            if (!module) return;
+            const { LipSyncStudio } = module;
             if (token === navToken) contentArea.appendChild(LipSyncStudio());
         });
 
@@ -107,7 +138,9 @@ function navigate(page, options = {}) {
         contentArea.appendChild(div);
 
     } else if (safePage === 'academy') {
-        import('./components/AcademyPage.js').then(({ AcademyPage }) => {
+        importFresh(() => import('./components/AcademyPage.js')).then(module => {
+            if (!module) return;
+            const { AcademyPage } = module;
             if (token === navToken) contentArea.appendChild(AcademyPage(navigate));
         });
     }
@@ -129,7 +162,9 @@ if (cookieBanner) document.body.appendChild(cookieBanner);
 
 navigate(pageFromUrl(), { updateUrl: false });
 
-import('./components/GenerationCenter.js').then(({ GenerationCenter }) => {
+importFresh(() => import('./components/GenerationCenter.js')).then(module => {
+    if (!module) return;
+    const { GenerationCenter } = module;
     if (!document.querySelector('#generation-center-root')) {
         const gc = GenerationCenter();
         gc.id = 'generation-center-root';
@@ -139,7 +174,9 @@ import('./components/GenerationCenter.js').then(({ GenerationCenter }) => {
 
 window.addEventListener('navigate', (event) => {
     if (event.detail.page === 'settings') {
-        import('./components/SettingsModal.js').then(({ SettingsModal }) => {
+        importFresh(() => import('./components/SettingsModal.js')).then(module => {
+            if (!module) return;
+            const { SettingsModal } = module;
             document.body.appendChild(SettingsModal());
         });
     } else if (event.detail.page === 'admin') {
