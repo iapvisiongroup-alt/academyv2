@@ -5,6 +5,32 @@ import { ImageStudio } from './components/ImageStudio.js';
 import { Footer } from './components/Footer.js';
 import { CookieBanner } from './components/CookieBanner.js';
 
+function recoverMainStylesheet() {
+    const stylesheet = document.querySelector('link[rel="stylesheet"][href*="/assets/"]');
+
+    if (!stylesheet) return;
+
+    window.setTimeout(async () => {
+        const stylesLoaded = getComputedStyle(document.body).margin === '0px';
+
+        if (stylesLoaded || document.querySelector('#kreateia-css-fallback')) return;
+
+        try {
+            const response = await fetch(stylesheet.href, { cache: 'reload' });
+            if (!response.ok) return;
+
+            const fallback = document.createElement('style');
+            fallback.id = 'kreateia-css-fallback';
+            fallback.textContent = await response.text();
+            document.head.appendChild(fallback);
+        } catch (error) {
+            console.warn('[KreateIA] No se pudo recuperar la hoja de estilos:', error);
+        }
+    }, 800);
+}
+
+recoverMainStylesheet();
+
 const app = document.querySelector('#app');
 app.className = 'flex flex-col h-screen overflow-hidden';
 
