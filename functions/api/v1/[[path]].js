@@ -489,26 +489,29 @@ async function decryptMediaToken(token, env) {
 
 function looksLikeMediaUrl(value) {
     if (typeof value !== 'string') return false;
-    if (!value.startsWith('http://') && !value.startsWith('https://')) return false;
+    try {
+        const url = new URL(value);
+        if (!['http:', 'https:'].includes(url.protocol)) return false;
+        if (url.pathname.includes('/api/v1/media/kreateia-')) return false;
 
-    // Ya es una URL proxied nuestra
-    if (value.includes('/api/v1/media/kreateia-')) return false;
+        const hostname = url.hostname.toLowerCase();
+        const externalDomains = [
+            'muapi.ai',
+            'cloudfront.net',
+            'storage.googleapis.com',
+            'firebasestorage.googleapis.com',
+            'replicate.delivery',
+            'pbxt.replicate',
+            'lh3.googleusercontent.com',
+            'suno.ai',
+        ];
 
-    const externalDomains = [
-        'muapi.ai',
-        'cdn.muapi.ai',
-        'cloudfront.net',
-        'd3adwkbyhxyrtq',
-        'storage.googleapis.com',
-        'firebasestorage.googleapis.com',
-        'replicate.delivery',
-        'pbxt.replicate',
-        'lh3.googleusercontent',
-        'suno.ai',
-        'cdn.suno.ai',
-    ];
-
-    return externalDomains.some(d => value.includes(d));
+        return externalDomains.some(domain => (
+            hostname === domain || hostname.endsWith(`.${domain}`)
+        ));
+    } catch {
+        return false;
+    }
 }
 
 function isOwnStorageUrl(value, env) {
@@ -1117,6 +1120,70 @@ async function handleMediaProxy(route, request, env) {
     });
 }
 
+async function handlePrivateMediaOpen(request, env) {
+    if (request.method !== 'POST') return jsonError('Método no permitido', 405);
+
+    const declaredSize = Number(request.headers.get('Content-Length') || 0);
+    if (declaredSize > MAX_JSON_BODY_BYTES) {
+        return jsonError('La petición es demasiado grande', 413);
+    }
+
+    const text = await request.text();
+    if (new TextEncoder().encode(text).byteLength > MAX_JSON_BODY_BYTES) {
+        return jsonError('La petición es demasiado grande', 413);
+    }
+
+    let body;
+    try {
+        body = JSON.parse(text || '{}');
+    } catch {
+        return jsonError('JSON inválido', 400);
+    }
+
+    const sourceUrl = String(body?.url || '').trim();
+
+    if (!looksLikeMediaUrl(sourceUrl)) {
+        return jsonError('Origen multimedia no permitido', 400);
+    }
+
+    const upstreamHeaders = getProviderMediaHeaders(sourceUrl, env);
+    let upstream;
+
+    try {
+        upstream = await fetch(sourceUrl, { headers: upstreamHeaders });
+    } catch {
+        return jsonError('No se pudo recuperar el archivo', 502);
+    }
+
+    if (!upstream.ok) {
+        return jsonError('El archivo multimedia ya no está disponible', upstream.status);
+    }
+
+    const contentType = String(upstream.headers.get('Content-Type') || '').toLowerCase();
+    const allowedType = contentType.startsWith('image/')
+        || contentType.startsWith('video/')
+        || contentType.startsWith('audio/');
+
+    if (!allowedType || contentType.includes('svg') || contentType.includes('html')) {
+        return jsonError('El proveedor devolvió un archivo no permitido', 415);
+    }
+
+    const extension = extensionFromContentType(contentType);
+    const code = randomCode();
+
+    return new Response(upstream.body, {
+        status: 200,
+        headers: {
+            'Content-Type': contentType,
+            'Content-Disposition': `inline; filename="KreateIA-${code}.${extension}"`,
+            'Cache-Control': 'private, no-store',
+            'Access-Control-Allow-Origin': '*',
+            'X-Content-Type-Options': 'nosniff',
+            'Content-Security-Policy': "default-src 'none'; sandbox",
+        },
+    });
+}
+
 // ─── Herramientas dinámicas desde admin ────────────────────────────────────────
 function normalizeEndpoint(endpoint) {
     return String(endpoint || '')
@@ -1416,7 +1483,7 @@ export async function onRequest(context) {
     }
 
     // Media proxy — devuelve archivos con URL opaca kreateia-...
-    if (route.startsWith('media/')) {
+    if (route.startsWith('media/') && route !== 'media/open') {
         return handleMediaProxy(route, request, env);
     }
 
@@ -1428,6 +1495,14 @@ export async function onRequest(context) {
         authenticatedUser = await verifyFirebaseUser(idToken, env.FIREBASE_API_KEY);
     } catch {
         return jsonError('Token inválido o expirado', 401);
+    }
+
+    if (route === 'media/open') {
+        try {
+            return await handlePrivateMediaOpen(request, env);
+        } catch (error) {
+            return jsonError(error.message || 'No se pudo abrir el archivo', error.status || 400);
+        }
     }
 
     const contentType = request.headers.get('Content-Type') || '';

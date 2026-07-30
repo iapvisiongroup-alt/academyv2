@@ -25,6 +25,7 @@ import {
     updateDoc
 } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
+import { openMediaPrivately } from '../lib/media.js';
 
 async function saveGenerationTask({ type, endpoint, requestId, prompt, userId }) {
     try {
@@ -887,8 +888,12 @@ export function ImageStudio() {
         image.src = entry.url;
         card.querySelector('.generated-prompt').textContent = entry.prompt || 'Imagen creada con KreateIA';
 
-        card.querySelector('.open-image-btn').addEventListener('click', () => {
-            window.open(entry.url, '_blank', 'noopener,noreferrer');
+        card.querySelector('.open-image-btn').addEventListener('click', async () => {
+            try {
+                await openMediaPrivately(entry.url);
+            } catch (error) {
+                alert(error.message || 'No se pudo abrir la imagen.');
+            }
         });
 
         card.querySelector('.edit-image-btn').addEventListener('click', () => {

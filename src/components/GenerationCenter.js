@@ -4,6 +4,7 @@ import {
     updateDoc, serverTimestamp, addDoc, deleteDoc, doc
 } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
+import { openMediaPrivately } from '../lib/media.js';
 
 const extractUrl = (d) => {
     if (!d) return null;
@@ -124,11 +125,10 @@ export function GenerationCenter() {
                     img.style.cssText = 'width:100%;border-radius:8px;border:1px solid #f59e0b44;cursor:pointer';
                     img.addEventListener('click', async () => {
                         try {
-                            const blob = await fetch(task.result_url).then(r => r.blob());
-                            const blobUrl = URL.createObjectURL(blob);
-                            window.open(blobUrl, '_blank');
-                            setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
-                        } catch { window.open(task.result_url, '_blank'); }
+                            await openMediaPrivately(task.result_url);
+                        } catch (error) {
+                            console.error('[GenerationCenter] No se pudo abrir la imagen:', error);
+                        }
                     });
                     resultEl.innerHTML = '';
                     resultEl.appendChild(img);
