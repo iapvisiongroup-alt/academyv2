@@ -439,6 +439,11 @@ export function VideoStudio() {
     bar.appendChild(referencesPanel);
 
     async function uploadVideoReferenceImage(file) {
+        if (!auth.currentUser) {
+            throw new Error('Debes iniciar sesión para subir imágenes.');
+        }
+
+        const token = await auth.currentUser.getIdToken();
         const fd = new FormData();
         fd.append('file', file);
 
@@ -450,6 +455,9 @@ export function VideoStudio() {
         try {
             resp = await fetch('/api/v1/upload_file', {
                 method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
                 body: fd,
                 signal: controller.signal,
             });

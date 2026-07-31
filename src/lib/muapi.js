@@ -161,9 +161,12 @@ export class MuapiClient {
             body: formData
         });
 
-        if (!response.ok) throw new Error(`Fallo al subir archivo: ${response.status}`);
-        const data = await response.json();
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(data.error || data.message || `Fallo al subir archivo: ${response.status}`);
+        }
         const fileUrl = data.url || data.file_url || data.data?.url;
+        if (!fileUrl) throw new Error('No se recibió la URL del archivo subido.');
         return fileUrl;
     }
 }
