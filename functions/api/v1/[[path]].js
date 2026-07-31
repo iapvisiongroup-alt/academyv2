@@ -51,6 +51,7 @@ const MAX_JSON_BODY_BYTES = 1_000_000;
 const MAX_IMAGE_UPLOAD_BYTES = 25 * 1024 * 1024;
 const MAX_VIDEO_UPLOAD_BYTES = 100 * 1024 * 1024;
 const MAX_UPLOADS_PER_HOUR = 30;
+const FIREBASE_WEB_API_KEY = 'AIzaSyDVD2Sbu7nVbFfVkgujMcgOC_S0oDla-zQ';
 const ALLOWED_IMAGE_UPLOAD_TYPES = new Set([
     'image/jpeg',
     'image/png',
@@ -63,6 +64,33 @@ const ALLOWED_VIDEO_UPLOAD_TYPES = new Set([
     'video/webm',
     'video/quicktime',
 ]);
+
+function resolveFirebaseEnv(env) {
+    let serviceAccount = {};
+
+    if (env.FIREBASE_SERVICE_ACCOUNT) {
+        try {
+            serviceAccount = typeof env.FIREBASE_SERVICE_ACCOUNT === 'string'
+                ? JSON.parse(env.FIREBASE_SERVICE_ACCOUNT)
+                : env.FIREBASE_SERVICE_ACCOUNT;
+        } catch {
+            console.error('[Firebase] FIREBASE_SERVICE_ACCOUNT no contiene JSON válido.');
+        }
+    }
+
+    return {
+        ...env,
+        FIREBASE_API_KEY: env.FIREBASE_API_KEY || FIREBASE_WEB_API_KEY,
+        FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID || serviceAccount.project_id || '',
+        FIREBASE_CLIENT_EMAIL: env.FIREBASE_CLIENT_EMAIL || serviceAccount.client_email || '',
+        FIREBASE_PRIVATE_KEY: env.FIREBASE_PRIVATE_KEY || serviceAccount.private_key || '',
+        FIREBASE_STORAGE_BUCKET: env.FIREBASE_STORAGE_BUCKET
+            || env.FIREBASE_BUCKET
+            || (env.FIREBASE_PROJECT_ID || serviceAccount.project_id
+                ? `${env.FIREBASE_PROJECT_ID || serviceAccount.project_id}.firebasestorage.app`
+                : ''),
+    };
+}
 
 function calculateCost(route, body) {
     // Polling de resultados — siempre gratis
@@ -1468,7 +1496,8 @@ async function handleDynamicToolRun(context, body) {
 
 // ─── Handler principal ────────────────────────────────────────────────────────
 export async function onRequest(context) {
-    const { request, env, params } = context;
+    const { request, params } = context;
+    const env = resolveFirebaseEnv(context.env);
 
     const route = Array.isArray(params.path)
         ? params.path.join('/')
@@ -1610,7 +1639,7 @@ export async function onRequest(context) {
     // Nueva ruta dinámica:
     // POST /api/v1/tools/run
     if (route === 'tools/run') {
-        return handleDynamicToolRun(context, body);
+        return handleDynamicToolRun({ ...context, env }, body);
     }
 
     // Calcular coste y resolver endpoint real
