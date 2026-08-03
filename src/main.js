@@ -32,6 +32,7 @@ function recoverMainStylesheet() {
 recoverMainStylesheet();
 
 const app = document.querySelector('#app');
+document.documentElement.dataset.build = 'kreateedit-beta-1';
 app.className = 'flex flex-col h-screen overflow-hidden';
 
 const ROUTABLE_PAGES = new Set([

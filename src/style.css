@@ -1,6 +1,10 @@
 @import './styles/global.css';
 @import './styles/studio.css';
 
+:root {
+  --kreateia-build: 1;
+}
+
 /* App-specific layout */
 #app {
   display: flex;
