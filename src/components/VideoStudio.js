@@ -749,10 +749,21 @@ export function VideoStudio() {
             container.scrollTo({ top: 0, behavior: 'smooth' });
             setTimeout(() => textarea.focus(), 350);
         });
-        card.querySelector('.kreateedit-video-btn').addEventListener('click', (e) => {
+        card.querySelector('.kreateedit-video-btn').addEventListener('click', async (e) => {
             e.stopPropagation();
             const params = new URLSearchParams({ import: entry.url, type: 'video', name: 'KreateVideo.mp4' });
-            window.open(`https://kreateedit-preview.pages.dev/?${params.toString()}`, '_blank', 'noopener,noreferrer');
+            const editorWindow = window.open('about:blank', '_blank');
+
+            try {
+                if (!auth.currentUser) throw new Error('Debes iniciar sesión.');
+                const token = await auth.currentUser.getIdToken();
+                const url = `https://kreateedit-preview.pages.dev/?${params.toString()}#kreateia_session=${encodeURIComponent(token)}`;
+                if (editorWindow) editorWindow.location.href = url;
+                else window.location.href = url;
+            } catch (error) {
+                if (editorWindow) editorWindow.close();
+                console.warn('[KreateEdit] No se pudo vincular la sesión:', error.message);
+            }
         });
         const rid = entry.request_id || entry.muapi_request_id || null;
         const extendBtn = card.querySelector('.extend-btn');
