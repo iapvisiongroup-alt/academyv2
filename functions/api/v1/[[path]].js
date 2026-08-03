@@ -136,7 +136,12 @@ function calculateCost(route, body) {
         cost = Math.max(5, Math.ceil((secs / 60) * 10));
     }
 
-    return { cost, muapiEndpoint: mapped.endpoint };
+    const normalizedCost = Math.ceil(Number(cost));
+    if (!Number.isFinite(normalizedCost) || normalizedCost < 1) {
+        throw new Error('Coste de generación inválido');
+    }
+
+    return { cost: normalizedCost, muapiEndpoint: mapped.endpoint };
 }
 
 function normalizeGptImage2Request(route, body) {
@@ -191,6 +196,7 @@ async function verifyFirebaseUser(idToken, firebaseApiKey) {
     const email = user?.email || '';
 
     if (!uid) throw new Error('Token inválido');
+    if (!email) throw new Error('La cuenta debe estar registrada con email');
 
     return { uid, email };
 }
@@ -1402,6 +1408,14 @@ async function handleDynamicToolRun(context, body) {
         return jsonError(e.message || 'Configuración inválida de herramienta.', 400);
     }
 
+    cost = Math.ceil(Number(cost));
+    if (!Number.isFinite(cost) || cost < 1) {
+        return jsonError(
+            'Generación bloqueada: la herramienta no tiene un coste de créditos válido.',
+            503
+        );
+    }
+
     const userDocPath = `artifacts/${env.FIREBASE_APP_ID}/public/data/users/${user.uid}`;
 
     if (cost > 0) {
@@ -1645,7 +1659,12 @@ export async function onRequest(context) {
     }
 
     // Calcular coste y resolver endpoint real
-    const resolved = calculateCost(route, body);
+    let resolved;
+    try {
+        resolved = calculateCost(route, body);
+    } catch (error) {
+        return jsonError(error.message || 'Coste de generación inválido.', 400);
+    }
     if (!resolved) return jsonError(`Ruta desconocida: ${route}`, 404);
 
     const { cost, muapiEndpoint } = resolved;

@@ -55,8 +55,10 @@ async function userFromRequest(request) {
 
   if (!response.ok) throw new Error('La sesión no es válida o ha caducado.');
   const user = (await response.json()).users?.[0];
-  if (!user?.localId) throw new Error('Usuario no válido.');
-  return { uid: user.localId, email: user.email || '' };
+  if (!user?.localId || !user?.email) {
+    throw new Error('Debes usar una cuenta registrada con email.');
+  }
+  return { uid: user.localId, email: user.email };
 }
 
 async function upload(request, bucket, user) {
