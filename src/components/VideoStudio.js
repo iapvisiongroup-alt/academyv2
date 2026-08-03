@@ -718,6 +718,10 @@ export function VideoStudio() {
                         <span class="text-[8px] md:text-[10px] text-[#FFB000] font-bold bg-[#FFB000]/10 px-1.5 py-0.5 rounded-md border border-[#FFB000]/20">${entry.quality === 'high' ? 'Alta' : 'Básica'}</span>
                     </div>
                     <div class="flex items-center gap-1.5 md:gap-2">
+                        <button type="button" class="kreateedit-video-btn min-h-8 px-2 bg-[#172554] hover:bg-[#1e3a8a] text-[#bfdbfe] rounded-lg transition-all border border-[#3b82f6]/35 text-[10px] font-black flex items-center gap-1" title="Editar en KreateEdit" aria-label="Editar en KreateEdit">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M3 6h18M7 12h10M10 18h4"/></svg>
+                            Editar
+                        </button>
                         <button type="button" class="reuse-prompt-btn min-h-8 px-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all border border-white/15 text-[10px] font-black flex items-center gap-1" title="Reutilizar prompt" aria-label="Reutilizar prompt">
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M3 12a9 9 0 109-9 9.75 9.75 0 00-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
                             Prompt
@@ -744,6 +748,11 @@ export function VideoStudio() {
             textarea.dispatchEvent(new Event('input'));
             container.scrollTo({ top: 0, behavior: 'smooth' });
             setTimeout(() => textarea.focus(), 350);
+        });
+        card.querySelector('.kreateedit-video-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            const params = new URLSearchParams({ import: entry.url, type: 'video', name: 'KreateVideo.mp4' });
+            window.open(`https://kreateedit-preview.pages.dev/?${params.toString()}`, '_blank', 'noopener,noreferrer');
         });
         const rid = entry.request_id || entry.muapi_request_id || null;
         const extendBtn = card.querySelector('.extend-btn');

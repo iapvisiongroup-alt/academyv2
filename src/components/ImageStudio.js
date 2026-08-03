@@ -882,6 +882,10 @@ export function ImageStudio() {
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 12a9 9 0 109-9 9.75 9.75 0 00-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
                         Reutilizar prompt
                     </button>
+                    <button type="button" class="kreateedit-image-btn col-span-2 min-h-9 px-2.5 py-2 bg-[#172554] hover:bg-[#1e3a8a] border border-[#3b82f6]/40 text-[#bfdbfe] rounded-lg text-[10px] md:text-xs font-black transition-colors flex items-center justify-center gap-1.5" title="Editar esta imagen en KreateEdit">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 6h18M7 12h10M10 18h4"/></svg>
+                        Editar en KreateEdit
+                    </button>
                 </div>
                 <button type="button" class="open-image-btn absolute top-2 right-2 w-8 h-8 rounded-lg bg-black/55 hover:bg-black/80 border border-white/15 text-white flex items-center justify-center transition-colors" title="Abrir imagen" aria-label="Abrir imagen">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v7a1 1 0 01-1 1H4a1 1 0 01-1-1V7a1 1 0 011-1h7"/></svg>
@@ -924,6 +928,11 @@ export function ImageStudio() {
             textarea.dispatchEvent(new Event('input'));
             container.scrollTo({ top: 0, behavior: 'smooth' });
             setTimeout(() => textarea.focus(), 350);
+        });
+
+        card.querySelector('.kreateedit-image-btn').addEventListener('click', () => {
+            const params = new URLSearchParams({ import: entry.url, type: 'image', name: 'KreateImage.png' });
+            window.open(`https://kreateedit-preview.pages.dev/?${params.toString()}`, '_blank', 'noopener,noreferrer');
         });
 
         if (isPrepend) galleryGrid.prepend(card);
