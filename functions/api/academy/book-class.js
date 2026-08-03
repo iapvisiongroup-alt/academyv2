@@ -1,3 +1,5 @@
+import { hydrateFirebaseEnv } from '../../_lib/firebase-env.js';
+
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
@@ -41,6 +43,7 @@ const COURSES = {
 
 export async function onRequest(context) {
   const { request, env } = context;
+  hydrateFirebaseEnv(env);
 
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
   if (request.method === 'GET') return new Response('Agenda Academia KreateIA activa', { status: 200, headers: { ...CORS, 'Content-Type': 'text/plain; charset=utf-8' } });
