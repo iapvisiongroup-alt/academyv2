@@ -216,8 +216,30 @@ async function removeMedia(request, bucket, user) {
   if (request.method !== 'DELETE') return json({ error: 'Método no permitido' }, 405);
   const id = String(new URL(request.url).searchParams.get('id') || '');
   if (!/^[a-f0-9-]{36}$/i.test(id)) return json({ error: 'Archivo no válido.' }, 400);
+
+  const projects = await bucket.list({
+    prefix: `users/${user.uid}/projects/`,
+    include: ['customMetadata'],
+    limit: 200,
+  });
+  let updatedProjects = 0;
+
+  for (const item of projects.objects) {
+    const stored = await bucket.get(item.key);
+    if (!stored) continue;
+    const payload = await stored.json().catch(() => null);
+    const current = payload?.project;
+    if (!current) continue;
+    const clips = (current.clips || []).filter((clip) => clip.assetId !== id);
+    const audioTracks = (current.audioTracks || []).filter((track) => track.assetId !== id);
+    if (clips.length === (current.clips || []).length && audioTracks.length === (current.audioTracks || []).length) continue;
+    const projectId = current.id || item.customMetadata?.id || item.key.split('/').pop().replace(/\.json$/i, '');
+    await saveProject(bucket, user, projectId, { project: { ...current, clips, audioTracks } });
+    updatedProjects += 1;
+  }
+
   await bucket.delete(`users/${user.uid}/media/${id}`);
-  return json({ ok: true });
+  return json({ ok: true, updatedProjects });
 }
 
 async function serveFile(request, bucket, route) {
