@@ -242,6 +242,7 @@ $('split-btn').onclick=splitSelected;$('extract-btn').onclick=extractAudio;$('du
 $('quick-split-btn').onclick=splitSelected;$('quick-delete-btn').onclick=deleteSelected;$('quick-mute-btn').onclick=()=>{const clip=selectedClip();if(!clip)return toast('Selecciona un clip.');checkpoint();clip.muted=!clip.muted;renderAll()};
 $('export-btn').onclick=()=>{$('export-modal').classList.remove('hidden');refreshIcons()};$('close-export').onclick=()=>$('export-modal').classList.add('hidden');$('cancel-export').onclick=()=>{state.exporting=false;$('export-modal').classList.add('hidden')};$('start-export').onclick=()=>exportProjectV2().catch(err=>{state.exporting=false;$('start-export').disabled=false;toast(err.message||'No se pudo exportar')});
 $('open-image-studio').onclick=()=>window.open('https://kreateia.com/?page=image&from=kreateedit','_blank','noopener');$('open-video-studio').onclick=()=>window.open('https://kreateia.com/?page=video&from=kreateedit','_blank','noopener');
+$('back-to-studio-btn').onclick=()=>window.location.assign('https://kreateia.com/');
 $('mobile-library-btn').onclick=()=>document.querySelector('.library-panel').classList.add('open');$('close-library-mobile').onclick=()=>document.querySelector('.library-panel').classList.remove('open');$('mobile-properties-btn').onclick=()=>document.querySelector('.properties-panel').classList.add('open');$('close-properties-mobile').onclick=()=>document.querySelector('.properties-panel').classList.remove('open');
 
 $('auth-btn').onclick=()=>state.user?signOut(auth):login();

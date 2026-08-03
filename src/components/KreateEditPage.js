@@ -29,7 +29,7 @@ export function KreateEditPage() {
         });
     };
 
-    const renderEditor = () => {
+    const openEditor = () => {
         if (MONTHLY_SUBSCRIPTION_REQUIRED) {
             // Aquí se conectará la comprobación del plan KreateEdit cuando se active.
         }
@@ -41,18 +41,11 @@ export function KreateEditPage() {
         });
         const editorUrl = `/kreateedit/${editorParams.size ? `?${editorParams.toString()}` : ''}`;
 
-        root.innerHTML = `
-            <iframe
-                src="${editorUrl}"
-                title="KreateEdit Beta"
-                class="absolute inset-0 w-full h-full border-0 bg-[#080808]"
-                allow="clipboard-read; clipboard-write"
-            ></iframe>
-        `;
+        window.location.assign(editorUrl);
     };
 
     unsubscribe = onAuthStateChanged(auth, user => {
-        if (user) renderEditor();
+        if (user) openEditor();
         else renderGate();
     });
 
