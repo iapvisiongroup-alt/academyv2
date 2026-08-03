@@ -39,6 +39,7 @@ const ROUTABLE_PAGES = new Set([
     'image',
     'video',
     'music',
+    'kreateedit',
     'cinema',
     'lipsync',
     'library',
@@ -141,6 +142,13 @@ function navigate(page, options = {}) {
             if (!module) return;
             const { KreateMusicStudio } = module;
             if (token === navToken) contentArea.appendChild(KreateMusicStudio());
+        });
+
+    } else if (safePage === 'kreateedit') {
+        importFresh(() => import('./components/KreateEditPage.js')).then(module => {
+            if (!module) return;
+            const { KreateEditPage } = module;
+            if (token === navToken) contentArea.appendChild(KreateEditPage());
         });
 
     } else if (safePage === 'cinema') {

@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#090909" />
+  <title>KreateEdit Preview</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div id="app" class="app-shell">
+    <header class="topbar">
+      <div class="brand" aria-label="KreateEdit">
+        <span class="brand-mark">K</span>
+        <div><strong>KreateEdit</strong><span>Preview privado</span></div>
+      </div>
+      <div class="project-title">
+        <input id="project-name" value="Mi proyecto de vídeo" aria-label="Nombre del proyecto" />
+        <span id="save-state">Guardado local</span>
+      </div>
+      <div class="top-actions">
+        <button id="mobile-library-btn" class="icon-btn mobile-library-btn" title="Abrir biblioteca"><i data-lucide="library"></i></button>
+        <button id="mobile-properties-btn" class="icon-btn mobile-library-btn" title="Abrir ajustes"><i data-lucide="sliders-horizontal"></i></button>
+        <button id="undo-btn" class="icon-btn" title="Deshacer" disabled><i data-lucide="undo-2"></i></button>
+        <button id="redo-btn" class="icon-btn" title="Rehacer" disabled><i data-lucide="redo-2"></i></button>
+        <button id="auth-btn" class="secondary-btn"><i data-lucide="log-in"></i><span>Iniciar sesión</span></button>
+        <button id="export-btn" class="primary-btn"><i data-lucide="download"></i><span>Exportar</span></button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <aside class="library-panel panel">
+        <div class="panel-heading">
+          <div><span class="eyebrow">Biblioteca</span><h2>Contenido</h2></div>
+          <div class="heading-actions"><button id="upload-btn" class="icon-btn" title="Subir archivos"><i data-lucide="upload"></i></button><button id="close-library-mobile" class="icon-btn mobile-library-btn" title="Cerrar"><i data-lucide="x"></i></button></div>
+          <input id="file-input" type="file" accept="video/*,audio/*,image/*" multiple hidden />
+        </div>
+
+        <button id="drop-zone" class="drop-zone" type="button">
+          <i data-lucide="folder-up"></i>
+          <strong>Sube tus archivos</strong>
+          <span>Vídeo, audio o imagen</span>
+        </button>
+
+        <div class="source-tabs" role="tablist">
+          <button class="source-tab active" data-filter="all">Todo</button>
+          <button class="source-tab" data-filter="video">Vídeo</button>
+          <button class="source-tab" data-filter="audio">Audio</button>
+          <button class="source-tab" data-filter="image">Imagen</button>
+        </div>
+
+        <div id="media-list" class="media-list"></div>
+
+        <div class="ai-box">
+          <div class="ai-icon"><i data-lucide="sparkles"></i></div>
+          <div><strong>Crear con IA</strong><span>Genera en KreateIA y vuelve con Editar</span></div>
+          <div class="ai-links"><button id="open-image-studio" class="small-btn" title="Abrir KreateImage"><i data-lucide="image"></i></button><button id="open-video-studio" class="small-btn" title="Abrir KreateVideo"><i data-lucide="video"></i></button></div>
+        </div>
+      </aside>
+
+      <section class="stage-column">
+        <div class="preview-toolbar panel">
+          <div class="segmented" aria-label="Formato del proyecto">
+            <button class="segment active" data-ratio="16:9">16:9</button>
+            <button class="segment" data-ratio="9:16">9:16</button>
+            <button class="segment" data-ratio="1:1">1:1</button>
+          </div>
+          <div class="zoom-control"><i data-lucide="zoom-out"></i><input id="zoom-slider" type="range" min="60" max="120" value="90" /><span id="zoom-label">90%</span></div>
+        </div>
+
+        <div class="stage panel">
+          <div id="canvas-wrap" class="canvas-wrap ratio-16-9">
+            <video id="preview-video" playsinline preload="metadata"></video>
+            <img id="preview-image" alt="Previsualización" />
+            <div id="empty-preview" class="empty-preview">
+              <i data-lucide="clapperboard"></i>
+              <strong>Empieza tu montaje</strong>
+              <span>Sube un vídeo y añádelo a la línea de tiempo</span>
+            </div>
+          </div>
+          <div class="transport">
+            <button id="prev-btn" class="icon-btn" title="Clip anterior"><i data-lucide="skip-back"></i></button>
+            <button id="play-btn" class="play-btn" title="Reproducir"><i data-lucide="play"></i></button>
+            <button id="next-btn" class="icon-btn" title="Clip siguiente"><i data-lucide="skip-forward"></i></button>
+            <div class="time-readout"><span id="current-time">00:00.0</span><span>/</span><span id="total-time">00:00.0</span></div>
+            <button id="mute-preview-btn" class="icon-btn transport-end" title="Silenciar previsualización"><i data-lucide="volume-2"></i></button>
+          </div>
+        </div>
+      </section>
+
+      <aside class="properties-panel panel">
+        <div class="panel-heading"><div><span class="eyebrow">Ajustes</span><h2>Clip seleccionado</h2></div><button id="close-properties-mobile" class="icon-btn mobile-library-btn" title="Cerrar"><i data-lucide="x"></i></button></div>
+        <div id="no-selection" class="no-selection"><i data-lucide="mouse-pointer-2"></i><p>Selecciona un clip de la línea de tiempo para editarlo.</p></div>
+        <div id="clip-properties" class="clip-properties hidden">
+          <div class="selected-summary"><div id="selected-thumb" class="selected-thumb"></div><div><strong id="selected-name"></strong><span id="selected-kind"></span></div></div>
+
+          <div class="property-group">
+            <label>Recorte</label>
+            <div class="two-inputs"><div><span>Inicio</span><input id="trim-start" type="number" min="0" step="0.1" /></div><div><span>Final</span><input id="trim-end" type="number" min="0.1" step="0.1" /></div></div>
+            <div class="range-pair"><input id="trim-start-range" type="range" min="0" step="0.1" /><input id="trim-end-range" type="range" min="0.1" step="0.1" /></div>
+          </div>
+
+          <div class="property-group">
+            <div class="label-row"><label for="volume-slider">Volumen</label><span id="volume-label">100%</span></div>
+            <input id="volume-slider" type="range" min="0" max="100" value="100" />
+            <label class="toggle-row"><span><strong>Silenciar clip</strong><small>El vídeo mantiene la imagen</small></span><input id="mute-toggle" type="checkbox" /><span class="toggle"></span></label>
+          </div>
+
+          <div class="property-actions">
+            <button id="split-btn" class="secondary-btn"><i data-lucide="scissors"></i>Dividir</button>
+            <button id="extract-btn" class="secondary-btn"><i data-lucide="audio-lines"></i>Extraer audio</button>
+            <button id="duplicate-btn" class="secondary-btn"><i data-lucide="copy"></i>Duplicar</button>
+            <button id="delete-btn" class="danger-btn"><i data-lucide="trash-2"></i>Eliminar</button>
+          </div>
+        </div>
+      </aside>
+
+      <section class="timeline-panel panel">
+        <div class="timeline-head">
+          <div><span class="eyebrow">Línea de tiempo</span><strong id="timeline-duration">00:00.0</strong></div>
+          <div class="timeline-actions">
+            <button id="quick-split-btn" class="icon-btn" title="Dividir clip"><i data-lucide="scissors"></i></button>
+            <button id="quick-mute-btn" class="icon-btn" title="Silenciar clip"><i data-lucide="volume-x"></i></button>
+            <button id="quick-delete-btn" class="icon-btn" title="Eliminar clip"><i data-lucide="trash-2"></i></button>
+            <button id="timeline-zoom-out" class="icon-btn" title="Alejar línea de tiempo"><i data-lucide="minus"></i></button>
+            <input id="timeline-zoom" type="range" min="45" max="130" value="75" />
+            <button id="timeline-zoom-in" class="icon-btn" title="Acercar línea de tiempo"><i data-lucide="plus"></i></button>
+          </div>
+        </div>
+        <div id="timeline-scroll" class="timeline-scroll">
+          <div id="time-ruler" class="time-ruler"></div>
+          <div id="video-track" class="track"><div class="track-label"><i data-lucide="film"></i><span>Vídeo</span></div><div id="video-clips" class="track-content"></div></div>
+          <div id="audio-track" class="track"><div class="track-label"><i data-lucide="audio-waveform"></i><span>Audio</span></div><div id="audio-clips" class="track-content"></div></div>
+          <div id="playhead" class="playhead"><span></span></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="export-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="export-title">
+    <div class="modal-card">
+      <div class="modal-head"><div><span class="eyebrow">Exportar proyecto</span><h2 id="export-title">Preparar vídeo</h2></div><button id="close-export" class="icon-btn"><i data-lucide="x"></i></button></div>
+      <div class="export-options">
+        <label>Resolución<select id="export-resolution"><option value="720">720p · Prueba rápida</option><option value="1080">1080p · Alta calidad</option></select></label>
+        <label>Fotogramas<select id="export-fps"><option value="30">30 fps</option><option value="24">24 fps</option></select></label>
+      </div>
+      <div class="export-note"><i data-lucide="info"></i><p>Esta versión de prueba exporta directamente en tu navegador. No sube tus archivos a ningún servidor.</p></div>
+      <div id="export-progress-wrap" class="progress-wrap hidden"><div class="progress-line"><span id="export-status">Preparando...</span><strong id="export-percent">0%</strong></div><div class="progress-bar"><span id="export-progress"></span></div></div>
+      <div class="modal-actions"><button id="cancel-export" class="secondary-btn">Cancelar</button><button id="start-export" class="primary-btn"><i data-lucide="download"></i>Exportar MP4/WebM</button></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+  <canvas id="export-canvas" hidden></canvas>
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

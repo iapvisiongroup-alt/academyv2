@@ -930,20 +930,9 @@ export function ImageStudio() {
             setTimeout(() => textarea.focus(), 350);
         });
 
-        card.querySelector('.kreateedit-image-btn').addEventListener('click', async () => {
+        card.querySelector('.kreateedit-image-btn').addEventListener('click', () => {
             const params = new URLSearchParams({ import: entry.url, type: 'image', name: 'KreateImage.png' });
-            const editorWindow = window.open('about:blank', '_blank');
-
-            try {
-                if (!auth.currentUser) throw new Error('Debes iniciar sesión.');
-                const token = await auth.currentUser.getIdToken();
-                const url = `https://kreateedit-preview.pages.dev/?${params.toString()}#kreateia_session=${encodeURIComponent(token)}`;
-                if (editorWindow) editorWindow.location.href = url;
-                else window.location.href = url;
-            } catch (error) {
-                if (editorWindow) editorWindow.close();
-                console.warn('[KreateEdit] No se pudo vincular la sesión:', error.message);
-            }
+            window.open(`/?page=kreateedit&${params.toString()}`, '_blank', 'noopener,noreferrer');
         });
 
         if (isPrepend) galleryGrid.prepend(card);

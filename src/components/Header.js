@@ -44,6 +44,7 @@ export function Header(navigate) {
         { id: 'image',   label: 'KreateImage' },
         { id: 'video',   label: 'KreateVideo' },
         { id: 'music',   label: 'KreateMusic' },
+        { id: 'kreateedit', label: 'KreateEdit' },
         { id: 'academy', label: 'Academia de IA' }
     ];
 
@@ -75,6 +76,13 @@ export function Header(navigate) {
                 const badge = document.createElement('span');
                 badge.style.cssText = 'margin-left:6px;background:#f59e0b;color:#000;font-size:8px;font-weight:900;padding:1px 5px;border-radius:100px;vertical-align:middle;letter-spacing:.05em';
                 badge.textContent = 'NEW';
+                link.appendChild(badge);
+            }
+
+            if (item.id === 'kreateedit') {
+                const badge = document.createElement('span');
+                badge.style.cssText = 'margin-left:6px;background:#2563eb;color:#fff;font-size:8px;font-weight:900;padding:1px 5px;border-radius:100px;vertical-align:middle;letter-spacing:.05em';
+                badge.textContent = 'BETA';
                 link.appendChild(badge);
             }
 
