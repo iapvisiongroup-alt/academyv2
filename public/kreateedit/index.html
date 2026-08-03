@@ -8,7 +8,37 @@
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
-  <div id="app" class="app-shell">
+  <section id="project-home" class="project-home">
+    <header class="project-home-bar">
+      <div class="brand"><span class="brand-mark">K</span><div><strong>KreateEdit</strong><span>Tu estudio creativo</span></div></div>
+      <div class="top-actions">
+        <button id="home-back-btn" class="secondary-btn"><i data-lucide="arrow-left"></i><span>KreateIA</span></button>
+        <button id="new-project-btn" class="primary-btn"><i data-lucide="plus"></i><span>Nuevo proyecto</span></button>
+      </div>
+    </header>
+    <main class="project-home-main">
+      <div class="project-home-copy"><span class="eyebrow">KreateEdit Beta</span><h1>¿Qué quieres crear hoy?</h1><p>Continúa un proyecto o empieza uno nuevo. Tus archivos y cambios quedan vinculados a tu cuenta KreateIA.</p></div>
+      <div class="project-section-head"><div><h2>Tus proyectos</h2><span id="project-count">Cargando...</span></div></div>
+      <div id="project-list" class="project-grid"><div class="project-loading">Cargando tus proyectos...</div></div>
+    </main>
+  </section>
+
+  <section id="photo-workspace" class="photo-workspace hidden">
+    <header class="project-home-bar">
+      <div class="brand"><span class="brand-mark">K</span><div><strong>KreateEdit Foto</strong><span id="photo-project-name">Nuevo diseño</span></div></div>
+      <button id="photo-projects-btn" class="secondary-btn"><i data-lucide="layout-grid"></i><span>Proyectos</span></button>
+    </header>
+    <div class="photo-soon">
+      <div class="photo-soon-visual"><i data-lucide="panels-top-left"></i><span>Aa</span></div>
+      <span class="eyebrow">Siguiente módulo</span>
+      <h1>Diseño y fotografía</h1>
+      <p>Estamos preparando el espacio para editar fotos, usar plantillas, crear carteles, añadir textos y adaptar diseños a cualquier formato.</p>
+      <div class="photo-feature-grid"><span><i data-lucide="layout-template"></i>Plantillas</span><span><i data-lucide="type"></i>Textos</span><span><i data-lucide="image"></i>Fotografía</span><span><i data-lucide="shapes"></i>Elementos</span></div>
+      <button id="photo-back-btn" class="primary-btn"><i data-lucide="arrow-left"></i>Volver a proyectos</button>
+    </div>
+  </section>
+
+  <div id="app" class="app-shell hidden">
     <header class="topbar">
       <div class="brand" aria-label="KreateEdit">
         <span class="brand-mark">K</span>
@@ -19,6 +49,7 @@
         <span id="save-state">Guardado local</span>
       </div>
       <div class="top-actions">
+        <button id="projects-btn" class="secondary-btn" title="Ver proyectos"><i data-lucide="layout-grid"></i><span>Proyectos</span></button>
         <button id="back-to-studio-btn" class="secondary-btn" title="Volver a KreateIA"><i data-lucide="arrow-left"></i><span>KreateIA</span></button>
         <button id="mobile-library-btn" class="icon-btn mobile-library-btn" title="Abrir biblioteca"><i data-lucide="library"></i></button>
         <button id="mobile-properties-btn" class="icon-btn mobile-library-btn" title="Abrir ajustes"><i data-lucide="sliders-horizontal"></i></button>
@@ -42,6 +73,7 @@
           <strong>Sube tus archivos</strong>
           <span>Vídeo, audio o imagen</span>
         </button>
+        <div id="upload-queue" class="upload-queue"></div>
 
         <div class="source-tabs" role="tablist">
           <button class="source-tab active" data-filter="all">Todo</button>
@@ -120,6 +152,7 @@
         <div class="timeline-head">
           <div><span class="eyebrow">Línea de tiempo</span><strong id="timeline-duration">00:00.0</strong></div>
           <div class="timeline-actions">
+            <button id="add-video-track" class="secondary-btn" title="Añadir pista de vídeo"><i data-lucide="rows-3"></i><span>Añadir pista</span></button>
             <button id="quick-split-btn" class="icon-btn" title="Dividir clip"><i data-lucide="scissors"></i></button>
             <button id="quick-mute-btn" class="icon-btn" title="Silenciar clip"><i data-lucide="volume-x"></i></button>
             <button id="quick-delete-btn" class="icon-btn" title="Eliminar clip"><i data-lucide="trash-2"></i></button>
@@ -130,12 +163,23 @@
         </div>
         <div id="timeline-scroll" class="timeline-scroll">
           <div id="time-ruler" class="time-ruler"></div>
-          <div id="video-track" class="track"><div class="track-label"><i data-lucide="film"></i><span>Vídeo</span></div><div id="video-clips" class="track-content"></div></div>
+          <div id="video-tracks"></div>
           <div id="audio-track" class="track"><div class="track-label"><i data-lucide="audio-waveform"></i><span>Audio</span></div><div id="audio-clips" class="track-content"></div></div>
           <div id="playhead" class="playhead"><span></span></div>
         </div>
       </section>
     </main>
+  </div>
+
+  <div id="project-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="new-project-title">
+    <div class="modal-card project-modal-card">
+      <div class="modal-head"><div><span class="eyebrow">Nuevo proyecto</span><h2 id="new-project-title">Prepara tu espacio de trabajo</h2></div><button id="close-project-modal" class="icon-btn"><i data-lucide="x"></i></button></div>
+      <div class="new-project-form">
+        <label>Nombre del proyecto<input id="new-project-name" type="text" maxlength="100" placeholder="Ej. Vídeo campaña de verano" /></label>
+        <div><span class="form-label">Tipo de proyecto</span><div class="project-kind-grid"><button class="project-kind active" data-project-kind="video"><i data-lucide="clapperboard"></i><strong>Vídeo</strong><span>Montaje, audio y varias pistas</span></button><button class="project-kind" data-project-kind="photo"><i data-lucide="image"></i><strong>Foto y diseño</strong><span>Plantillas y carteles, próximamente</span></button></div></div>
+      </div>
+      <div class="modal-actions"><button id="cancel-project" class="secondary-btn">Cancelar</button><button id="create-project" class="primary-btn"><i data-lucide="plus"></i>Crear proyecto</button></div>
+    </div>
   </div>
 
   <div id="export-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="export-title">
