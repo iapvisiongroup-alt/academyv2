@@ -159,6 +159,7 @@ const extractVideoUrl = (d) => {
 
 export function VideoStudio() {
     const container = document.createElement('div');
+    container.dataset.build = 'kreatevideo-recovery-1';
     container.className = 'w-full h-full flex flex-col items-center bg-[#050505] relative p-2 md:p-6 pb-24 overflow-y-auto custom-scrollbar overflow-x-hidden';
 
     let selectedUiId      = 'kreate-2';

@@ -125,6 +125,25 @@ function navigate(page, options = {}) {
     const token = ++navToken;
     contentArea.innerHTML = '';
 
+    const showLoadError = (section, error) => {
+        console.error(`[KreateIA] Error cargando ${section}:`, error);
+        if (token !== navToken) return;
+
+        const message = String(error?.message || 'Error desconocido').slice(0, 240);
+        const panel = document.createElement('div');
+        panel.className = 'flex-1 flex items-center justify-center bg-[#050505] p-6';
+        panel.innerHTML = `
+            <div class="w-full max-w-lg border border-red-500/25 bg-[#120909] rounded-lg p-6 text-center">
+                <h2 class="text-white text-xl font-black mb-2">No se pudo abrir ${section}</h2>
+                <p class="text-red-300/80 text-sm mb-5" data-load-error></p>
+                <button type="button" class="px-5 py-3 bg-white text-black font-black text-sm rounded-lg" data-retry-load>Reintentar</button>
+            </div>
+        `;
+        panel.querySelector('[data-load-error]').textContent = message;
+        panel.querySelector('[data-retry-load]').addEventListener('click', () => window.location.reload());
+        contentArea.replaceChildren(panel);
+    };
+
     if (safePage === 'home') {
         contentArea.appendChild(LandingPage(navigate));
 
@@ -136,7 +155,7 @@ function navigate(page, options = {}) {
             if (!module) return;
             const { VideoStudio } = module;
             if (token === navToken) contentArea.appendChild(VideoStudio());
-        });
+        }).catch(error => showLoadError('KreateVideo', error));
 
     } else if (safePage === 'music') {
         importFresh(() => import('./components/KreateMusicStudio.js')).then(module => {
