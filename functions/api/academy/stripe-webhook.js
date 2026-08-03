@@ -1,3 +1,5 @@
+import { hydrateFirebaseEnv } from '../../_lib/firebase-env.js';
+
 const APP_ID = 'appiapvision';
 const ANNUAL_GROUP_ID = 'ia-anual-viernes-2026';
 const ANNUAL_CAPACITY = 12;
@@ -15,6 +17,7 @@ const GROUP_COURSE = {
 
 export async function onRequest(context) {
   const { request, env } = context;
+  hydrateFirebaseEnv(env);
 
   if (request.method === 'GET') {
     return new Response('Webhook Academia KreateIA activo', {

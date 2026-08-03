@@ -1,3 +1,5 @@
+import { hydrateFirebaseEnv } from '../../_lib/firebase-env.js';
+
 // functions/stripe/stripe.js (o webhook.js según tu estructura)
 
 const INTERNAL_PAYMENT_EMAIL = 'empresas@kreateia.com';
@@ -181,6 +183,7 @@ async function addCreditsToUser(projectId, appId, uid, credits, accessToken, pro
 
 export async function onRequestPost(context) {
     const { request, env } = context;
+    hydrateFirebaseEnv(env);
 
     const signatureHeader = request.headers.get('stripe-signature');
     if (!signatureHeader) {

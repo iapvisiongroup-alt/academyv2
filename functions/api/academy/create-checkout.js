@@ -1,3 +1,5 @@
+import { hydrateFirebaseEnv } from '../../_lib/firebase-env.js';
+
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
@@ -44,6 +46,7 @@ const COURSES = {
 
 export async function onRequest(context) {
   const { request, env } = context;
+  hydrateFirebaseEnv(env);
 
   if (request.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers: CORS });
