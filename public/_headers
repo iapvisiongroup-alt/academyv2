@@ -19,3 +19,9 @@
 
 /tv/*
   Cache-Control: no-cache, no-store, must-revalidate
+
+/kreateedit/
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/kreateedit/*
+  Cache-Control: no-cache, no-store, must-revalidate
