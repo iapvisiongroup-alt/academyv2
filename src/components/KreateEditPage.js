@@ -9,6 +9,16 @@ export function KreateEditPage() {
     const root = document.createElement('section');
     root.className = 'flex-1 min-h-0 w-full bg-[#080808] relative';
 
+    root.innerHTML = `
+        <div class="absolute inset-0 flex items-center justify-center p-5 bg-[#080808]">
+            <div class="flex flex-col items-center text-center">
+                <div class="w-12 h-12 mb-5 rounded-lg bg-[#f4c542] text-black flex items-center justify-center font-black text-xl animate-pulse">K</div>
+                <h1 class="text-white text-xl font-black mb-2">Abriendo KreateEdit</h1>
+                <p class="text-white/45 text-sm">Preparando tu proyecto y recuperando el vídeo...</p>
+            </div>
+        </div>
+    `;
+
     let unsubscribe = null;
 
     const renderGate = () => {

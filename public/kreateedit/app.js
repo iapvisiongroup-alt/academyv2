@@ -163,8 +163,8 @@ async function loadCloudWorkspace(){
     if(!projectsResponse.ok)throw new Error(projectsData.error||'No se pudieron cargar tus proyectos.');
     state.assets=libraryData.assets||[];
     state.projects=projectsData.projects||[];state.cloudReady=true;renderProjects();
-    const importSource=new URLSearchParams(location.search).get('import');
-    if(importSource){const firstVideo=state.projects.find(project=>project.kind==='video');if(firstVideo)await openProject(firstVideo.id);else await createProject('Proyecto KreateIA','video');}
+    const importParams=new URLSearchParams(location.search),importSource=importParams.get('import');
+    if(importSource){const importedName=String(importParams.get('name')||'KreateVideo').replace(/\.[^.]+$/,'');await createProject(importedName,'video');}
   }catch(error){$('project-list').innerHTML=`<div class="project-loading error">${escapeHtml(error.message||'No se pudo conectar con tus proyectos.')}</div>`;toast(error.message||'No se pudo cargar Cloudflare.')}
 }
 
