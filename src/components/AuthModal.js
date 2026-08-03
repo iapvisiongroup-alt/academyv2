@@ -2,11 +2,41 @@ import { auth, googleProvider, db, APP_ID } from '../lib/firebase.js';
 import { signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 
+const TURNSTILE_SITE_KEY = '0x4AAAAAAEFjz6hn06HAmx8l';
+let turnstileScriptPromise = null;
+
+function loadTurnstile() {
+    if (window.turnstile) return Promise.resolve(window.turnstile);
+    if (turnstileScriptPromise) return turnstileScriptPromise;
+
+    turnstileScriptPromise = new Promise((resolve, reject) => {
+        const existing = document.querySelector('script[data-kreateia-turnstile]');
+        if (existing) {
+            existing.addEventListener('load', () => resolve(window.turnstile), { once: true });
+            existing.addEventListener('error', reject, { once: true });
+            return;
+        }
+
+        const script = document.createElement('script');
+        script.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+        script.async = true;
+        script.defer = true;
+        script.dataset.kreateiaTurnstile = 'true';
+        script.onload = () => resolve(window.turnstile);
+        script.onerror = () => reject(new Error('No se pudo cargar la comprobacion anti-bots.'));
+        document.head.appendChild(script);
+    });
+
+    return turnstileScriptPromise;
+}
+
 export function AuthModal(onSuccessCallback) {
     const overlay = document.createElement('div');
     overlay.className = 'fixed inset-0 bg-black/90 backdrop-blur-xl flex items-center justify-center z-[9999] p-4 animate-fade-in';
     
     let isLoginMode = true;
+    let turnstileToken = '';
+    let turnstileWidgetId = null;
 
     const modal = document.createElement('div');
     modal.className = 'w-full max-w-[420px] bg-[#0a0a0a] border border-white/10 rounded-[2.5rem] p-10 shadow-[0_0_80px_rgba(0,0,0,0.8)] relative overflow-hidden';
@@ -53,7 +83,11 @@ export function AuthModal(onSuccessCallback) {
             <form id="email-form" class="space-y-4">
                 <input id="email-input" type="email" required class="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white focus:outline-none focus:border-[#FFB000]/50 transition-colors placeholder:text-white/30" placeholder="Tu correo electrónico" />
                 <input id="password-input" type="password" required minlength="6" class="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white focus:outline-none focus:border-[#FFB000]/50 transition-colors placeholder:text-white/30" placeholder="Contraseña" />
-                
+
+                <div class="rounded-2xl border border-white/10 bg-white/[.03] p-2 min-h-[66px] flex items-center justify-center">
+                    <div id="turnstile-container" class="w-full"></div>
+                </div>
+
                 <button type="submit" id="submit-btn" class="w-full bg-gradient-to-r from-[#3B82F6] to-[#FFB000] text-black font-black uppercase rounded-2xl px-4 py-4 mt-2 transition-all shadow-[0_0_20px_rgba(255,176,0,0.3)] active:scale-95 flex items-center justify-center">
                     ${isLoginMode ? 'Iniciar Sesión' : 'Crear Cuenta'}
                 </button>
@@ -71,6 +105,65 @@ export function AuthModal(onSuccessCallback) {
         `;
 
         setupListeners();
+        renderTurnstile();
+    };
+
+    const renderTurnstile = async () => {
+        const container = modal.querySelector('#turnstile-container');
+        if (!container) return;
+
+        turnstileToken = '';
+        turnstileWidgetId = null;
+
+        try {
+            const turnstile = await loadTurnstile();
+            if (!container.isConnected || !turnstile) return;
+
+            turnstileWidgetId = turnstile.render(container, {
+                sitekey: TURNSTILE_SITE_KEY,
+                action: 'auth',
+                theme: 'dark',
+                size: 'flexible',
+                appearance: 'interaction-only',
+                callback: token => {
+                    turnstileToken = token;
+                },
+                'expired-callback': () => {
+                    turnstileToken = '';
+                },
+                'error-callback': () => {
+                    turnstileToken = '';
+                    showError('No se pudo completar la comprobacion de seguridad.');
+                },
+            });
+        } catch {
+            showError('No se pudo cargar la comprobacion de seguridad.');
+        }
+    };
+
+    const resetTurnstile = () => {
+        turnstileToken = '';
+        if (window.turnstile && turnstileWidgetId !== null) {
+            window.turnstile.reset(turnstileWidgetId);
+        }
+    };
+
+    const verifyHuman = async () => {
+        if (!turnstileToken) {
+            throw new Error('Completa la comprobacion de seguridad.');
+        }
+
+        const response = await fetch('/api/auth/verify-turnstile', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: turnstileToken }),
+        });
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok || !data.ok) {
+            resetTurnstile();
+            throw new Error(data.error || 'Comprobacion de seguridad rechazada.');
+        }
     };
 
     const showError = (msg) => {
@@ -128,6 +221,9 @@ export function AuthModal(onSuccessCallback) {
 
     const setupListeners = () => {
         modal.querySelector('#toggle-mode-btn').onclick = () => {
+            if (window.turnstile && turnstileWidgetId !== null) {
+                window.turnstile.remove(turnstileWidgetId);
+            }
             isLoginMode = !isLoginMode;
             renderUI();
         };
@@ -138,10 +234,12 @@ export function AuthModal(onSuccessCallback) {
 
         modal.querySelector('#google-btn').onclick = async () => {
             try {
+                await verifyHuman();
                 const result = await signInWithPopup(auth, googleProvider);
                 await handleSuccessfulAuth(result.user);
             } catch (err) {
-                showError("El inicio con Google fue cancelado o falló.");
+                resetTurnstile();
+                showError(err.message || "El inicio con Google fue cancelado o fallo.");
             }
         };
 
@@ -152,6 +250,7 @@ export function AuthModal(onSuccessCallback) {
             setButtonLoading(true);
 
             try {
+                await verifyHuman();
                 let userCredential;
                 if (isLoginMode) {
                     userCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -161,6 +260,7 @@ export function AuthModal(onSuccessCallback) {
                 await handleSuccessfulAuth(userCredential.user);
             } catch (err) {
                 setButtonLoading(false);
+                resetTurnstile();
                 if (err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
                     showError("Credenciales incorrectas.");
                 } else if (err.code === 'auth/email-already-in-use') {
