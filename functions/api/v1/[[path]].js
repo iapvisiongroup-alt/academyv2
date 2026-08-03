@@ -84,6 +84,7 @@ function resolveFirebaseEnv(env) {
         FIREBASE_PROJECT_ID: env.FIREBASE_PROJECT_ID || serviceAccount.project_id || '',
         FIREBASE_CLIENT_EMAIL: env.FIREBASE_CLIENT_EMAIL || serviceAccount.client_email || '',
         FIREBASE_PRIVATE_KEY: env.FIREBASE_PRIVATE_KEY || serviceAccount.private_key || '',
+        FIREBASE_APP_ID: env.FIREBASE_APP_ID || env.APP_ID || 'appiapvision',
         FIREBASE_STORAGE_BUCKET: env.FIREBASE_STORAGE_BUCKET
             || env.FIREBASE_BUCKET
             || (env.FIREBASE_PROJECT_ID || serviceAccount.project_id
