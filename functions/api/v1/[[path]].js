@@ -211,6 +211,78 @@ function getBearerToken(request) {
     return authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : authHeader.trim();
 }
 
+async function handleTurnstileVerification(context, env) {
+    const { request } = context;
+    const allowedHostnames = new Set(['kreateia.com', 'www.kreateia.com']);
+
+    if (request.method !== 'POST') {
+        return jsonError('Metodo no permitido.', 405);
+    }
+
+    if (!env.TURNSTILE_SECRET_KEY) {
+        return jsonError('Proteccion anti-bots no configurada.', 503);
+    }
+
+    const origin = request.headers.get('Origin') || '';
+    if (origin) {
+        try {
+            if (!allowedHostnames.has(new URL(origin).hostname)) {
+                return jsonError('Origen no permitido.', 403);
+            }
+        } catch {
+            return jsonError('Origen no valido.', 403);
+        }
+    }
+
+    const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+    const rateLimit = await checkEdgeRateLimit(context, ip, 'auth-turnstile', 12, 10 * 60);
+    if (!rateLimit.allowed) {
+        return jsonError(
+            'Demasiados intentos. Espera unos minutos.',
+            429,
+            { 'Retry-After': String(rateLimit.retryAfter) }
+        );
+    }
+
+    const body = await request.json().catch(() => ({}));
+    const token = String(body.token || '').trim();
+    if (!token || token.length > 2048) {
+        return jsonError('Completa la comprobacion de seguridad.', 400);
+    }
+
+    const form = new FormData();
+    form.set('secret', env.TURNSTILE_SECRET_KEY);
+    form.set('response', token);
+    if (ip !== 'unknown') form.set('remoteip', ip);
+    form.set('idempotency_key', crypto.randomUUID());
+
+    let verification;
+    try {
+        const response = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+            method: 'POST',
+            body: form,
+        });
+        verification = await response.json();
+    } catch {
+        return jsonError('No se pudo comprobar la seguridad.', 502);
+    }
+
+    const hostname = String(verification.hostname || '').toLowerCase();
+    const action = String(verification.action || '');
+    if (!verification.success || !allowedHostnames.has(hostname) || action !== 'auth') {
+        return jsonError('Comprobacion anti-bots rechazada.', 403);
+    }
+
+    return new Response(JSON.stringify({ ok: true }), {
+        status: 200,
+        headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Cache-Control': 'no-store',
+            'X-Content-Type-Options': 'nosniff',
+        },
+    });
+}
+
 async function checkEdgeRateLimit(context, identity, namespace, limit, windowSeconds) {
     if (typeof caches === 'undefined' || !caches.default) {
         return { allowed: true, retryAfter: 0 };
@@ -1519,6 +1591,10 @@ export async function onRequest(context) {
         ? params.path.join('/')
         : String(params.path || '');
     const isOpenAIImageRoute = route === 'generate/image/t2-create';
+
+    if (route === 'auth/verify-turnstile') {
+        return handleTurnstileVerification(context, env);
+    }
 
     if (isOpenAIImageRoute && !env.OPENAI_API_KEY) {
         return jsonError('Falta OPENAI_API_KEY en Cloudflare.', 500);

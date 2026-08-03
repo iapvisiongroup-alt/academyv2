@@ -153,7 +153,7 @@ export function AuthModal(onSuccessCallback) {
             throw new Error('Completa la comprobacion de seguridad.');
         }
 
-        const response = await fetch('/api/auth/verify-turnstile', {
+        const response = await fetch('/api/v1/auth/verify-turnstile', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ token: turnstileToken }),
