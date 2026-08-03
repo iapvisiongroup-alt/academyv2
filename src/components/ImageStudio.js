@@ -438,6 +438,7 @@ export function ImageStudio() {
 
     const generateBtn = document.createElement('button');
     generateBtn.type = 'button';
+    generateBtn.className = 'w-full sm:w-auto justify-center';
     generateBtn.style.cssText = 'display:flex;align-items:center;gap:8px;padding:11px 22px;background:#3b82f6;border:none;border-radius:100px;cursor:pointer;font-size:13px;font-weight:700;color:#fff;transition:background .15s;white-space:nowrap;flex-shrink:0;-webkit-tap-highlight-color:transparent';
     generateBtn.addEventListener('mouseenter', () => generateBtn.style.background = '#60a5fa');
     generateBtn.addEventListener('mouseleave', () => generateBtn.style.background = '#3b82f6');
@@ -877,6 +878,10 @@ export function ImageStudio() {
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                         Animar
                     </button>
+                    <button type="button" class="reuse-image-prompt-btn col-span-2 min-h-9 px-2.5 py-2 bg-black/55 hover:bg-black/75 border border-white/20 text-white rounded-lg text-[10px] md:text-xs font-black transition-colors flex items-center justify-center gap-1.5" title="Reutilizar este prompt">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 12a9 9 0 109-9 9.75 9.75 0 00-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                        Reutilizar prompt
+                    </button>
                 </div>
                 <button type="button" class="open-image-btn absolute top-2 right-2 w-8 h-8 rounded-lg bg-black/55 hover:bg-black/80 border border-white/15 text-white flex items-center justify-center transition-colors" title="Abrir imagen" aria-label="Abrir imagen">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v7a1 1 0 01-1 1H4a1 1 0 01-1-1V7a1 1 0 011-1h7"/></svg>
@@ -912,6 +917,13 @@ export function ImageStudio() {
             window.dispatchEvent(new CustomEvent('navigate', {
                 detail: { page: 'video' },
             }));
+        });
+
+        card.querySelector('.reuse-image-prompt-btn').addEventListener('click', () => {
+            textarea.value = entry.prompt || '';
+            textarea.dispatchEvent(new Event('input'));
+            container.scrollTo({ top: 0, behavior: 'smooth' });
+            setTimeout(() => textarea.focus(), 350);
         });
 
         if (isPrepend) galleryGrid.prepend(card);

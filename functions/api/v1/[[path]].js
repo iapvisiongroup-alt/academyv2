@@ -1129,9 +1129,10 @@ async function handleMediaProxy(route, request, env) {
     }
 
     const extension = extensionFromContentType(contentType);
+    const shouldDownload = new URL(request.url).searchParams.get('download') === '1';
     const headers = new Headers({
         'Content-Type': contentType,
-        'Content-Disposition': `inline; filename="KreateIA-${payload.code}.${extension}"`,
+        'Content-Disposition': `${shouldDownload ? 'attachment' : 'inline'}; filename="KreateIA-${payload.code}.${extension}"`,
         'Cache-Control': 'public, max-age=86400',
         'Access-Control-Allow-Origin': '*',
         'Content-Security-Policy': "default-src 'none'; sandbox",

@@ -224,6 +224,7 @@ export function VideoStudio() {
     // GENERATE BTN
     const generateBtn = document.createElement('button');
     generateBtn.type = 'button';
+    generateBtn.className = 'w-full sm:w-auto justify-center';
     generateBtn.style.cssText = 'display:flex;align-items:center;gap:8px;padding:11px 22px;background:#f59e0b;border:none;border-radius:100px;cursor:pointer;font-size:13px;font-weight:700;color:#000;transition:background .15s;white-space:nowrap;flex-shrink:0;-webkit-tap-highlight-color:transparent';
     generateBtn.addEventListener('mouseenter', () => generateBtn.style.background = '#fbbf24');
     generateBtn.addEventListener('mouseleave', () => generateBtn.style.background = '#f59e0b');
@@ -671,39 +672,79 @@ export function VideoStudio() {
 
     const downloadFile = async (url, filename) => {
         try {
-            const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(await fetch(url).then(r => r.blob())), download: filename });
-            document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        } catch { window.open(url, '_blank'); }
+            const parsed = new URL(url, window.location.origin);
+
+            if (parsed.origin === window.location.origin && parsed.pathname.includes('/api/v1/media/')) {
+                parsed.searchParams.set('download', '1');
+                const a = Object.assign(document.createElement('a'), {
+                    href: parsed.toString(),
+                    download: filename,
+                    target: '_blank',
+                    rel: 'noopener noreferrer',
+                });
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                return;
+            }
+
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('No se pudo descargar el vídeo.');
+            const blobUrl = URL.createObjectURL(await response.blob());
+            const a = Object.assign(document.createElement('a'), { href: blobUrl, download: filename });
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+        } catch {
+            window.open(url, '_blank', 'noopener,noreferrer');
+        }
     };
 
     const renderCard = (entry, isPrepend = false) => {
         galleryHeader.classList.remove('hidden');
         const card = document.createElement('div');
         card.id = `card-${entry.id}`;
-        card.className = 'relative aspect-video rounded-xl md:rounded-2xl overflow-hidden bg-white/5 border border-white/10 group animate-fade-in-up';
+        card.className = 'rounded-xl md:rounded-2xl overflow-hidden bg-[#0d0d0d] border border-white/10 animate-fade-in-up flex flex-col';
         card.innerHTML = `
-            <video src="${entry.url}" autoplay loop muted playsinline class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"></video>
-            <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-3 md:p-4">
-                <p class="text-white text-[10px] md:text-xs font-medium line-clamp-2 mb-2 leading-tight">${entry.prompt || 'Vídeo generado'}</p>
+            <div class="relative aspect-video bg-black">
+                <video controls muted playsinline preload="metadata" class="generated-video w-full h-full object-contain"></video>
+            </div>
+            <div class="p-3 md:p-4 border-t border-white/10">
+                <p class="generated-video-prompt text-white/85 text-[11px] md:text-xs font-medium line-clamp-2 mb-3 leading-tight"></p>
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-1.5">
                         <span class="text-[8px] md:text-[10px] text-white/70 bg-black/60 px-1.5 py-0.5 rounded-md border border-white/10">${entry.duration || 5}s</span>
                         <span class="text-[8px] md:text-[10px] text-[#FFB000] font-bold bg-[#FFB000]/10 px-1.5 py-0.5 rounded-md border border-[#FFB000]/20">${entry.quality === 'high' ? 'Alta' : 'Básica'}</span>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <button class="extend-btn p-1.5 md:p-2 bg-[#3B82F6]/20 hover:bg-[#3B82F6] text-[#3B82F6] hover:text-white rounded-lg transition-all border border-[#3B82F6]/30" title="Extender">
+                    <div class="flex items-center gap-1.5 md:gap-2">
+                        <button type="button" class="reuse-prompt-btn min-h-8 px-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all border border-white/15 text-[10px] font-black flex items-center gap-1" title="Reutilizar prompt" aria-label="Reutilizar prompt">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3"><path d="M3 12a9 9 0 109-9 9.75 9.75 0 00-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                            Prompt
+                        </button>
+                        <button type="button" class="extend-btn p-1.5 md:p-2 bg-[#3B82F6]/20 hover:bg-[#3B82F6] text-[#3B82F6] hover:text-white rounded-lg transition-all border border-[#3B82F6]/30" title="Extender">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                         </button>
-                        <button class="open-video-btn p-1.5 md:p-2 bg-white/20 hover:bg-white/35 text-white rounded-lg transition-all border border-white/20" title="Abrir vídeo" aria-label="Abrir vídeo">
+                        <button type="button" class="open-video-btn p-1.5 md:p-2 bg-white/20 hover:bg-white/35 text-white rounded-lg transition-all border border-white/20" title="Abrir vídeo" aria-label="Abrir vídeo">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v7a1 1 0 01-1 1H4a1 1 0 01-1-1V7a1 1 0 011-1h7"/></svg>
                         </button>
-                        <button class="download-btn p-1.5 md:p-2 bg-[#FFB000]/20 hover:bg-[#FFB000] hover:text-black text-[#FFB000] rounded-lg transition-all border border-[#FFB000]/30" title="Descargar vídeo" aria-label="Descargar vídeo">
+                        <button type="button" class="download-btn p-1.5 md:p-2 bg-[#FFB000]/20 hover:bg-[#FFB000] hover:text-black text-[#FFB000] rounded-lg transition-all border border-[#FFB000]/30" title="Descargar vídeo" aria-label="Descargar vídeo">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
                         </button>
                     </div>
                 </div>
             </div>
         `;
+        const video = card.querySelector('.generated-video');
+        video.src = entry.url;
+        card.querySelector('.generated-video-prompt').textContent = entry.prompt || 'Vídeo generado';
+        card.querySelector('.reuse-prompt-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            textarea.value = entry.prompt || '';
+            textarea.dispatchEvent(new Event('input'));
+            container.scrollTo({ top: 0, behavior: 'smooth' });
+            setTimeout(() => textarea.focus(), 350);
+        });
         const rid = entry.request_id || entry.muapi_request_id || null;
         const extendBtn = card.querySelector('.extend-btn');
         if (!rid) { extendBtn.style.display = 'none'; } else {
