@@ -124,7 +124,7 @@ export function AuthModal(onSuccessCallback) {
                 action: 'auth',
                 theme: 'dark',
                 size: 'flexible',
-                appearance: 'interaction-only',
+                appearance: 'always',
                 callback: token => {
                     turnstileToken = token;
                 },
@@ -272,8 +272,8 @@ export function AuthModal(onSuccessCallback) {
         };
     };
 
-    renderUI();
     overlay.appendChild(modal);
+    renderUI();
 
     return overlay;
 }
