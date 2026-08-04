@@ -1,5 +1,5 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js';
-import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js';
+import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut, setPersistence, browserLocalPersistence } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js';
 
 const firebaseConfig = {
   apiKey: 'AIzaSyDVD2Sbu7nVbFfVkgujMcgOC_S0oDla-zQ',
@@ -8,6 +8,7 @@ const firebaseConfig = {
   appId: '1:179709280377:web:debe06ba04244955a454a8',
 };
 const auth = getAuth(initializeApp(firebaseConfig));
+const authPersistenceReady = setPersistence(auth, browserLocalPersistence).catch(() => null);
 const googleProvider = new GoogleAuthProvider();
 const $ = id => document.getElementById(id);
 const API_BASE = '/api/kreateedit';
@@ -192,8 +193,8 @@ function once(el,event){return new Promise((resolve,reject)=>{const ok=()=>{clea
 function updateExport(v){const p=Math.round(clamp(v,0,1)*100);$('export-progress').style.width=`${p}%`;$('export-percent').textContent=`${p}%`;$('export-status').textContent=p<100?'Procesando clips...':'Finalizando...'}
 
 async function login(){
-  try{await signInWithPopup(auth,googleProvider)}
-  catch(error){toast(error.code==='auth/unauthorized-domain'?'Falta autorizar este dominio en Firebase.':(error.message||'No se pudo iniciar sesión.'))}
+  try{return (await signInWithPopup(auth,googleProvider)).user}
+  catch(error){toast(error.code==='auth/unauthorized-domain'?'Falta autorizar este dominio en Firebase.':(error.message||'No se pudo iniciar sesión.'));return null}
 }
 
 async function loadCloudWorkspace(){
@@ -218,7 +219,7 @@ function renderProjects(){if(!state.user){$('project-list').innerHTML='<div clas
 function formatProjectDate(value){const date=new Date(value||Date.now());return new Intl.DateTimeFormat('es-ES',{day:'2-digit',month:'short',year:'numeric'}).format(date)}
 function openProjectModal(){$('new-project-name').value='';state.newProjectKind='video';document.querySelectorAll('[data-project-kind]').forEach(button=>button.classList.toggle('active',button.dataset.projectKind==='video'));$('project-modal').classList.remove('hidden');setTimeout(()=>$('new-project-name').focus(),50);refreshIcons()}
 function closeProjectModal(){$('project-modal').classList.add('hidden')}
-async function createProject(name,kind=state.newProjectKind){if(!state.user)return;const button=$('create-project');button.disabled=true;try{const response=await fetch(`${API_BASE}/projects`,{method:'POST',headers:await authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({name:name||$('new-project-name').value.trim(),kind})});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'No se pudo crear el proyecto.');state.projects.unshift(data.project);closeProjectModal();await openProject(data.project.id)}catch(error){toast(error.message||'No se pudo crear el proyecto.')}finally{button.disabled=false}}
+async function createProject(name,kind=state.newProjectKind){await authPersistenceReady;if(!state.user&&auth.currentUser)state.user=auth.currentUser;if(!state.user){toast('Inicia sesión para crear el proyecto.');const user=await login();if(!user)return;state.user=user}const button=$('create-project');button.disabled=true;try{const response=await fetch(`${API_BASE}/projects`,{method:'POST',headers:await authHeaders({'Content-Type':'application/json'}),body:JSON.stringify({name:name||$('new-project-name').value.trim(),kind})});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'No se pudo crear el proyecto.');state.projects.unshift(data.project);closeProjectModal();await openProject(data.project.id)}catch(error){toast(error.message||'No se pudo crear el proyecto.')}finally{button.disabled=false}}
 async function openProject(projectId){if(!state.user)return;try{const response=await fetch(`${API_BASE}/project/${projectId}`,{headers:await authHeaders()});const data=await response.json().catch(()=>({}));if(!response.ok||!data.project)throw new Error(data.error||'No se pudo abrir el proyecto.');const project=data.project;state.projectId=project.id||projectId;state.projectKind=project.kind==='photo'?'photo':'video';state.projectCreatedAt=project.createdAt||new Date().toISOString();$('project-name').value=project.name||'Proyecto sin nombre';state.clips=normalizeClipPositions(project.clips);state.audioTracks=(project.audioTracks||[]).map(c=>({...c,timelineStart:timelineStartOf(c)}));state.videoTracks=project.videoTracks?.length?project.videoTracks:[{id:'track-1',name:'Vídeo 1'}];state.activeVideoTrackId=project.activeVideoTrackId||state.videoTracks[0].id;state.ratio=project.ratio||'16:9';state.selectedId=state.clips[0]?.id||state.audioTracks[0]?.id||null;const ids=new Set(state.assets.map(asset=>asset.id));state.clips=state.clips.filter(clip=>ids.has(clip.assetId));state.audioTracks=state.audioTracks.filter(track=>ids.has(track.assetId));if(state.projectKind==='photo'){showPhotoWorkspace(project);return}$('project-home').classList.add('hidden');$('photo-workspace').classList.add('hidden');$('app').classList.remove('hidden');$('save-state').textContent='Guardado en Cloudflare';renderAll();await importFromKreateIA()}catch(error){toast(error.message||'No se pudo abrir el proyecto.')}}
 function showPhotoWorkspace(project){$('project-home').classList.add('hidden');$('app').classList.add('hidden');$('photo-workspace').classList.remove('hidden');$('photo-project-name').textContent=project.name;refreshIcons()}
 async function deleteProject(projectId){const project=state.projects.find(item=>item.id===projectId);if(!project||!confirm(`¿Eliminar “${project.name}”? Tus archivos de la biblioteca se conservarán.`))return;try{const response=await fetch(`${API_BASE}/project/${projectId}`,{method:'DELETE',headers:await authHeaders()});const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'No se pudo eliminar el proyecto.');state.projects=state.projects.filter(item=>item.id!==projectId);renderProjects();toast('Proyecto eliminado')}catch(error){toast(error.message||'No se pudo eliminar el proyecto.')}}
