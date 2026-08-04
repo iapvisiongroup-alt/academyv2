@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#090909" />
   <title>KreateEdit Beta | KreateIA</title>
-  <link rel="stylesheet" href="./styles.css?v=20260804-1" />
+  <link rel="stylesheet" href="./styles.css?v=20260804-2" />
 </head>
 <body>
   <section id="project-home" class="project-home">
@@ -139,6 +139,12 @@
             <label class="toggle-row"><span><strong>Silenciar clip</strong><small>El vídeo mantiene la imagen</small></span><input id="mute-toggle" type="checkbox" /><span class="toggle"></span></label>
           </div>
 
+          <div class="property-group">
+            <label>Fundidos de audio</label>
+            <div class="two-inputs"><div><span>Fade in</span><input id="fade-in" type="number" min="0" step="0.1" value="0" /></div><div><span>Fade out</span><input id="fade-out" type="number" min="0" step="0.1" value="0" /></div></div>
+            <div class="range-pair"><input id="fade-in-range" type="range" min="0" step="0.1" value="0" /><input id="fade-out-range" type="range" min="0" step="0.1" value="0" /></div>
+          </div>
+
           <div class="property-actions">
             <button id="split-btn" class="secondary-btn"><i data-lucide="scissors"></i>Dividir</button>
             <button id="extract-btn" class="secondary-btn"><i data-lucide="audio-lines"></i>Extraer audio</button>
@@ -198,6 +204,6 @@
   <div id="toast" class="toast hidden"></div>
   <canvas id="export-canvas" hidden></canvas>
   <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
-  <script type="module" src="./app.js?v=20260804-1"></script>
+  <script type="module" src="./app.js?v=20260804-2"></script>
 </body>
 </html>
