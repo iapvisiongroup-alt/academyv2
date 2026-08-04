@@ -70,6 +70,12 @@ async function upload(request, bucket, user) {
   const type = mediaType(contentType);
   if (!type) return json({ error: 'Formato de archivo no permitido.' }, 415);
 
+  const projectId = String(request.headers.get('X-Project-Id') || '');
+  if (!PROJECT_ID_RE.test(projectId)) return json({ error: 'Proyecto no válido.' }, 400);
+  if (!await bucket.head(projectKey(user.uid, projectId))) {
+    return json({ error: 'El proyecto ya no existe.' }, 404);
+  }
+
   const id = crypto.randomUUID();
   const name = cleanName(decodeURIComponent(request.headers.get('X-File-Name') || 'archivo'), 'archivo');
   const duration = Math.max(0, Number(request.headers.get('X-Media-Duration') || 0));
@@ -77,7 +83,7 @@ async function upload(request, bucket, user) {
 
   await bucket.put(`users/${user.uid}/media/${id}`, request.body, {
     httpMetadata: { contentType, cacheControl: 'private, max-age=3600' },
-    customMetadata: { id, uid: user.uid, name, type, duration: String(duration), createdAt },
+    customMetadata: { id, uid: user.uid, projectId, name, type, duration: String(duration), createdAt },
   });
 
   const origin = new URL(request.url).origin;
@@ -89,12 +95,22 @@ async function upload(request, bucket, user) {
       duration,
       url: `${origin}/api/kreateedit/file/${user.uid}/${id}`,
       cloud: true,
+      projectId,
       createdAt,
     },
   }, 201);
 }
 
 async function library(request, bucket, user) {
+  const projectId = String(new URL(request.url).searchParams.get('projectId') || '');
+  if (!PROJECT_ID_RE.test(projectId)) return json({ error: 'Proyecto no válido.' }, 400);
+  const storedProject = await bucket.get(projectKey(user.uid, projectId));
+  if (!storedProject) return json({ error: 'El proyecto ya no existe.' }, 404);
+  const projectPayload = await storedProject.json().catch(() => null);
+  const referencedIds = new Set([
+    ...(projectPayload?.project?.clips || []),
+    ...(projectPayload?.project?.audioTracks || []),
+  ].map((clip) => clip.assetId).filter(Boolean));
   const result = await bucket.list({
     prefix: `users/${user.uid}/media/`,
     include: ['customMetadata', 'httpMetadata'],
@@ -104,6 +120,7 @@ async function library(request, bucket, user) {
   const assets = result.objects.map((object) => {
     const meta = object.customMetadata || {};
     const id = meta.id || object.key.split('/').pop();
+    if (meta.projectId !== projectId && !referencedIds.has(id)) return null;
     return {
       id,
       name: meta.name || 'Archivo',
@@ -111,9 +128,10 @@ async function library(request, bucket, user) {
       duration: Number(meta.duration || 0),
       url: `${origin}/api/kreateedit/file/${user.uid}/${id}`,
       cloud: true,
+      projectId: meta.projectId || projectId,
       createdAt: meta.createdAt || object.uploaded,
     };
-  }).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+  }).filter(Boolean).sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
   return json({ assets });
 }
 
@@ -217,7 +235,13 @@ async function project(request, bucket, user, id) {
 async function removeMedia(request, bucket, user) {
   if (request.method !== 'DELETE') return json({ error: 'Método no permitido' }, 405);
   const id = String(new URL(request.url).searchParams.get('id') || '');
+  const projectId = String(new URL(request.url).searchParams.get('projectId') || '');
   if (!/^[a-f0-9-]{36}$/i.test(id)) return json({ error: 'Archivo no válido.' }, 400);
+  if (!PROJECT_ID_RE.test(projectId)) return json({ error: 'Proyecto no válido.' }, 400);
+
+  const object = await bucket.head(`users/${user.uid}/media/${id}`);
+  if (!object) return json({ error: 'Archivo no encontrado.' }, 404);
+  const ownerProjectId = object.customMetadata?.projectId || '';
 
   const projects = await bucket.list({
     prefix: `users/${user.uid}/projects/`,
@@ -226,21 +250,29 @@ async function removeMedia(request, bucket, user) {
   });
   let updatedProjects = 0;
 
+  let usedByAnotherProject = false;
   for (const item of projects.objects) {
     const stored = await bucket.get(item.key);
     if (!stored) continue;
     const payload = await stored.json().catch(() => null);
     const current = payload?.project;
     if (!current) continue;
+    const currentProjectId = current.id || item.customMetadata?.id || item.key.split('/').pop().replace(/\.json$/i, '');
+    const referencesAsset = [...(current.clips || []), ...(current.audioTracks || [])].some((clip) => clip.assetId === id);
+    if (currentProjectId !== projectId) {
+      if (referencesAsset) usedByAnotherProject = true;
+      continue;
+    }
     const clips = (current.clips || []).filter((clip) => clip.assetId !== id);
     const audioTracks = (current.audioTracks || []).filter((track) => track.assetId !== id);
     if (clips.length === (current.clips || []).length && audioTracks.length === (current.audioTracks || []).length) continue;
-    const projectId = current.id || item.customMetadata?.id || item.key.split('/').pop().replace(/\.json$/i, '');
-    await saveProject(bucket, user, projectId, { project: { ...current, clips, audioTracks } });
+    await saveProject(bucket, user, currentProjectId, { project: { ...current, clips, audioTracks } });
     updatedProjects += 1;
   }
 
-  await bucket.delete(`users/${user.uid}/media/${id}`);
+  if (!usedByAnotherProject && (!ownerProjectId || ownerProjectId === projectId)) {
+    await bucket.delete(`users/${user.uid}/media/${id}`);
+  }
   return json({ ok: true, updatedProjects });
 }
 

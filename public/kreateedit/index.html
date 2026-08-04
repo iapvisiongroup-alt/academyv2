@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#090909" />
   <title>KreateEdit Beta | KreateIA</title>
-  <link rel="stylesheet" href="./styles.css?v=20260804-2" />
+  <link rel="stylesheet" href="./styles.css?v=20260804-3" />
 </head>
 <body>
   <section id="project-home" class="project-home">
@@ -201,9 +201,17 @@
     </div>
   </div>
 
+  <div id="import-project-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="import-project-title">
+    <div class="modal-card project-modal-card">
+      <div class="modal-head"><div><span class="eyebrow">Enviar a KreateEdit</span><h2 id="import-project-title">¿En qué proyecto quieres añadirlo?</h2></div><button id="close-import-project" class="icon-btn" title="Cancelar"><i data-lucide="x"></i></button></div>
+      <div id="import-project-list" class="import-project-list"></div>
+      <div class="modal-actions"><button id="import-new-project" class="primary-btn"><i data-lucide="plus"></i>Crear un proyecto nuevo</button></div>
+    </div>
+  </div>
+
   <div id="toast" class="toast hidden"></div>
   <canvas id="export-canvas" hidden></canvas>
   <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
-  <script type="module" src="./app.js?v=20260804-2"></script>
+  <script type="module" src="./app.js?v=20260804-3"></script>
 </body>
 </html>

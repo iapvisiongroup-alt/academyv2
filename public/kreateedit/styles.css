@@ -40,4 +40,12 @@
 .playhead:before{content:"";position:absolute;top:0;bottom:0;left:-7px;width:15px}
 .playhead:hover,.playhead-dragging .playhead{width:2px;box-shadow:0 0 10px #f43f5e}
 .playhead-dragging,.playhead-dragging *{cursor:ew-resize!important;user-select:none}
+.playhead{will-change:transform}
+.import-project-list{display:grid;gap:8px;max-height:52vh;overflow:auto}
+.import-project-option{width:100%;min-height:64px;border:1px solid #303030;background:#0b0b0b;color:#fff;border-radius:7px;padding:11px 13px;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:11px;text-align:left;cursor:pointer}
+.import-project-option:hover{border-color:var(--yellow);background:#171409}
+.import-project-option>svg{width:19px;color:var(--yellow)}
+.import-project-option span{display:grid;gap:4px}
+.import-project-option strong{font-size:12px}
+.import-project-option small{font-size:9px;color:#777}
 @media(max-width:720px){.delete-media{opacity:1}}
