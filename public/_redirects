@@ -5,3 +5,4 @@
 /academia-ia-murcia /cursos-ia/murcia/ 301
 /servicios-ia /servicios/ 301
 /servicios-ia-murcia /servicios/ 301
+/api/auth/verify-turnstile /api/v1/auth/verify-turnstile 307
