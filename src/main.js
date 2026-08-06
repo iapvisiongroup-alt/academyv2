@@ -2,6 +2,7 @@ import './style.css';
 import { Header } from './components/Header.js';
 import { LandingPage } from './components/LandingPage.js';
 import { ImageStudio } from './components/ImageStudio.js';
+import { KreateMusicStudio } from './components/KreateMusicStudio.js';
 import { Footer } from './components/Footer.js';
 import { CookieBanner } from './components/CookieBanner.js';
 
@@ -167,11 +168,11 @@ function navigate(page, options = {}) {
         }).catch(error => showLoadError('KreateVideo', error));
 
     } else if (safePage === 'music') {
-        importFresh(() => import('./components/KreateMusicStudio.js')).then(module => {
-            if (!module) return;
-            const { KreateMusicStudio } = module;
-            if (token === navToken) contentArea.appendChild(KreateMusicStudio());
-        }).catch(error => showLoadError('KreateMusic', error));
+        try {
+            contentArea.appendChild(KreateMusicStudio());
+        } catch (error) {
+            showLoadError('KreateMusic', error);
+        }
 
     } else if (safePage === 'kreateedit') {
         importFresh(() => import('./components/KreateEditPage.js')).then(module => {
