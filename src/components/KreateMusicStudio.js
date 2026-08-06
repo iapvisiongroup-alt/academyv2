@@ -515,6 +515,7 @@ function confirmDialog(title, message, confirmLabel = 'Confirmar', danger = fals
 // ============================================================
 export function KreateMusicStudio() {
     const root = document.createElement('div');
+    root.dataset.studio = 'kreatemusic';
     root.style.cssText = 'width:100%;height:100%;display:flex;flex-direction:column;background:#050505;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Inter",sans-serif;position:relative';
 
     let currentUser   = null;
