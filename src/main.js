@@ -100,6 +100,14 @@ function updatePageUrl(page, replace = false) {
     if (page === 'home') url.searchParams.delete('page');
     else url.searchParams.set('page', page);
 
+    // These parameters belong to one-off imports/redirects. Keeping them while
+    // switching tools can make an older page restore Image or KreateEdit.
+    if (page !== 'kreateedit') {
+        ['from', 'import', 'type', 'name', 'verified'].forEach(param => {
+            url.searchParams.delete(param);
+        });
+    }
+
     const nextUrl = url.pathname + url.search + url.hash;
     const method = replace ? 'replaceState' : 'pushState';
 
@@ -116,7 +124,8 @@ function navigate(page, options = {}) {
         return;
     }
 
-    const safePage = ROUTABLE_PAGES.has(page) ? page : 'home';
+    const requestedPage = String(page || '').trim().toLowerCase();
+    const safePage = ROUTABLE_PAGES.has(requestedPage) ? requestedPage : 'home';
 
     if (options.updateUrl !== false) {
         updatePageUrl(safePage, options.replaceUrl === true);
@@ -162,14 +171,14 @@ function navigate(page, options = {}) {
             if (!module) return;
             const { KreateMusicStudio } = module;
             if (token === navToken) contentArea.appendChild(KreateMusicStudio());
-        });
+        }).catch(error => showLoadError('KreateMusic', error));
 
     } else if (safePage === 'kreateedit') {
         importFresh(() => import('./components/KreateEditPage.js')).then(module => {
             if (!module) return;
             const { KreateEditPage } = module;
             if (token === navToken) contentArea.appendChild(KreateEditPage());
-        });
+        }).catch(error => showLoadError('KreateEdit', error));
 
     } else if (safePage === 'cinema') {
         importFresh(() => import('./components/CinemaStudio.js')).then(module => {

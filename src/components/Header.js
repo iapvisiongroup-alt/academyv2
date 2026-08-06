@@ -48,6 +48,10 @@ export function Header(navigate) {
         { id: 'academy', label: 'Academia de IA' }
     ];
 
+    const requestedPage = String(new URLSearchParams(window.location.search).get('page') || 'home')
+        .trim()
+        .toLowerCase();
+
     let allLinks = [];
 
     const createMenu = (isMobile) => {
@@ -63,9 +67,9 @@ export function Header(navigate) {
             const link = document.createElement('a');
             link.textContent = item.label;
             link.dataset.id = item.id;
-            link.className = `hover:text-white transition-all cursor-pointer relative group shrink-0 ${item.id === 'image' ? 'text-[#FFB000]' : ''}`;
+            link.className = `hover:text-white transition-all cursor-pointer relative group shrink-0 ${item.id === requestedPage ? 'text-[#FFB000]' : ''}`;
 
-            if (item.id === 'image') {
+            if (item.id === requestedPage) {
                 const dot = document.createElement('div');
                 dot.className = 'absolute -bottom-1.5 left-0 right-0 h-[2px] bg-[#FFB000] rounded-full shadow-[0_0_8px_rgba(255,176,0,0.6)] active-dot';
                 link.appendChild(dot);
