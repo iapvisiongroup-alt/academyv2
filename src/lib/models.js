@@ -2598,12 +2598,12 @@ export const i2iModels = [
         "default": "auto"
       },
       "resolution": {
-        "enum": ["1K", "2K", "4K"],
+        "enum": ["2K", "4K"],
         "title": "Resolución",
         "name": "resolution",
         "type": "string",
         "description": "Resolución de salida en calidad máxima.",
-        "default": "1K"
+        "default": "2K"
       }
     }
   },

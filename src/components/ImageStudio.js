@@ -508,7 +508,7 @@ export function ImageStudio() {
             selectedModel = ACTIVE_I2I[0].id;
             selectedModelName = ACTIVE_I2I[0].name;
             selectedAr = 'auto';
-            selectedResolution = 'Normal';
+            selectedResolution = '2K';
             updateControlsForMode();
             picker.setMaxImages(getMaxImagesForI2IModel(selectedModel));
         }
@@ -566,7 +566,7 @@ export function ImageStudio() {
         selectedModel = ACTIVE_I2I[0].id;
         selectedModelName = ACTIVE_I2I[0].name;
         selectedAr = 'auto';
-        selectedResolution = 'Normal';
+        selectedResolution = '2K';
 
         const maxImages = getMaxImagesForI2IModel(selectedModel) || 1;
         const selectedFiles = files.slice(0, maxImages);

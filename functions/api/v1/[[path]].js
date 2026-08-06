@@ -151,14 +151,16 @@ function normalizeGptImage2Request(route, body) {
 
     const allowedAspectRatios = new Set(['auto', '1:1', '16:9', '9:16', '4:3', '3:4']);
     const requestedAspectRatio = String(body?.aspect_ratio || 'auto');
-    const requestedResolution = String(body?.resolution || '1K').toUpperCase();
+    const requestedResolution = String(
+        body?.resolution || (route === 'generate/image/t2-edit' ? '2K' : '1K')
+    ).toUpperCase();
 
     const normalized = {
         prompt: String(body?.prompt || '').trim(),
         aspect_ratio: allowedAspectRatios.has(requestedAspectRatio) ? requestedAspectRatio : 'auto',
         resolution: requestedResolution === '4K'
             ? '4K'
-            : requestedResolution === '2K'
+            : route === 'generate/image/t2-edit' || requestedResolution === '2K'
                 ? '2K'
                 : '1K',
         quality: 'high',
@@ -168,6 +170,7 @@ function normalizeGptImage2Request(route, body) {
         normalized.images_list = Array.isArray(body?.images_list)
             ? body.images_list.filter(value => typeof value === 'string' && value).slice(0, 16)
             : [];
+
     }
 
     return normalized;
@@ -1722,6 +1725,9 @@ export async function onRequest(context) {
 
             body = await unwrapIncomingMediaUrls(body, env, request);
             body = normalizeGptImage2Request(route, body);
+            if (route === 'generate/image/t2-edit' && !body.images_list?.length) {
+                return jsonError('Añade al menos una imagen para editar.', 400);
+            }
             rawBody = JSON.stringify(body);
         } else {
             rawBody = await request.arrayBuffer();
