@@ -109,16 +109,16 @@
         }
 
         .brand-logo {
-            width: clamp(150px, 12vw, 190px);
-            height: clamp(72px, 7vw, 104px);
+            width: clamp(180px, 15vw, 260px);
+            height: auto;
+            aspect-ratio: 1200 / 792;
             display: block;
             object-fit: contain;
             object-position: center;
-            padding: 3px;
-            border-radius: 14px;
-            border: 2px solid rgba(255, 255, 255, .42);
-            background: #ffffff;
-            box-shadow: 0 0 48px rgba(59, 130, 246, .3);
+            border: 0;
+            border-radius: 0;
+            background: transparent;
+            box-shadow: none;
             flex: 0 0 auto;
         }
 
@@ -588,9 +588,8 @@
             }
 
             .brand-logo {
-                width: 128px;
-                height: 64px;
-                border-radius: 10px;
+                width: 145px;
+                height: auto;
             }
 
             .brand {
@@ -758,9 +757,6 @@
             <header class="topbar">
                 <div class="brand">
                     <img class="brand-logo" src="/assets/brand/kreateia-local.jpg" alt="KreateIA" />
-                    <div>
-                        <div class="brand-url">WWW.KREATEIA.COM</div>
-                    </div>
                 </div>
 
                 <div class="status-badge">
