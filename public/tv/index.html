@@ -108,16 +108,16 @@
             min-width: 0;
         }
 
-        .logo-mark {
-            width: clamp(54px, 5vw, 72px);
-            height: clamp(54px, 5vw, 72px);
-            border-radius: 20px;
-            border: 2px solid rgba(255, 255, 255, .18);
-            background:
-                radial-gradient(circle at 35% 35%, #3b82f6, transparent 28%),
-                radial-gradient(circle at 70% 68%, #f59e0b, transparent 30%),
-                #080808;
-            box-shadow: 0 0 48px rgba(245, 158, 11, .26);
+        .brand-logo {
+            width: clamp(168px, 15vw, 230px);
+            height: clamp(62px, 6.2vw, 88px);
+            display: block;
+            object-fit: cover;
+            object-position: center 62%;
+            border-radius: 14px;
+            border: 2px solid rgba(255, 255, 255, .42);
+            background: #ffffff;
+            box-shadow: 0 0 48px rgba(59, 130, 246, .3);
             flex: 0 0 auto;
         }
 
@@ -294,6 +294,28 @@
             font-size: clamp(16px, 1.25vw, 20px);
             line-height: 1.3;
             font-weight: 780;
+        }
+
+        .business-list {
+            margin: 2px 0 0;
+            padding: 0;
+            list-style: none;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .business-list li {
+            min-width: 0;
+            padding: 8px 9px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, .12);
+            background: rgba(255, 255, 255, .08);
+            color: rgba(255, 255, 255, .9);
+            font-size: clamp(12px, 1vw, 16px);
+            line-height: 1.12;
+            font-weight: 900;
+            text-align: center;
         }
 
         .small-label {
@@ -564,10 +586,10 @@
                 min-height: 54px;
             }
 
-            .logo-mark {
-                width: 50px;
-                height: 50px;
-                border-radius: 15px;
+            .brand-logo {
+                width: 165px;
+                height: 56px;
+                border-radius: 10px;
             }
 
             .brand {
@@ -671,6 +693,15 @@
                 line-height: 1.18;
             }
 
+            .business-list {
+                gap: 5px;
+            }
+
+            .business-list li {
+                padding: 6px 7px;
+                font-size: 12px;
+            }
+
             .summer-card {
                 min-height: 86px;
                 gap: 10px;
@@ -725,9 +756,8 @@
         <section class="layout">
             <header class="topbar">
                 <div class="brand">
-                    <div class="logo-mark"></div>
+                    <img class="brand-logo" src="/assets/brand/kreateia-local.jpg" alt="KreateIA" />
                     <div>
-                        <div class="brand-name">KREATEIA</div>
                         <div class="brand-url">WWW.KREATEIA.COM</div>
                     </div>
                 </div>
@@ -772,8 +802,16 @@
                     </article>
 
                     <article class="info-card">
-                        <strong>Infórmate sin compromiso</strong>
-                        <span>Descubre el curso que mejor encaja con tus objetivos y tu nivel.</span>
+                        <div class="small-label">Servicios para empresas</div>
+                        <strong>Impulsa tu negocio</strong>
+                        <ul class="business-list">
+                            <li>Apps a medida</li>
+                            <li>Agentes IA</li>
+                            <li>Automatizaciones</li>
+                            <li>Páginas web</li>
+                            <li>SEO y marketing</li>
+                            <li>Redes sociales</li>
+                        </ul>
                     </article>
                 </aside>
             </div>
@@ -804,6 +842,8 @@
                 <span>Ofertas especiales fin de verano</span>
                 <span>Entra e infórmate sin compromiso</span>
                 <span>Gana dinero con IA · Fotografía · Vídeo · Programación · Redes sociales</span>
+                <span>Servicios para empresas · Apps · Agentes IA · Automatizaciones</span>
+                <span>Páginas web · SEO · Marketing · Redes sociales</span>
                 <span>Más info en +34 614 403 913</span>
                 <span>Horario especial del 1 al 14 de septiembre, ambos inclusive</span>
                 <span>Lunes a jueves de 10h a 14h · Tardes y viernes cerrado</span>
@@ -811,6 +851,8 @@
                 <span>Ofertas especiales fin de verano</span>
                 <span>Entra e infórmate sin compromiso</span>
                 <span>Gana dinero con IA · Fotografía · Vídeo · Programación · Redes sociales</span>
+                <span>Servicios para empresas · Apps · Agentes IA · Automatizaciones</span>
+                <span>Páginas web · SEO · Marketing · Redes sociales</span>
                 <span>Más info en +34 614 403 913</span>
                 <span>Horario especial del 1 al 14 de septiembre, ambos inclusive</span>
                 <span>Lunes a jueves de 10h a 14h · Tardes y viernes cerrado</span>
