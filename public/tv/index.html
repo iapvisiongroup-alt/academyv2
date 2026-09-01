@@ -201,8 +201,8 @@
         h1 {
             margin: 0;
             max-width: 980px;
-            font-size: clamp(52px, 5.85vw, 96px);
-            line-height: .92;
+            font-size: clamp(48px, 5.35vw, 88px);
+            line-height: .94;
             font-weight: 1000;
             letter-spacing: 0;
             text-transform: uppercase;
@@ -225,23 +225,28 @@
 
         .service-lines {
             display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 10px;
             max-width: 980px;
         }
 
         .service-line {
-            width: fit-content;
+            width: 100%;
             max-width: 100%;
             padding: 12px 18px;
             border-radius: 16px;
             border: 1px solid rgba(255, 255, 255, .16);
             background: rgba(255, 255, 255, .1);
             color: rgba(255, 255, 255, .94);
-            font-size: clamp(22px, 2.15vw, 38px);
+            font-size: clamp(18px, 1.65vw, 28px);
             line-height: 1.05;
             font-weight: 1000;
             text-transform: uppercase;
             white-space: nowrap;
+        }
+
+        .service-line:first-child {
+            grid-column: 1 / -1;
         }
 
         .service-line.hot {
@@ -308,7 +313,7 @@
 
         .summer-card {
             display: grid;
-            grid-template-columns: minmax(0, 1.25fr) minmax(260px, .55fr);
+            grid-template-columns: 1fr;
             gap: 14px;
             min-height: 112px;
         }
@@ -329,6 +334,19 @@
         .schedule-card.accent {
             background: rgba(251, 191, 36, .17);
             border-color: rgba(251, 191, 36, .48);
+        }
+
+        .schedule-card .schedule-row {
+            width: 100%;
+            display: grid;
+            grid-template-columns: minmax(210px, .7fr) minmax(0, 1.35fr) minmax(230px, .8fr);
+            align-items: center;
+            gap: 24px;
+        }
+
+        .schedule-card .schedule-closed {
+            padding-left: 24px;
+            border-left: 1px solid rgba(255, 255, 255, .18);
         }
 
         .schedule-card strong {
@@ -523,6 +541,14 @@
                 font-size: 20px;
             }
 
+            .service-lines {
+                grid-template-columns: 1fr;
+            }
+
+            .service-line:first-child {
+                grid-column: auto;
+            }
+
             .side-panel {
                 display: none;
             }
@@ -671,6 +697,15 @@
                 font-size: 15px;
             }
 
+            .schedule-card .schedule-row {
+                grid-template-columns: minmax(170px, .75fr) minmax(0, 1.25fr) minmax(205px, .8fr);
+                gap: 14px;
+            }
+
+            .schedule-card .schedule-closed {
+                padding-left: 14px;
+            }
+
             .ticker {
                 height: 34px;
                 font-size: 16px;
@@ -699,27 +734,29 @@
 
                 <div class="status-badge">
                     <span class="status-dot"></span>
-                    Verano 2026
+                    Septiembre 2026
                 </div>
             </header>
 
             <div class="main-grid">
                 <section class="hero">
-                    <div class="eyebrow">Academia IA · Servicios digitales · Verano</div>
+                    <div class="eyebrow">Academia KreateIA · Nuevos cursos</div>
 
                     <h1>
-                        Cursos de IA
-                        <span>para todos los niveles</span>
+                        Ofertas especiales
+                        <span>fin de verano</span>
                     </h1>
 
                     <p class="subtitle">
-                        Formación y servicios digitales para aprender, vender más y trabajar mejor con inteligencia artificial.
+                        Entra e infórmate sin compromiso. Formación práctica para aprender, crear y convertir tus habilidades en oportunidades reales.
                     </p>
 
                     <div class="service-lines">
-                        <div class="service-line hot">Cursos de IA para todos los niveles</div>
-                        <div class="service-line">Servicios para empresas</div>
-                        <div class="service-line">Web / SEO / Marketing / Redes sociales</div>
+                        <div class="service-line hot">Gana dinero con IA</div>
+                        <div class="service-line">Fotografía</div>
+                        <div class="service-line">Vídeo</div>
+                        <div class="service-line">Programación</div>
+                        <div class="service-line">Redes sociales</div>
                     </div>
 
                 </section>
@@ -735,30 +772,28 @@
                     </article>
 
                     <article class="info-card">
-                        <strong>www.kreateia.com</strong>
-                        <span>Academia IA, marketing, SEO, redes sociales y soluciones digitales para empresas.</span>
+                        <strong>Infórmate sin compromiso</strong>
+                        <span>Descubre el curso que mejor encaja con tus objetivos y tu nivel.</span>
                     </article>
                 </aside>
             </div>
 
             <section class="summer-card">
-                <article class="schedule-card">
-                    <div>
-                        <div class="small-label">Horario Agosto</div>
-                        <strong>Lunes a jueves</strong>
-                        <span>10h a 14h</span>
-                    </div>
-                    <div>
-                        <strong>Viernes, sábado y domingo</strong>
-                        <span>Cerrado</span>
-                    </div>
-                </article>
-
                 <article class="schedule-card accent">
-                    <div>
-                        <div class="small-label">Vacaciones</div>
-                        <strong>17 al 31 de agosto</strong>
-                        <span>Ambos inclusive</span>
+                    <div class="schedule-row">
+                        <div>
+                            <div class="small-label">Horario especial</div>
+                            <strong>1 al 14 de septiembre</strong>
+                            <span>Ambos inclusive</span>
+                        </div>
+                        <div>
+                            <strong>Lunes a jueves</strong>
+                            <span>De 10h a 14h</span>
+                        </div>
+                        <div class="schedule-closed">
+                            <strong>Tardes y viernes</strong>
+                            <span>Cerrado</span>
+                        </div>
                     </div>
                 </article>
             </section>
@@ -766,21 +801,19 @@
 
         <footer class="ticker">
             <div class="ticker-track">
-                <span>Cursos de IA para todos los niveles</span>
-                <span>Servicios para empresas</span>
-                <span>Web · SEO · Marketing · Redes sociales</span>
+                <span>Ofertas especiales fin de verano</span>
+                <span>Entra e infórmate sin compromiso</span>
+                <span>Gana dinero con IA · Fotografía · Vídeo · Programación · Redes sociales</span>
                 <span>Más info en +34 614 403 913</span>
-                <span>Horario Agosto · Lunes a jueves de 10h a 14h</span>
-                <span>Viernes, sábado y domingo cerrado</span>
-                <span>Vacaciones del 17 al 31 de agosto, ambos inclusive</span>
+                <span>Horario especial del 1 al 14 de septiembre, ambos inclusive</span>
+                <span>Lunes a jueves de 10h a 14h · Tardes y viernes cerrado</span>
                 <span>www.kreateia.com</span>
-                <span>Cursos de IA para todos los niveles</span>
-                <span>Servicios para empresas</span>
-                <span>Web · SEO · Marketing · Redes sociales</span>
+                <span>Ofertas especiales fin de verano</span>
+                <span>Entra e infórmate sin compromiso</span>
+                <span>Gana dinero con IA · Fotografía · Vídeo · Programación · Redes sociales</span>
                 <span>Más info en +34 614 403 913</span>
-                <span>Horario Agosto · Lunes a jueves de 10h a 14h</span>
-                <span>Viernes, sábado y domingo cerrado</span>
-                <span>Vacaciones del 17 al 31 de agosto, ambos inclusive</span>
+                <span>Horario especial del 1 al 14 de septiembre, ambos inclusive</span>
+                <span>Lunes a jueves de 10h a 14h · Tardes y viernes cerrado</span>
                 <span>www.kreateia.com</span>
             </div>
         </footer>
