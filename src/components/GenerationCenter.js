@@ -1,18 +1,37 @@
 import { auth, db, APP_ID } from '../lib/firebase.js';
 import {
     collection, query, orderBy, limit, onSnapshot,
-    updateDoc, serverTimestamp, addDoc, deleteDoc, doc
+    updateDoc, serverTimestamp, addDoc, deleteDoc, doc, setDoc
 } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { openMediaPrivately } from '../lib/media.js';
 
-const extractUrl = (d) => {
-    if (!d) return null;
-    return d.url || d.image_url || d.audio_url || d.video_url
-        || d.output?.url || d.output?.image_url || d.output?.outputs?.[0]
-        || d.outputs?.[0]
-        || d.data?.url || d.data?.image_url || d.data?.outputs?.[0]
-        || d.images?.[0]?.url || null;
+const extractUrl = (value, seen = new Set()) => {
+    if (!value) return null;
+    if (typeof value === 'string') {
+        return /^(https?:\/\/|\/api\/)/i.test(value) ? value : null;
+    }
+    if (typeof value !== 'object' || seen.has(value)) return null;
+    seen.add(value);
+
+    const preferredKeys = [
+        'url', 'image_url', 'audio_url', 'video_url', 'output_url',
+        'outputs', 'output', 'images', 'data', 'result', 'response',
+    ];
+
+    for (const key of preferredKeys) {
+        const found = extractUrl(value[key], seen);
+        if (found) return found;
+    }
+
+    if (Array.isArray(value)) {
+        for (const item of value) {
+            const found = extractUrl(item, seen);
+            if (found) return found;
+        }
+    }
+
+    return null;
 };
 
 if (!document.querySelector('#gc-styles')) {
@@ -51,7 +70,9 @@ export function GenerationCenter() {
         let token = await auth.currentUser.getIdToken();
 
         try {
-            for (let i = 0; i < 150; i++) {
+            // Algunas generaciones de alta resolución superan holgadamente los
+            // dos minutos. Mantenemos la recuperación activa hasta 20 minutos.
+            for (let i = 0; i < 480; i++) {
                 await new Promise(r => setTimeout(r, 2500));
                 if (i % 240 === 0 && i > 0) token = await auth.currentUser.getIdToken(true);
 
@@ -71,7 +92,31 @@ export function GenerationCenter() {
                 ).toLowerCase();
 
                 if (url) {
-                    await updateDoc(task.ref, { status: 'completed', result_url: url, updatedAt: serverTimestamp() });
+                    const generationRef = doc(
+                        db,
+                        'artifacts', APP_ID, 'public', 'data', 'users', auth.currentUser.uid,
+                        'generations', task.id
+                    );
+
+                    // ID determinista: si dos pestañas recuperan el mismo trabajo,
+                    // solo queda una generación en el historial.
+                    await setDoc(generationRef, {
+                        url,
+                        prompt: task.prompt || 'Imagen generada',
+                        model: task.endpoint || 'image',
+                        type: task.type || 'image',
+                        request_id: task.request_id,
+                        recovered: true,
+                        createdAt: task.createdAt || serverTimestamp(),
+                        updatedAt: serverTimestamp(),
+                    }, { merge: true });
+
+                    await updateDoc(task.ref, {
+                        status: 'completed',
+                        result_url: url,
+                        generation_id: task.id,
+                        updatedAt: serverTimestamp(),
+                    });
                     return;
                 }
                 if (status === 'failed' || status === 'error') {
@@ -84,7 +129,7 @@ export function GenerationCenter() {
                     );
                 }
             }
-            throw new Error('Tiempo de espera agotado.');
+            throw new Error('La generación sigue procesándose. Actualiza la página más tarde para recuperarla.');
         } catch (e) {
             await updateDoc(task.ref, { status: 'failed', error: e.message, updatedAt: serverTimestamp() });
         } finally {

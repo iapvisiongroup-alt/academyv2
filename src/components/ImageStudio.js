@@ -257,18 +257,32 @@ function getDynamicToolCost(tool, resolution = '720p') {
     return Math.max(0, Math.ceil(Number(value) || 0));
 }
 
-function extractImageUrl(data) {
-    return (data && data.url)
-        || (data && data.image_url)
-        || (data && data.output && data.output.url)
-        || (data && data.output && data.output.image_url)
-        || (data && data.output && data.output.outputs && data.output.outputs[0])
-        || (data && data.outputs && data.outputs[0])
-        || (data && data.data && data.data.url)
-        || (data && data.data && data.data.image_url)
-        || (data && data.data && data.data.outputs && data.data.outputs[0])
-        || (data && data.images && data.images[0] && data.images[0].url)
-        || null;
+function extractImageUrl(value, seen = new Set()) {
+    if (!value) return null;
+    if (typeof value === 'string') {
+        return /^(https?:\/\/|\/api\/)/i.test(value) ? value : null;
+    }
+    if (typeof value !== 'object' || seen.has(value)) return null;
+    seen.add(value);
+
+    const preferredKeys = [
+        'url', 'image_url', 'output_url', 'outputs', 'output',
+        'images', 'data', 'result', 'response',
+    ];
+
+    for (const key of preferredKeys) {
+        const found = extractImageUrl(value[key], seen);
+        if (found) return found;
+    }
+
+    if (Array.isArray(value)) {
+        for (const item of value) {
+            const found = extractImageUrl(item, seen);
+            if (found) return found;
+        }
+    }
+
+    return null;
 }
 
 export function ImageStudio() {
@@ -1135,6 +1149,10 @@ export function ImageStudio() {
                     });
 
                     const p = await poll.json().catch(() => ({}));
+
+                    if (!poll.ok && (poll.status === 429 || poll.status >= 500)) {
+                        continue;
+                    }
 
                     if (!poll.ok) {
                         throw new Error(
