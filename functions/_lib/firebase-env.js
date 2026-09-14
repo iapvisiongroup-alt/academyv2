@@ -1,6 +1,7 @@
 const FIREBASE_API_KEY = 'AIzaSyDVD2Sbu7nVbFfVkgujMcgOC_S0oDla-zQ';
 const FIREBASE_PROJECT_ID = 'appacademy-fc66d';
 const FIREBASE_APP_ID = 'appiapvision';
+const GMAIL_SENDER = 'empresas@kreateia.com';
 
 export function hydrateFirebaseEnv(env) {
   let serviceAccount = {};
@@ -21,6 +22,7 @@ export function hydrateFirebaseEnv(env) {
     FIREBASE_APP_ID: env.FIREBASE_APP_ID || FIREBASE_APP_ID,
     FIREBASE_CLIENT_EMAIL: env.FIREBASE_CLIENT_EMAIL || env.GOOGLE_CLIENT_EMAIL || serviceAccount.client_email || '',
     FIREBASE_PRIVATE_KEY: env.FIREBASE_PRIVATE_KEY || env.GOOGLE_PRIVATE_KEY || serviceAccount.private_key || '',
+    GMAIL_SENDER: env.GMAIL_SENDER || GMAIL_SENDER,
   };
 
   Object.entries(resolved).forEach(([key, value]) => {
