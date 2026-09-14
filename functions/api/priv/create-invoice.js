@@ -88,6 +88,7 @@ function normalizeInvoicePayload(body, staff) {
   const taxCents = Math.round(baseCents * taxRate / 100);
   const totalCents = baseCents + taxCents;
   const now = new Date().toISOString();
+  const payment = normalizePayment(body, totalCents);
 
   return {
     serviceType,
@@ -96,8 +97,10 @@ function normalizeInvoicePayload(body, staff) {
     notes: String(body.notes || '').trim().slice(0, 1200),
     issueDate: String(body.issueDate || now.slice(0, 10)).slice(0, 10),
     paymentMethod: normalizePaymentMethod(body.paymentMethod),
-    paymentStatus: normalizePaymentStatus(body.paymentStatus),
-    paidAt: normalizePaymentStatus(body.paymentStatus) === 'Pagado' ? now.slice(0, 10) : null,
+    paymentStatus: payment.status,
+    amountPaidCents: payment.amountPaidCents,
+    remainingCents: payment.remainingCents,
+    paidAt: payment.status === 'Pagado' ? now.slice(0, 10) : null,
     appointment: normalizeAppointment(body.appointment, serviceType),
     taxRate,
     taxLabel: taxRate === 0 ? 'Formación exenta de IVA' : 'IVA 21%',
@@ -194,7 +197,30 @@ function normalizePaymentMethod(value) {
 }
 
 function normalizePaymentStatus(value) {
-  return String(value || '').trim() === 'Pendiente' ? 'Pendiente' : 'Pagado';
+  const clean = String(value || '').trim();
+  return ['Pagado', 'Pago parcial', 'Pendiente'].includes(clean) ? clean : 'Pendiente';
+}
+
+function normalizePayment(body, totalCents) {
+  const requestedStatus = normalizePaymentStatus(body.paymentStatus);
+  let amountPaidCents = Number.isFinite(Number(body.amountPaidCents))
+    ? Math.round(Number(body.amountPaidCents))
+    : Math.round(Math.max(0, Number(body.amountPaid || 0)) * 100);
+
+  if (requestedStatus === 'Pagado') amountPaidCents = totalCents;
+  amountPaidCents = Math.max(0, Math.min(totalCents, amountPaidCents));
+
+  const status = amountPaidCents <= 0
+    ? 'Pendiente'
+    : amountPaidCents >= totalCents
+      ? 'Pagado'
+      : 'Pago parcial';
+
+  return {
+    status,
+    amountPaidCents,
+    remainingCents: Math.max(0, totalCents - amountPaidCents),
+  };
 }
 
 function normalizeAppointment(value, serviceType) {

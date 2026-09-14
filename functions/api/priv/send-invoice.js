@@ -71,6 +71,8 @@ function buildInvoiceEmail(sender, invoice) {
     : `IVA ${invoice.taxRate}%`;
   const paymentMethod = escapeHtml(invoice.paymentMethod || 'No indicado');
   const paymentStatus = escapeHtml(invoice.paymentStatus || 'No indicado');
+  const amountPaidCents = Number(invoice.amountPaidCents ?? (invoice.paymentStatus === 'Pagado' ? invoice.totalCents : 0));
+  const remainingCents = Number(invoice.remainingCents ?? Math.max(0, Number(invoice.totalCents || 0) - amountPaidCents));
   const lineItems = documentLineItems(invoice);
 
   const html = `
@@ -134,6 +136,14 @@ function buildInvoiceEmail(sender, invoice) {
                   <tr style="background:#f8fafc">
                     <td style="padding:14px;font-size:18px;font-weight:900">Total</td>
                     <td style="padding:14px;text-align:right;font-size:18px;font-weight:900">${money(invoice.totalCents)}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:12px;color:#64748b">Entregado a cuenta</td>
+                    <td style="padding:12px;text-align:right;font-weight:bold">${money(amountPaidCents)}</td>
+                  </tr>
+                  <tr style="background:#0f172a;color:#ffffff">
+                    <td style="padding:14px;font-size:16px;font-weight:900">Importe restante</td>
+                    <td style="padding:14px;text-align:right;font-size:16px;font-weight:900">${money(remainingCents)}</td>
                   </tr>
                 </table>
                 <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:18px;border-collapse:collapse;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden">

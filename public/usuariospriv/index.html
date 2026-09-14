@@ -1662,8 +1662,20 @@
               <label>Estado del pago</label>
               <select id="paymentStatus" required>
                 <option value="Pagado">Pagado</option>
+                <option value="Pago parcial">Pago parcial</option>
                 <option value="Pendiente">Pendiente</option>
               </select>
+            </div>
+          </div>
+
+          <div id="payment-balance-section" class="grid2">
+            <div class="field">
+              <label>Dinero entregado a cuenta</label>
+              <input id="amountPaid" type="number" min="0" step="0.01" value="0.00" placeholder="0.00" />
+            </div>
+            <div class="field">
+              <label>Importe restante</label>
+              <input id="remainingAmount" type="text" value="0,00 €" disabled />
             </div>
           </div>
 
@@ -2372,12 +2384,27 @@
       const tax = Math.round(base * taxRate / 100);
       const total = base + tax;
       const isQuote = selectedType === "Servicios IA" && documentMode === "quote";
+      const paymentStatus = $("paymentStatus").value;
+      const amountPaidInput = $("amountPaid");
+      let amountPaid = Math.max(0, Math.min(total, centsFromEuroValue(amountPaidInput.value)));
+
+      if (paymentStatus === "Pagado") {
+        amountPaid = total;
+        amountPaidInput.value = (total / 100).toFixed(2);
+        amountPaidInput.disabled = true;
+      } else {
+        amountPaidInput.disabled = false;
+      }
+
+      const remaining = Math.max(0, total - amountPaid);
+      $("remainingAmount").value = money(remaining);
 
       $("line-items-title").textContent = selectedType === "Academia" ? "Cursos / artículos contratados" : "Artículos / servicios del presupuesto";
       $("appointment-section").classList.toggle("hidden", selectedType !== "Academia");
       $("document-mode-section").classList.toggle("hidden", selectedType !== "Servicios IA");
       $("quote-section").classList.toggle("hidden", !isQuote);
       $("payment-section").classList.toggle("hidden", isQuote);
+      $("payment-balance-section").classList.toggle("hidden", isQuote);
       $("signature-section").classList.toggle("hidden", isQuote);
       $("legal-section").classList.toggle("hidden", isQuote);
       $("legalAccepted").required = !isQuote;
@@ -2393,6 +2420,8 @@
         <div class="sum-line"><span>${taxRate === 0 ? "IVA" : "IVA 21%"}</span><strong>${taxRate === 0 ? "Exento" : money(tax)}</strong></div>
         <div class="sum-line"><span>Documento</span><strong>${isQuote ? "Presupuesto no fiscal" : "Factura"}</strong></div>
         <div class="sum-line"><span>Régimen</span><strong>${taxRate === 0 ? "Formación exenta de IVA" : "Servicio sujeto a IVA"}</strong></div>
+        ${isQuote ? "" : `<div class="sum-line"><span>Entregado a cuenta</span><strong>${money(amountPaid)}</strong></div>`}
+        ${isQuote ? "" : `<div class="sum-line"><span>Importe pendiente</span><strong>${money(remaining)}</strong></div>`}
         <div class="sum-line total"><span>${isQuote ? "Total presupuesto" : "Total"}</span><span>${money(total)}</span></div>
       `;
     }
@@ -2443,6 +2472,17 @@
       lineItems = getLineItemsFromDom();
       lineItems.push(emptyLineItem());
       renderLineItems();
+    });
+    $("paymentStatus").addEventListener("change", () => {
+      if ($("paymentStatus").value === "Pendiente") $("amountPaid").value = "0.00";
+      updateTaxSummary();
+    });
+    $("amountPaid").addEventListener("input", () => {
+      const base = baseCentsFromInput();
+      const total = base + Math.round(base * (selectedType === "Academia" ? 0 : 21) / 100);
+      const paid = centsFromEuroValue($("amountPaid").value);
+      $("paymentStatus").value = paid <= 0 ? "Pendiente" : paid >= total ? "Pagado" : "Pago parcial";
+      updateTaxSummary();
     });
     $("reset-btn").addEventListener("click", resetForm);
     $("issueDate").valueAsDate = new Date();
@@ -3574,6 +3614,10 @@
       }
 
       if (inv.paymentMethod) parts.push(inv.paymentMethod);
+      const amountPaid = Number(inv.amountPaidCents ?? (inv.paymentStatus === "Pagado" ? inv.totalCents : 0));
+      const remaining = Number(inv.remainingCents ?? Math.max(0, Number(inv.totalCents || 0) - amountPaid));
+      if (amountPaid > 0) parts.push(`A cuenta ${money(amountPaid)}`);
+      if (remaining > 0) parts.push(`Pendiente ${money(remaining)}`);
       if (inv.notes) parts.push(inv.notes);
 
       return parts.join(" · ");
@@ -4015,6 +4059,8 @@
       const appointmentText = inv.appointment?.date && inv.appointment?.time
         ? `${inv.appointment.date} a las ${inv.appointment.time}`
         : "No indicada";
+      const amountPaid = Number(inv.amountPaidCents ?? (inv.paymentStatus === "Pagado" ? inv.totalCents : 0));
+      const remaining = Number(inv.remainingCents ?? Math.max(0, Number(inv.totalCents || 0) - amountPaid));
 
       return `
         <article class="invoice-sheet">
@@ -4095,7 +4141,9 @@
           <div class="invoice-totals">
             <div class="invoice-total-line"><span>Base imponible</span><strong>${money(inv.baseCents)}</strong></div>
             <div class="invoice-total-line"><span>${escapeHtml(taxLabel)}</span><strong>${isExempt ? "Exento" : money(inv.taxCents)}</strong></div>
-            <div class="invoice-total-line"><span>Total factura</span><span>${money(inv.totalCents)}</span></div>
+            <div class="invoice-total-line"><span>Total factura</span><strong>${money(inv.totalCents)}</strong></div>
+            <div class="invoice-total-line"><span>Entregado a cuenta</span><strong>${money(amountPaid)}</strong></div>
+            <div class="invoice-total-line"><span>Importe restante</span><span>${money(remaining)}</span></div>
           </div>
 
           <p class="invoice-note">
@@ -4235,6 +4283,7 @@
           issueDate: $("issueDate").value,
           paymentMethod: $("paymentMethod").value,
           paymentStatus: $("paymentStatus").value,
+          amountPaid: Number($("amountPaid").value || 0),
           appointment: selectedType === "Academia"
             ? {
                 date: $("appointmentDate").value,

@@ -64,6 +64,8 @@ function normalizeInvoiceFromQuote(body, quote, staff) {
     quote.notes || '',
     `Factura emitida a partir del presupuesto ${quote.quoteNumber || quote.id}.`,
   ].filter(Boolean).join('\n');
+  const totalCents = Number(quote.totalCents || 0);
+  const payment = normalizePayment(body, totalCents);
 
   return {
     serviceType: 'Servicios IA',
@@ -72,14 +74,16 @@ function normalizeInvoiceFromQuote(body, quote, staff) {
     notes: String(notes).slice(0, 1200),
     issueDate,
     paymentMethod: normalizePaymentMethod(body.paymentMethod),
-    paymentStatus: normalizePaymentStatus(body.paymentStatus),
-    paidAt: normalizePaymentStatus(body.paymentStatus) === 'Pagado' ? now.slice(0, 10) : null,
+    paymentStatus: payment.status,
+    amountPaidCents: payment.amountPaidCents,
+    remainingCents: payment.remainingCents,
+    paidAt: payment.status === 'Pagado' ? now.slice(0, 10) : null,
     appointment: null,
     taxRate: Number(quote.taxRate || 21),
     taxLabel: `IVA ${Number(quote.taxRate || 21)}%`,
     baseCents: Number(quote.baseCents || 0),
     taxCents: Number(quote.taxCents || 0),
-    totalCents: Number(quote.totalCents || 0),
+    totalCents,
     signatureDataUrl: String(body.signatureDataUrl || quote.signatureDataUrl || ''),
     client: {
       fullName: String(quote.client.fullName || '').trim().slice(0, 180),
@@ -114,7 +118,30 @@ function normalizePaymentMethod(value) {
 }
 
 function normalizePaymentStatus(value) {
-  return String(value || '').trim() === 'Pagado' ? 'Pagado' : 'Pendiente';
+  const clean = String(value || '').trim();
+  return ['Pagado', 'Pago parcial', 'Pendiente'].includes(clean) ? clean : 'Pendiente';
+}
+
+function normalizePayment(body, totalCents) {
+  const requestedStatus = normalizePaymentStatus(body.paymentStatus);
+  let amountPaidCents = Number.isFinite(Number(body.amountPaidCents))
+    ? Math.round(Number(body.amountPaidCents))
+    : Math.round(Math.max(0, Number(body.amountPaid || 0)) * 100);
+
+  if (requestedStatus === 'Pagado') amountPaidCents = totalCents;
+  amountPaidCents = Math.max(0, Math.min(totalCents, amountPaidCents));
+
+  const status = amountPaidCents <= 0
+    ? 'Pendiente'
+    : amountPaidCents >= totalCents
+      ? 'Pagado'
+      : 'Pago parcial';
+
+  return {
+    status,
+    amountPaidCents,
+    remainingCents: Math.max(0, totalCents - amountPaidCents),
+  };
 }
 
 async function createInvoiceFromQuoteWithCounter(projectId, accessToken, payload, quote, quoteId, attempt = 0) {
