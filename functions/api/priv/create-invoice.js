@@ -1,3 +1,5 @@
+import { hydrateFirebaseEnv } from '../../_lib/firebase-env.js';
+
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -33,6 +35,7 @@ const NATIONAL_HOLIDAYS = {
 
 export async function onRequest(context) {
   const { request, env } = context;
+  hydrateFirebaseEnv(env);
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
   if (request.method !== 'POST') return jsonError('Método no permitido', 405);
 
