@@ -433,7 +433,7 @@ export function AcademyPage(navigate) {
             <div class="ac-annual-inner">
                 <div>
                     <span class="ac-annual-badge">Promoción de lanzamiento</span>
-                    <h2>Curso Anual IA Online por Zoom con portátil de regalo</h2>
+                    <h2>Curso Anual IA Online por Zoom</h2>
                     <p class="ac-annual-copy">
                         Un año completo aprendiendo inteligencia artificial de forma práctica, con clases online en directo y seguimiento cercano.
                         Ideal para alumnos, adultos, autónomos y personas que quieren dominar herramientas de IA sin perderse.
@@ -462,14 +462,6 @@ export function AcademyPage(navigate) {
                             <span>Zoom</span>
                         </figcaption>
                     </figure>
-
-                    <div class="ac-annual-gift">
-                        <strong>Portátil de regalo promocional</strong>
-                        <p>
-                            Promoción para las primeras matrículas. Es un regalo sin coste adicional para apoyar el aprendizaje.
-                            Modelo sujeto a disponibilidad.
-                        </p>
-                    </div>
 
                     <ul class="ac-annual-points">
                         <li>Acceso a KreateIA Studio durante el curso</li>
