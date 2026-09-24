@@ -1,0 +1,940 @@
+<!doctype html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="refresh" content="300" />
+    <title>KreateIA · Aviso de salida</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            background: #030303;
+            overflow: hidden;
+            color: #ffffff;
+            font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+        }
+
+        body {
+            cursor: none;
+        }
+
+        .tv-screen {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background:
+                radial-gradient(circle at 12% 18%, rgba(20, 184, 166, .42), transparent 32%),
+                radial-gradient(circle at 86% 12%, rgba(251, 191, 36, .36), transparent 32%),
+                radial-gradient(circle at 72% 86%, rgba(56, 189, 248, .22), transparent 34%),
+                #030303;
+        }
+
+        .main-video {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: scale(1.04);
+            filter: saturate(1.28) contrast(1.12) brightness(.9);
+            background: #000000;
+        }
+
+        .shade {
+            position: absolute;
+            inset: 0;
+            z-index: 2;
+            background:
+                linear-gradient(90deg, rgba(0, 0, 0, .78), rgba(0, 0, 0, .42) 48%, rgba(0, 0, 0, .7)),
+                linear-gradient(0deg, rgba(0, 0, 0, .82), rgba(0, 0, 0, .08) 46%, rgba(0, 0, 0, .48));
+        }
+
+        .color-wash {
+            position: absolute;
+            inset: 0;
+            z-index: 3;
+            pointer-events: none;
+            background:
+                radial-gradient(circle at 18% 28%, rgba(20, 184, 166, .26), transparent 34%),
+                radial-gradient(circle at 84% 24%, rgba(251, 191, 36, .26), transparent 30%),
+                radial-gradient(circle at 64% 76%, rgba(56, 189, 248, .18), transparent 36%);
+            mix-blend-mode: screen;
+        }
+
+        .grain {
+            position: absolute;
+            inset: 0;
+            z-index: 4;
+            pointer-events: none;
+            opacity: .08;
+            background-image:
+                linear-gradient(rgba(255, 255, 255, .06) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, .045) 1px, transparent 1px);
+            background-size: 64px 64px;
+        }
+
+        .layout {
+            position: relative;
+            z-index: 8;
+            width: 100%;
+            height: 100%;
+            padding: clamp(24px, 3.9vh, 46px) clamp(34px, 5.2vw, 72px) 64px;
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr) auto;
+            gap: clamp(14px, 2.1vh, 24px);
+        }
+
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+            min-height: 74px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 18px;
+            min-width: 0;
+        }
+
+        .brand-logo {
+            width: clamp(180px, 15vw, 260px);
+            height: auto;
+            aspect-ratio: 1200 / 792;
+            display: block;
+            object-fit: contain;
+            object-position: center;
+            border: 0;
+            border-radius: 0;
+            background: transparent;
+            box-shadow: none;
+            flex: 0 0 auto;
+        }
+
+        .brand-name {
+            margin: 0;
+            color: #ffffff;
+            font-size: clamp(30px, 3.4vw, 48px);
+            line-height: .92;
+            font-weight: 1000;
+            letter-spacing: 0;
+        }
+
+        .brand-url {
+            margin-top: 9px;
+            color: rgba(255, 255, 255, .68);
+            font-size: clamp(14px, 1.55vw, 23px);
+            line-height: 1;
+            font-weight: 850;
+            text-transform: uppercase;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            min-height: 54px;
+            padding: 13px 22px;
+            border-radius: 999px;
+            background: #fbbf24;
+            color: #050505;
+            font-size: clamp(16px, 1.75vw, 24px);
+            line-height: 1;
+            font-weight: 1000;
+            text-transform: uppercase;
+            white-space: nowrap;
+            box-shadow: 0 0 46px rgba(251, 191, 36, .38);
+        }
+
+        .status-dot {
+            width: 13px;
+            height: 13px;
+            border-radius: 999px;
+            background: #050505;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        .main-grid {
+            min-height: 0;
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
+            gap: clamp(22px, 3vw, 42px);
+            align-items: center;
+        }
+
+        .hero {
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: clamp(14px, 2vh, 24px);
+            padding-right: clamp(0px, 2vw, 28px);
+        }
+
+        .eyebrow {
+            width: fit-content;
+            max-width: 100%;
+            display: inline-flex;
+            align-items: center;
+            padding: 10px 18px;
+            border-radius: 999px;
+            border: 1px solid rgba(96, 165, 250, .45);
+            background: rgba(37, 99, 235, .2);
+            color: #bfdbfe;
+            font-size: clamp(15px, 1.35vw, 20px);
+            line-height: 1;
+            font-weight: 1000;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        h1 {
+            margin: 0;
+            max-width: 980px;
+            font-size: clamp(48px, 5.35vw, 88px);
+            line-height: .94;
+            font-weight: 1000;
+            letter-spacing: 0;
+            text-transform: uppercase;
+        }
+
+        h1 span {
+            display: block;
+            color: #fbbf24;
+            text-shadow: 0 0 48px rgba(251, 191, 36, .44);
+        }
+
+        .away-title {
+            max-width: 1050px;
+            font-size: clamp(46px, 4.8vw, 80px);
+            line-height: .96;
+        }
+
+        .side-panel .info-card {
+            padding: clamp(14px, 1.35vw, 19px);
+        }
+
+        .side-panel .info-card strong {
+            margin-bottom: 7px;
+            font-size: clamp(22px, 1.75vw, 28px);
+        }
+
+        .side-panel .business-list li {
+            padding: 6px 8px;
+        }
+
+        .subtitle {
+            margin: 0;
+            max-width: 920px;
+            color: rgba(255, 255, 255, .94);
+            font-size: clamp(24px, 2.05vw, 34px);
+            line-height: 1.18;
+            font-weight: 900;
+        }
+
+        .service-lines {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+            max-width: 980px;
+        }
+
+        .service-line {
+            width: 100%;
+            max-width: 100%;
+            padding: 12px 18px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, .16);
+            background: rgba(255, 255, 255, .1);
+            color: rgba(255, 255, 255, .94);
+            font-size: clamp(18px, 1.65vw, 28px);
+            line-height: 1.05;
+            font-weight: 1000;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .service-line:first-child {
+            grid-column: 1 / -1;
+        }
+
+        .service-line.hot {
+            background: rgba(251, 191, 36, .18);
+            border-color: rgba(251, 191, 36, .5);
+            color: #fde68a;
+        }
+
+        .side-panel {
+            min-height: 0;
+            display: grid;
+            grid-template-rows: auto auto;
+            gap: 14px;
+        }
+
+        .info-card {
+            min-height: 0;
+            overflow: hidden;
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, .18);
+            padding: clamp(18px, 1.7vw, 24px);
+            background:
+                radial-gradient(circle at 20% 16%, rgba(245, 158, 11, .28), transparent 34%),
+                radial-gradient(circle at 86% 78%, rgba(59, 130, 246, .24), transparent 34%),
+                linear-gradient(145deg, rgba(28, 28, 28, .96), rgba(6, 6, 6, .94));
+            box-shadow: 0 24px 70px rgba(0, 0, 0, .48);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            animation: cardGlow 5s ease-in-out infinite;
+        }
+
+        .info-card strong {
+            display: block;
+            margin-bottom: 10px;
+            color: #ffffff;
+            font-size: clamp(24px, 2.05vw, 32px);
+            line-height: 1.05;
+            font-weight: 1000;
+        }
+
+        .info-card span {
+            display: block;
+            color: rgba(255, 255, 255, .76);
+            font-size: clamp(16px, 1.25vw, 20px);
+            line-height: 1.3;
+            font-weight: 780;
+        }
+
+        .business-list {
+            margin: 2px 0 0;
+            padding: 0;
+            list-style: none;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .business-list li {
+            min-width: 0;
+            padding: 8px 9px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, .12);
+            background: rgba(255, 255, 255, .08);
+            color: rgba(255, 255, 255, .9);
+            font-size: clamp(12px, 1vw, 16px);
+            line-height: 1.12;
+            font-weight: 900;
+            text-align: center;
+        }
+
+        .small-label {
+            width: fit-content;
+            margin-bottom: 12px;
+            padding: 7px 11px;
+            border-radius: 999px;
+            background: rgba(245, 158, 11, .18);
+            border: 1px solid rgba(245, 158, 11, .44);
+            color: #fde68a;
+            font-size: clamp(13px, 1.15vw, 17px);
+            line-height: 1;
+            font-weight: 1000;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .summer-card {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 14px;
+            min-height: 112px;
+        }
+
+        .schedule-card {
+            min-width: 0;
+            padding: clamp(16px, 1.45vw, 21px);
+            border-radius: 22px;
+            background: rgba(255, 255, 255, .1);
+            border: 1px solid rgba(255, 255, 255, .16);
+            backdrop-filter: blur(12px);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+        }
+
+        .schedule-card.accent {
+            background: rgba(251, 191, 36, .17);
+            border-color: rgba(251, 191, 36, .48);
+        }
+
+        .schedule-card .schedule-row {
+            width: 100%;
+            display: grid;
+            grid-template-columns: minmax(210px, .7fr) minmax(0, 1.35fr) minmax(230px, .8fr);
+            align-items: center;
+            gap: 24px;
+        }
+
+        .schedule-card .schedule-closed {
+            padding-left: 24px;
+            border-left: 1px solid rgba(255, 255, 255, .18);
+        }
+
+        .schedule-card strong {
+            display: block;
+            margin-bottom: 7px;
+            color: #ffffff;
+            font-size: clamp(21px, 1.85vw, 30px);
+            line-height: 1.05;
+            font-weight: 1000;
+        }
+
+        .schedule-card.accent strong {
+            color: #fde68a;
+        }
+
+        .schedule-card span {
+            display: block;
+            color: rgba(255, 255, 255, .68);
+            font-size: clamp(15px, 1.2vw, 19px);
+            line-height: 1.25;
+            font-weight: 820;
+        }
+
+        .qr-card {
+            min-width: 0;
+            padding: clamp(18px, 2vw, 26px);
+            border-radius: 22px;
+            background: #ffffff;
+            color: #050505;
+            border: 1px solid rgba(255, 255, 255, .34);
+            box-shadow: 0 24px 70px rgba(0, 0, 0, .42);
+            display: grid;
+            gap: 14px;
+            justify-items: center;
+            text-align: center;
+            align-self: end;
+        }
+
+        .qr-card img {
+            width: clamp(150px, 12vw, 220px);
+            height: clamp(150px, 12vw, 220px);
+            display: block;
+            border-radius: 14px;
+        }
+
+        .qr-card strong {
+            display: block;
+            font-size: clamp(20px, 1.9vw, 30px);
+            line-height: 1.02;
+            font-weight: 1000;
+            text-transform: uppercase;
+        }
+
+        .qr-card span {
+            display: block;
+            margin-top: 8px;
+            color: #334155;
+            font-size: clamp(14px, 1.15vw, 18px);
+            line-height: 1.2;
+            font-weight: 850;
+        }
+
+        .qr-phone {
+            margin-top: 12px;
+            padding: 10px 14px;
+            border-radius: 999px;
+            background: #25d366;
+            color: #06140a;
+            font-size: clamp(19px, 1.55vw, 27px);
+            line-height: 1;
+            font-weight: 1000;
+            white-space: nowrap;
+        }
+
+        .ticker {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 10;
+            height: 48px;
+            overflow: hidden;
+            background: #f59e0b;
+            color: #000000;
+            display: flex;
+            align-items: center;
+            font-size: clamp(17px, 1.6vw, 23px);
+            line-height: 1;
+            font-weight: 1000;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .ticker-track {
+            display: flex;
+            width: max-content;
+            animation: ticker 34s linear infinite;
+        }
+
+        .ticker-track span {
+            padding: 0 38px;
+        }
+
+        @keyframes ticker {
+            from { transform: translateX(0); }
+            to { transform: translateX(-50%); }
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: .55;
+                transform: scale(.84);
+            }
+
+            50% {
+                opacity: 1;
+                transform: scale(1.08);
+            }
+        }
+
+        @keyframes cardGlow {
+            0%, 100% {
+                transform: translateY(0);
+                border-color: rgba(255, 255, 255, .15);
+                box-shadow: 0 24px 70px rgba(0, 0, 0, .48);
+            }
+
+            50% {
+                transform: translateY(-5px);
+                border-color: rgba(245, 158, 11, .48);
+                box-shadow: 0 30px 90px rgba(245, 158, 11, .18);
+            }
+        }
+
+        @media (max-width: 1100px) {
+            .layout {
+                padding: 24px 24px 56px;
+                gap: 16px;
+            }
+
+            .main-grid {
+                grid-template-columns: 1fr;
+                align-items: stretch;
+            }
+
+            .side-panel {
+                grid-template-columns: 1fr 1fr;
+                grid-template-rows: auto;
+            }
+
+            .info-card strong {
+                font-size: 22px;
+            }
+
+            .info-card span {
+                font-size: 15px;
+            }
+
+            .summer-card {
+                grid-template-columns: 1fr;
+            }
+
+            .qr-card {
+                grid-template-columns: auto 1fr;
+                justify-items: start;
+                text-align: left;
+            }
+        }
+
+        @media (max-width: 760px) {
+            .topbar {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+
+            .status-badge {
+                min-height: 44px;
+                padding: 11px 15px;
+            }
+
+            h1 {
+                font-size: 48px;
+            }
+
+            .subtitle {
+                font-size: 23px;
+            }
+
+            .service-line {
+                width: 100%;
+                white-space: normal;
+                font-size: 20px;
+            }
+
+            .service-lines {
+                grid-template-columns: 1fr;
+            }
+
+            .service-line:first-child {
+                grid-column: auto;
+            }
+
+            .side-panel {
+                display: none;
+            }
+        }
+
+        @media (max-height: 820px) {
+            .layout {
+                padding: 20px 36px 44px;
+                gap: 10px;
+            }
+
+            .topbar {
+                min-height: 54px;
+            }
+
+            .brand-logo {
+                width: 145px;
+                height: auto;
+            }
+
+            .brand {
+                gap: 12px;
+            }
+
+            .brand-name {
+                font-size: 34px;
+            }
+
+            .brand-url {
+                margin-top: 5px;
+                font-size: 18px;
+            }
+
+            .status-badge {
+                min-height: 44px;
+                padding: 10px 18px;
+                font-size: 18px;
+            }
+
+            .main-grid {
+                grid-template-columns: minmax(0, 1fr) minmax(250px, 310px);
+                gap: 22px;
+            }
+
+            .hero {
+                gap: 9px;
+                justify-content: center;
+            }
+
+            .eyebrow {
+                padding: 8px 14px;
+                font-size: 15px;
+            }
+
+            h1 {
+                max-width: 740px;
+                font-size: clamp(46px, 5.3vw, 74px);
+                line-height: .89;
+            }
+
+            .subtitle {
+                max-width: 760px;
+                font-size: clamp(19px, 1.75vw, 25px);
+                line-height: 1.12;
+            }
+
+            .service-lines {
+                gap: 7px;
+            }
+
+            .service-line {
+                padding: 8px 13px;
+                border-radius: 12px;
+                font-size: clamp(18px, 1.85vw, 25px);
+            }
+
+            .side-panel {
+                gap: 10px;
+            }
+
+            .qr-card {
+                padding: 13px;
+                gap: 8px;
+            }
+
+            .qr-card img {
+                width: clamp(122px, 11vw, 158px);
+                height: clamp(122px, 11vw, 158px);
+                border-radius: 10px;
+            }
+
+            .qr-card strong {
+                font-size: 21px;
+            }
+
+            .qr-card span {
+                margin-top: 4px;
+                font-size: 13px;
+            }
+
+            .qr-phone {
+                margin-top: 7px;
+                padding: 7px 10px;
+                font-size: 18px;
+            }
+
+            .info-card {
+                padding: 14px 16px;
+                border-radius: 17px;
+            }
+
+            .info-card strong {
+                margin-bottom: 5px;
+                font-size: 22px;
+            }
+
+            .info-card span {
+                font-size: 15px;
+                line-height: 1.18;
+            }
+
+            .business-list {
+                gap: 5px;
+            }
+
+            .business-list li {
+                padding: 6px 7px;
+                font-size: 12px;
+            }
+
+            .summer-card {
+                min-height: 86px;
+                gap: 10px;
+            }
+
+            .schedule-card {
+                padding: 12px 16px;
+                border-radius: 16px;
+                gap: 12px;
+            }
+
+            .small-label {
+                margin-bottom: 6px;
+                padding: 5px 8px;
+                font-size: 12px;
+            }
+
+            .schedule-card strong {
+                margin-bottom: 4px;
+                font-size: 24px;
+            }
+
+            .schedule-card span {
+                font-size: 15px;
+            }
+
+            .schedule-card .schedule-row {
+                grid-template-columns: minmax(170px, .75fr) minmax(0, 1.25fr) minmax(205px, .8fr);
+                gap: 14px;
+            }
+
+            .schedule-card .schedule-closed {
+                padding-left: 14px;
+            }
+
+            .ticker {
+                height: 34px;
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main class="tv-screen">
+        <video id="mainVideo" class="main-video" autoplay muted loop playsinline></video>
+
+        <div class="shade"></div>
+        <div class="color-wash"></div>
+        <div class="grain"></div>
+
+        <section class="layout">
+            <header class="topbar">
+                <div class="brand">
+                    <img class="brand-logo" src="/assets/brand/kreateia-transparent.png" alt="KreateIA" />
+                </div>
+
+                <div class="status-badge">
+                    <span class="status-dot"></span>
+                    Volvemos pronto
+                </div>
+            </header>
+
+            <div class="main-grid">
+                <section class="hero">
+                    <div class="eyebrow">Aviso KreateIA</div>
+
+                    <h1 class="away-title">
+                        Hemos salido a dar
+                        <span>un curso presencial</span>
+                    </h1>
+
+                    <p class="subtitle">
+                        Disculpen las molestias. Escríbenos por WhatsApp y te responderemos en cuanto terminemos la formación.
+                    </p>
+
+                    <div class="service-lines">
+                        <div class="service-line hot">Cursos de inteligencia artificial</div>
+                        <div class="service-line">Formación presencial</div>
+                        <div class="service-line">Formación online</div>
+                    </div>
+
+                </section>
+
+                <aside class="side-panel">
+                    <article class="qr-card">
+                        <img alt="QR WhatsApp KreateIA" src="/assets/tv/whatsapp-qr.png" />
+                        <div>
+                            <strong>WhatsApp</strong>
+                            <span>Escanea para comunicarte con nosotros</span>
+                            <div class="qr-phone">+34 614 403 913</div>
+                        </div>
+                    </article>
+
+                    <article class="info-card">
+                        <div class="small-label">Servicios para empresas</div>
+                        <strong>Impulsa tu negocio</strong>
+                        <ul class="business-list">
+                            <li>Apps a medida</li>
+                            <li>Agentes IA</li>
+                            <li>Automatizaciones</li>
+                            <li>Páginas web</li>
+                            <li>SEO y marketing</li>
+                            <li>Redes sociales</li>
+                        </ul>
+                    </article>
+                </aside>
+            </div>
+
+            <section class="summer-card">
+                <article class="schedule-card accent">
+                    <div class="schedule-row">
+                        <div>
+                            <div class="small-label">Horario comercial</div>
+                            <strong>Lunes a jueves</strong>
+                            <span>Mañanas y tardes</span>
+                        </div>
+                        <div>
+                            <strong>10h a 14h</strong>
+                            <span>17h a 20h</span>
+                        </div>
+                        <div class="schedule-closed">
+                            <strong>Viernes, sábado y domingo</strong>
+                            <span>Cerrado</span>
+                        </div>
+                    </div>
+                </article>
+            </section>
+        </section>
+
+        <footer class="ticker">
+            <div class="ticker-track">
+                <span>Hemos salido a dar un curso presencial</span>
+                <span>Disculpen las molestias</span>
+                <span>Contacta con nosotros por WhatsApp</span>
+                <span>Servicios para empresas · Apps · Agentes IA · Automatizaciones</span>
+                <span>Páginas web · SEO · Marketing · Redes sociales</span>
+                <span>Más info en +34 614 403 913</span>
+                <span>Horario comercial · Lunes a jueves de 10h a 14h y de 17h a 20h</span>
+                <span>Viernes, sábado y domingo cerrado</span>
+                <span>www.kreateia.com</span>
+                <span>Hemos salido a dar un curso presencial</span>
+                <span>Disculpen las molestias</span>
+                <span>Contacta con nosotros por WhatsApp</span>
+                <span>Servicios para empresas · Apps · Agentes IA · Automatizaciones</span>
+                <span>Páginas web · SEO · Marketing · Redes sociales</span>
+                <span>Más info en +34 614 403 913</span>
+                <span>Horario comercial · Lunes a jueves de 10h a 14h y de 17h a 20h</span>
+                <span>Viernes, sábado y domingo cerrado</span>
+                <span>www.kreateia.com</span>
+            </div>
+        </footer>
+    </main>
+
+    <script>
+        const videos = [
+            '/assets/tv/background.mp4',
+            'https://cdn.higgsfield.ai/user_3AvFCf0aoS6DTSHhwoX3QgsDzIR/hf_20260409_094557_c0e3952b-1ecf-4621-9b06-eb86a7fe29e8_min.mp4',
+            'https://cdn.higgsfield.ai/user_3AvFCf0aoS6DTSHhwoX3QgsDzIR/hf_20260409_094505_e898193e-ec14-4ecc-92ed-be976174fc88_min.mp4',
+            'https://cdn.higgsfield.ai/user_3AvFCf0aoS6DTSHhwoX3QgsDzIR/hf_20260409_094612_2b122af8-b47a-4518-9d91-9675dd8e3f41_min.mp4',
+            'https://cdn.higgsfield.ai/superhero-gen-preset/b3e830c6-9927-4c6d-8960-8753889adbc9.mp4',
+            'https://cdn.higgsfield.ai/superhero-gen-preset/0305a4a8-5674-4650-8976-031af3231207.mp4',
+            'https://cdn.higgsfield.ai/superhero-gen-preset/6b1f33ae-23c3-4ee7-a419-ebe6af659b0d.mp4'
+        ];
+
+        const mainVideo = document.getElementById('mainVideo');
+        let current = 0;
+        let retryingVideo = false;
+
+        function playVideo(url) {
+            retryingVideo = false;
+            mainVideo.pause();
+            mainVideo.removeAttribute('src');
+            mainVideo.load();
+
+            mainVideo.src = url;
+            mainVideo.muted = true;
+            mainVideo.loop = true;
+            mainVideo.playsInline = true;
+            mainVideo.preload = 'auto';
+            mainVideo.play().catch(function () {});
+        }
+
+        function setScene(index) {
+            current = index % videos.length;
+            playVideo(videos[current]);
+        }
+
+        mainVideo.addEventListener('error', function () {
+            if (retryingVideo) return;
+            retryingVideo = true;
+            setTimeout(function () {
+                setScene(current + 1);
+            }, 500);
+        });
+
+        mainVideo.addEventListener('stalled', function () {
+            if (mainVideo.readyState < 2 && !retryingVideo) {
+                retryingVideo = true;
+                setTimeout(function () {
+                    if (mainVideo.readyState < 2) setScene(current + 1);
+                }, 2500);
+            }
+        });
+
+        setScene(0);
+
+        setInterval(function () {
+            setScene(current + 1);
+        }, 9000);
+
+        setTimeout(function () {
+            window.location.reload();
+        }, 5 * 60 * 1000);
+    </script>
+</body>
+</html>
