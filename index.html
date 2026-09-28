@@ -44,22 +44,39 @@
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
-        "@type": "SoftwareApplication",
-        "name": "KreateIA Studio",
-        "applicationCategory": "MultimediaApplication",
-        "operatingSystem": "Web",
-        "url": "https://kreateia.com/",
-        "description": "Plataforma profesional de inteligencia artificial para crear imágenes, vídeos y contenido visual generativo.",
-        "creator": {
-          "@type": "Organization",
-          "name": "KreateIA",
-          "url": "https://kreateia.com/"
-        },
-        "offers": {
-          "@type": "Offer",
-          "priceCurrency": "EUR",
-          "availability": "https://schema.org/InStock"
-        }
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://kreateia.com/#website",
+            "url": "https://kreateia.com/",
+            "name": "KreateIA",
+            "inLanguage": "es-ES",
+            "publisher": { "@id": "https://kreateia.com/#organization" }
+          },
+          {
+            "@type": "Organization",
+            "@id": "https://kreateia.com/#organization",
+            "name": "KreateIA",
+            "url": "https://kreateia.com/",
+            "logo": "https://kreateia.com/assets/brand/kreateia-transparent.png",
+            "email": "empresas@kreateia.com",
+            "telephone": "+34614403913"
+          },
+          {
+            "@type": "SoftwareApplication",
+            "name": "KreateIA Studio",
+            "applicationCategory": "MultimediaApplication",
+            "operatingSystem": "Web",
+            "url": "https://kreateia.com/",
+            "description": "Plataforma profesional de inteligencia artificial para crear imágenes, vídeos y contenido visual generativo.",
+            "creator": { "@id": "https://kreateia.com/#organization" },
+            "offers": {
+              "@type": "Offer",
+              "priceCurrency": "EUR",
+              "availability": "https://schema.org/InStock"
+            }
+          }
+        ]
       }
     </script>
 

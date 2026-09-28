@@ -1,0 +1,9 @@
+{
+  "name": "kreateia-site-proxy",
+  "main": "src/index.js",
+  "compatibility_date": "2026-09-28",
+  "routes": [
+    { "pattern": "kreateia.com", "custom_domain": true },
+    { "pattern": "www.kreateia.com", "custom_domain": true }
+  ]
+}
