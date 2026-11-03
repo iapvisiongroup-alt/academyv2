@@ -5,20 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#090909" />
   <title>KreateEdit Beta | KreateIA</title>
-  <link rel="stylesheet" href="./styles-v4.css" />
+  <link rel="stylesheet" href="./styles-v5.css" />
 </head>
 <body>
   <section id="project-home" class="project-home">
     <header class="project-home-bar">
-      <div class="brand"><span class="brand-mark">K</span><div><strong>KreateEdit</strong><span>Tu estudio creativo</span></div></div>
+      <div class="brand"><span class="brand-mark">K</span><div><strong>KreateEdit</strong><span>Beta</span></div></div>
       <div class="top-actions">
         <button id="home-back-btn" class="secondary-btn"><i data-lucide="arrow-left"></i><span>KreateIA</span></button>
         <button id="new-project-btn" class="primary-btn"><i data-lucide="plus"></i><span>Nuevo proyecto</span></button>
       </div>
     </header>
     <main class="project-home-main">
-      <div class="project-home-copy"><span class="eyebrow">KreateEdit Beta</span><h1>¿Qué quieres crear hoy?</h1><p>Continúa un proyecto o empieza uno nuevo. Tus archivos y cambios quedan vinculados a tu cuenta KreateIA.</p></div>
-      <div class="project-section-head"><div><h2>Tus proyectos</h2><span id="project-count">Cargando...</span></div></div>
+      <div class="project-home-copy"><h1>Mis proyectos</h1></div>
+      <div class="project-section-head"><div><span id="project-count">Cargando...</span></div><label class="media-search project-search"><i data-lucide="search"></i><input id="project-search" type="search" placeholder="Buscar proyectos" aria-label="Buscar proyectos" /></label></div>
       <div id="project-list" class="project-grid"><div class="project-loading">Cargando tus proyectos...</div></div>
     </main>
   </section>
@@ -42,28 +42,31 @@
     <header class="topbar">
       <div class="brand" aria-label="KreateEdit">
         <span class="brand-mark">K</span>
-        <div><strong>KreateEdit</strong><span>Preview privado</span></div>
+        <div><strong>KreateEdit</strong><span>Beta</span></div>
       </div>
       <div class="project-title">
         <input id="project-name" value="Mi proyecto de vídeo" aria-label="Nombre del proyecto" />
-        <span id="save-state">Guardado local</span>
+        <span id="save-state" aria-live="polite">Conectando...</span>
       </div>
       <div class="top-actions">
         <button id="projects-btn" class="secondary-btn" title="Ver proyectos"><i data-lucide="layout-grid"></i><span>Proyectos</span></button>
         <button id="back-to-studio-btn" class="secondary-btn" title="Volver a KreateIA"><i data-lucide="arrow-left"></i><span>KreateIA</span></button>
         <button id="mobile-library-btn" class="icon-btn mobile-library-btn" title="Abrir biblioteca"><i data-lucide="library"></i></button>
         <button id="mobile-properties-btn" class="icon-btn mobile-library-btn" title="Abrir ajustes"><i data-lucide="sliders-horizontal"></i></button>
-        <button id="undo-btn" class="icon-btn" title="Deshacer" disabled><i data-lucide="undo-2"></i></button>
-        <button id="redo-btn" class="icon-btn" title="Rehacer" disabled><i data-lucide="redo-2"></i></button>
         <button id="auth-btn" class="secondary-btn"><i data-lucide="log-in"></i><span>Iniciar sesión</span></button>
         <button id="export-btn" class="primary-btn"><i data-lucide="download"></i><span>Exportar</span></button>
       </div>
     </header>
 
     <main class="workspace">
+      <nav class="tool-rail" aria-label="Herramientas del editor">
+        <button class="tool-rail-btn active" data-workspace-tool="media" title="Medios del proyecto" aria-pressed="true"><i data-lucide="folder-open"></i><span>Medios</span></button>
+        <button class="tool-rail-btn" data-workspace-tool="audio" title="Archivos de audio" aria-pressed="false"><i data-lucide="music-2"></i><span>Audio</span></button>
+        <button class="tool-rail-btn" data-workspace-tool="ai" title="Crear con KreateIA" aria-pressed="false"><i data-lucide="sparkles"></i><span>Crear IA</span></button>
+      </nav>
       <aside class="library-panel panel">
         <div class="panel-heading">
-          <div><span class="eyebrow">Biblioteca</span><h2>Contenido</h2></div>
+          <div><h2 id="library-title">Medios del proyecto</h2></div>
           <div class="heading-actions"><button id="upload-btn" class="icon-btn" title="Subir archivos"><i data-lucide="upload"></i></button><button id="close-library-mobile" class="icon-btn mobile-library-btn" title="Cerrar"><i data-lucide="x"></i></button></div>
           <input id="file-input" type="file" accept="video/*,audio/*,image/*" multiple hidden />
         </div>
@@ -73,6 +76,7 @@
           <strong>Sube tus archivos</strong>
           <span>Vídeo, audio o imagen</span>
         </button>
+        <label class="media-search"><i data-lucide="search"></i><input id="media-search" type="search" placeholder="Buscar medios" aria-label="Buscar medios" /></label>
         <div id="upload-queue" class="upload-queue"></div>
 
         <div class="source-tabs" role="tablist">
@@ -86,13 +90,14 @@
 
         <div class="ai-box">
           <div class="ai-icon"><i data-lucide="sparkles"></i></div>
-          <div><strong>Crear con IA</strong><span>Genera en KreateIA y vuelve con Editar</span></div>
-          <div class="ai-links"><button id="open-image-studio" class="small-btn" title="Abrir KreateImage"><i data-lucide="image"></i></button><button id="open-video-studio" class="small-btn" title="Abrir KreateVideo"><i data-lucide="video"></i></button></div>
+          <div><strong>Crear con IA</strong></div>
+          <div class="ai-links"><button id="open-image-studio" class="small-btn" title="Abrir KreateImage"><i data-lucide="image"></i><span>KreateImage</span></button><button id="open-video-studio" class="small-btn" title="Abrir KreateVideo"><i data-lucide="video"></i><span>KreateVideo</span></button></div>
         </div>
       </aside>
 
       <section class="stage-column">
         <div class="preview-toolbar panel">
+          <h2>Reproductor</h2>
           <div class="segmented" aria-label="Formato del proyecto">
             <button class="segment active" data-ratio="16:9">16:9</button>
             <button class="segment" data-ratio="9:16">9:16</button>
@@ -107,8 +112,7 @@
             <img id="preview-image" alt="Previsualización" />
             <div id="empty-preview" class="empty-preview">
               <i data-lucide="clapperboard"></i>
-              <strong>Empieza tu montaje</strong>
-              <span>Sube un vídeo y añádelo a la línea de tiempo</span>
+              <strong>Sin clips en este punto</strong>
             </div>
           </div>
           <div class="transport">
@@ -122,24 +126,25 @@
       </section>
 
       <aside class="properties-panel panel">
-        <div class="panel-heading"><div><span class="eyebrow">Ajustes</span><h2>Clip seleccionado</h2></div><button id="close-properties-mobile" class="icon-btn mobile-library-btn" title="Cerrar"><i data-lucide="x"></i></button></div>
-        <div id="no-selection" class="no-selection"><i data-lucide="mouse-pointer-2"></i><p>Selecciona un clip de la línea de tiempo para editarlo.</p></div>
+        <div class="panel-heading"><div><h2>Propiedades</h2></div><button id="close-properties-mobile" class="icon-btn mobile-library-btn" title="Cerrar"><i data-lucide="x"></i></button></div>
+        <div class="inspector-tabs" role="tablist" aria-label="Propiedades del clip"><button class="inspector-tab active" data-inspector-tab="clip" role="tab" aria-selected="true">Clip</button><button class="inspector-tab" data-inspector-tab="audio" role="tab" aria-selected="false">Audio</button></div>
+        <div id="no-selection" class="no-selection"><i data-lucide="sliders-horizontal"></i><p>Ningún clip seleccionado</p></div>
         <div id="clip-properties" class="clip-properties hidden">
           <div class="selected-summary"><div id="selected-thumb" class="selected-thumb"></div><div><strong id="selected-name"></strong><span id="selected-kind"></span></div></div>
 
-          <div class="property-group">
+          <div class="property-group" data-inspector-group="clip">
             <label>Recorte</label>
             <div class="two-inputs"><div><span>Inicio</span><input id="trim-start" type="number" min="0" step="0.1" /></div><div><span>Final</span><input id="trim-end" type="number" min="0.1" step="0.1" /></div></div>
             <div class="range-pair"><input id="trim-start-range" type="range" min="0" step="0.1" /><input id="trim-end-range" type="range" min="0.1" step="0.1" /></div>
           </div>
 
-          <div class="property-group">
+          <div class="property-group" data-inspector-group="audio">
             <div class="label-row"><label for="volume-slider">Volumen</label><span id="volume-label">100%</span></div>
             <input id="volume-slider" type="range" min="0" max="100" value="100" />
             <label class="toggle-row"><span><strong>Silenciar clip</strong><small>El vídeo mantiene la imagen</small></span><input id="mute-toggle" type="checkbox" /><span class="toggle"></span></label>
           </div>
 
-          <div class="property-group">
+          <div class="property-group" data-inspector-group="audio">
             <label>Fundidos de audio</label>
             <div class="two-inputs"><div><span>Fade in</span><input id="fade-in" type="number" min="0" step="0.1" value="0" /></div><div><span>Fade out</span><input id="fade-out" type="number" min="0" step="0.1" value="0" /></div></div>
             <div class="range-pair"><input id="fade-in-range" type="range" min="0" step="0.1" value="0" /><input id="fade-out-range" type="range" min="0" step="0.1" value="0" /></div>
@@ -154,14 +159,23 @@
         </div>
       </aside>
 
+      <div id="timeline-resizer" class="timeline-resizer" role="separator" aria-label="Altura de la línea de tiempo" aria-orientation="horizontal" aria-valuemin="220" aria-valuemax="600" aria-valuenow="320" tabindex="0"></div>
       <section class="timeline-panel panel">
         <div class="timeline-head">
-          <div><span class="eyebrow">Línea de tiempo</span><strong id="timeline-duration">00:00.0</strong></div>
-          <div class="timeline-actions">
-            <button id="add-video-track" class="secondary-btn" title="Añadir pista de vídeo"><i data-lucide="rows-3"></i><span>Añadir pista</span></button>
+          <div class="timeline-edit-tools">
+            <button id="undo-btn" class="icon-btn" title="Deshacer" disabled><i data-lucide="undo-2"></i></button>
+            <button id="redo-btn" class="icon-btn" title="Rehacer" disabled><i data-lucide="redo-2"></i></button>
+            <span class="tool-divider"></span>
             <button id="quick-split-btn" class="icon-btn" title="Dividir clip"><i data-lucide="scissors"></i></button>
-            <button id="quick-mute-btn" class="icon-btn" title="Silenciar clip"><i data-lucide="volume-x"></i></button>
+            <button id="quick-duplicate-btn" class="icon-btn" title="Duplicar clip"><i data-lucide="copy"></i></button>
             <button id="quick-delete-btn" class="icon-btn" title="Eliminar clip"><i data-lucide="trash-2"></i></button>
+            <button id="quick-mute-btn" class="icon-btn" title="Silenciar clip"><i data-lucide="volume-x"></i></button>
+            <strong id="timeline-duration">00:00.0</strong>
+          </div>
+          <div class="timeline-actions">
+            <button id="snap-btn" class="icon-btn active" title="Ajuste magnético" aria-pressed="true"><i data-lucide="magnet"></i></button>
+            <span class="tool-divider"></span>
+            <button id="add-video-track" class="icon-btn" title="Añadir pista de vídeo"><i data-lucide="list-plus"></i></button>
             <button id="timeline-zoom-out" class="icon-btn" title="Alejar línea de tiempo"><i data-lucide="minus"></i></button>
             <input id="timeline-zoom" type="range" min="45" max="130" value="75" />
             <button id="timeline-zoom-in" class="icon-btn" title="Acercar línea de tiempo"><i data-lucide="plus"></i></button>
@@ -195,7 +209,7 @@
         <label>Resolución<select id="export-resolution"><option value="720">720p · Prueba rápida</option><option value="1080">1080p · Alta calidad</option></select></label>
         <label>Fotogramas<select id="export-fps"><option value="30">30 fps</option><option value="24">24 fps</option></select></label>
       </div>
-      <div class="export-note"><i data-lucide="info"></i><p>Esta versión de prueba exporta directamente en tu navegador. No sube tus archivos a ningún servidor.</p></div>
+      <div class="export-note"><i data-lucide="monitor-play"></i><p>La exportación se procesa en este dispositivo. Mantén esta pestaña abierta hasta que termine.</p></div>
       <div id="export-progress-wrap" class="progress-wrap hidden"><div class="progress-line"><span id="export-status">Preparando...</span><strong id="export-percent">0%</strong></div><div class="progress-bar"><span id="export-progress"></span></div></div>
       <div class="modal-actions"><button id="cancel-export" class="secondary-btn">Cancelar</button><button id="start-export" class="primary-btn"><i data-lucide="download"></i>Exportar MP4/WebM</button></div>
     </div>
@@ -212,6 +226,6 @@
   <div id="toast" class="toast hidden"></div>
   <canvas id="export-canvas" hidden></canvas>
   <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
-  <script type="module" src="./app-v4.js"></script>
+  <script type="module" src="./app-v4.js?v=studio-5"></script>
 </body>
 </html>
