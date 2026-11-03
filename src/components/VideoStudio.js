@@ -1,14 +1,15 @@
 import { AuthModal } from './AuthModal.js';
 import { video25Credits } from '../lib/kreateVideo25.mjs';
+import { generationHistoryRecord, recentVideoHistory } from '../lib/generationHistory.mjs';
 import { createUploadPicker } from './UploadPicker.js';
 import { createControlBtn, createDropdownSystem } from './dropdowns.js';
 import { auth, db, APP_ID } from '../lib/firebase.js';
 import {
     collection, addDoc, query, orderBy, limit, getDocs,
-    serverTimestamp, doc, updateDoc
+    serverTimestamp, doc, updateDoc, setDoc, onSnapshot
 } from 'firebase/firestore';
 // saveGenerationTask inline — sin imports dinámicos
-async function saveGenerationTask({ type, endpoint, requestId, prompt, userId }) {
+async function saveGenerationTask({ type, endpoint, requestId, prompt, userId, settings }) {
     try {
         return addDoc(
             collection(db, 'artifacts', APP_ID, 'public', 'data', 'users', userId, 'generation_tasks'),
@@ -16,7 +17,8 @@ async function saveGenerationTask({ type, endpoint, requestId, prompt, userId })
                 type,
                 endpoint,
                 request_id: requestId || null,
-                prompt: (prompt || '').slice(0, 200),
+                prompt: (prompt || '').slice(0, 10000),
+                settings: settings || {},
                 status: 'running',
                 result_url: null,
                 createdAt: serverTimestamp(),
@@ -816,6 +818,7 @@ export function VideoStudio() {
     };
 
     const renderCard = (entry, isPrepend = false) => {
+        if (container.querySelector(`[id="card-${CSS.escape(entry.id)}"]`)) return;
         galleryHeader.classList.remove('hidden');
         const card = document.createElement('div');
         card.id = `card-${entry.id}`;
@@ -887,15 +890,40 @@ export function VideoStudio() {
         if (isPrepend) galleryGrid.prepend(card); else galleryGrid.appendChild(card);
     };
 
-    const loadFirebaseHistory = async (user) => {
-        try {
-            const q    = query(collection(db, 'artifacts', APP_ID, 'public', 'data', 'users', user.uid, 'video_generations'), orderBy('createdAt', 'desc'), limit(20));
-            const snap = await getDocs(q);
-            snap.forEach((d) => renderCard({ id: d.id, ...d.data() }));
-        } catch (err) { console.error('[VideoStudio] Historial:', err); }
+    let historyUnsubscribe = null;
+    let historyUser = '';
+    let legacyHistory = [];
+    let currentHistory = [];
+    const renderHistory = () => {
+        if (!auth.currentUser || auth.currentUser.uid !== historyUser) return;
+        container.querySelectorAll('[id^="card-"]').forEach(card => card.remove());
+        recentVideoHistory([...legacyHistory, ...currentHistory]).forEach(entry => renderCard(entry));
     };
-
-    onAuthStateChanged(auth, (user) => { if (user) loadFirebaseHistory(user); });
+    const authUnsubscribe = onAuthStateChanged(auth, (user) => {
+        historyUnsubscribe?.();
+        historyUser = user?.uid || '';
+        legacyHistory = []; currentHistory = [];
+        container.querySelectorAll('[id^="card-"]').forEach(card => card.remove());
+        if (!user) return;
+        const base = ['artifacts', APP_ID, 'public', 'data', 'users', user.uid];
+        // Use the owner's existing media collection; old video-only records remain readable.
+        historyUnsubscribe = onSnapshot(query(collection(db, ...base, 'generations'), orderBy('createdAt', 'desc'), limit(100)), snap => {
+            if (historyUser !== user.uid) return;
+            currentHistory = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            renderHistory();
+        }, err => console.error('[VideoStudio] Historial:', err));
+        getDocs(query(collection(db, ...base, 'video_generations'), orderBy('createdAt', 'desc'), limit(20))).then(snap => {
+            if (historyUser !== user.uid) return;
+            legacyHistory = snap.docs.map(d => ({ id: d.id, ...d.data(), type: 'video' }));
+            renderHistory();
+        }).catch(err => { if (err.code !== 'permission-denied') console.warn('[VideoStudio] Historial anterior:', err); });
+    });
+    let mounted = false;
+    const historyObserver = new MutationObserver(() => {
+        if (container.isConnected) mounted = true;
+        else if (mounted) { historyUnsubscribe?.(); authUnsubscribe(); historyObserver.disconnect(); }
+    });
+    historyObserver.observe(document.body, { childList: true, subtree: true });
 
     // GENERACIÓN
     async function handleGenerate() {
@@ -917,6 +945,7 @@ export function VideoStudio() {
             if (typeof AuthModal === 'function') return AuthModal(() => handleGenerate());
             return alert('Debes iniciar sesión.');
         }
+        const generationUser = auth.currentUser;
         if (selectedUiId === 'kreate-25' && !promptText) return alert('Escribe un prompt para generar el vídeo.');
         if (['seedance-v2.0-t2v','veo3.1-fast-text-to-video','kling-v3.0-std-motion-control'].includes(finalApiId) && !promptText)
             return alert('Escribe un prompt para generar el vídeo.');
@@ -951,7 +980,7 @@ export function VideoStudio() {
         textarea.value = ''; textarea.style.height = 'auto';
 
         try {
-            const token     = await auth.currentUser.getIdToken();
+            const token     = await generationUser.getIdToken();
             const videoRoute = API_TO_ROUTE[finalApiId] || `generate/video/standard`;
             const req        = await fetch(`/api/v1/${videoRoute}`, {
                 method: 'POST',
@@ -970,7 +999,8 @@ export function VideoStudio() {
                     endpoint:  videoRoute,
                     requestId: initialRequestId,
                     prompt:    cleanPrompt,
-                    userId:    auth.currentUser.uid,
+                    userId:    generationUser.uid,
+                    settings:  generationSettings,
                 }).catch(() => null);
             }
 
@@ -982,7 +1012,9 @@ export function VideoStudio() {
                     await new Promise(r => setTimeout(r, 2000));
                     attempts++;
                     try {
-                        const poll = await fetch(`/api/v1/predictions/${pollRequestId}/result`, { headers: { 'Authorization': `Bearer ${token}` } });
+                        if (auth.currentUser?.uid !== generationUser.uid) throw new Error('La sesión ha cambiado. La generación se recuperará en tu cuenta.');
+                        const pollToken = await generationUser.getIdToken();
+                        const poll = await fetch(`/api/v1/predictions/${pollRequestId}/result`, { headers: { 'Authorization': `Bearer ${pollToken}` } });
                         if (!poll.ok) { if (poll.status >= 500) continue; throw new Error(`Poll ${poll.status}`); }
                         const p = await poll.json();
                         if (extractVideoUrl(p)) { res = p; break; }
@@ -997,16 +1029,15 @@ export function VideoStudio() {
             const finalUrl = extractVideoUrl(res);
             if (!finalUrl) throw new Error('No se recibió URL del vídeo.');
 
-            if (generationTaskRef && finalUrl) {
-                updateDoc(generationTaskRef, { status: 'completed', result_url: finalUrl, updatedAt: serverTimestamp() }).catch(() => {});
-            }
-
             // Créditos descontados por el backend
 
             const rid = initialRequestId || res.request_id || res.output?.id || res.id || null;
             const entryData = { url: finalUrl, prompt: cleanPrompt || 'Vídeo generado', ...generationSettings, type: 'video', request_id: rid, muapi_request_id: rid, createdAt: serverTimestamp() };
-            let realId = rid || Date.now().toString();
-            try { const ref = await addDoc(collection(db,'artifacts',APP_ID,'public','data','users',auth.currentUser.uid,'video_generations'), entryData); realId = ref.id; } catch {}
+            const record = generationHistoryRecord({ id: generationTaskRef?.id || rid || String(Date.now()), type: 'video', request_id: rid, prompt: cleanPrompt, settings: generationSettings }, finalUrl);
+            const realId = record.id;
+            if (auth.currentUser?.uid !== generationUser.uid) throw new Error('La sesión ha cambiado. Vuelve a tu cuenta para recuperar el vídeo.');
+            await setDoc(doc(db,'artifacts',APP_ID,'public','data','users',generationUser.uid,'generations',realId), { ...record.data, createdAt: serverTimestamp() }, { merge: true });
+            if (generationTaskRef) await updateDoc(generationTaskRef, { status: 'completed', result_url: finalUrl, generation_id: realId, updatedAt: serverTimestamp() });
 
             loadingCard.remove();
             renderCard({ id: realId, ...entryData }, true);

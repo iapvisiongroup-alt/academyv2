@@ -962,7 +962,7 @@ export function ImageStudio() {
             );
 
             const snap = await getDocs(q);
-            snap.forEach(d => renderCard({ id: d.id, ...d.data() }));
+            snap.forEach(d => { const data = d.data(); if (!data.type || data.type === 'image') renderCard({ id: d.id, ...data }); });
         } catch (e) {}
     };
 

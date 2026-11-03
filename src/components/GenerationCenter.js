@@ -5,6 +5,7 @@ import {
 } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { openMediaPrivately } from '../lib/media.js';
+import { generationHistoryRecord } from '../lib/generationHistory.mjs';
 
 const extractUrl = (value, seen = new Set()) => {
     if (!value) return null;
@@ -58,6 +59,7 @@ export function GenerationCenter() {
     let unsub  = null;
     const polling = new Set();
     const cards   = new Map();
+    let session = 0;
 
     const startPolling = async (task) => {
         if (!auth.currentUser)         return;
@@ -67,14 +69,18 @@ export function GenerationCenter() {
         if (window.__kreateiaActiveRequests?.has(task.request_id)) return;
 
         polling.add(task.id);
-        let token = await auth.currentUser.getIdToken();
+        const user = auth.currentUser;
+        const startedSession = session;
+        const stillCurrent = () => session === startedSession && auth.currentUser?.uid === user.uid;
+        let providerFailed = false;
 
         try {
             // Algunas generaciones de alta resolución superan holgadamente los
             // dos minutos. Mantenemos la recuperación activa hasta 20 minutos.
             for (let i = 0; i < 480; i++) {
                 await new Promise(r => setTimeout(r, 2500));
-                if (i % 240 === 0 && i > 0) token = await auth.currentUser.getIdToken(true);
+                if (!stillCurrent()) return;
+                const token = await user.getIdToken();
 
                 const resp = await fetch(`/api/v1/predictions/${task.request_id}/result`, {
                     headers: { Authorization: `Bearer ${token}` }
@@ -82,6 +88,7 @@ export function GenerationCenter() {
                 if (!resp.ok) { if (resp.status >= 500) continue; throw new Error(`Poll ${resp.status}`); }
 
                 const data   = await resp.json();
+                if (!stillCurrent()) return;
                 const url    = extractUrl(data);
                 const status = String(
                     data.status
@@ -92,20 +99,17 @@ export function GenerationCenter() {
                 ).toLowerCase();
 
                 if (url) {
+                    const record = generationHistoryRecord(task, url);
                     const generationRef = doc(
                         db,
-                        'artifacts', APP_ID, 'public', 'data', 'users', auth.currentUser.uid,
-                        'generations', task.id
+                        'artifacts', APP_ID, 'public', 'data', 'users', user.uid,
+                        'generations', record.id
                     );
 
                     // ID determinista: si dos pestañas recuperan el mismo trabajo,
                     // solo queda una generación en el historial.
                     await setDoc(generationRef, {
-                        url,
-                        prompt: task.prompt || 'Imagen generada',
-                        model: task.endpoint || 'image',
-                        type: task.type || 'image',
-                        request_id: task.request_id,
+                        ...record.data,
                         recovered: true,
                         createdAt: task.createdAt || serverTimestamp(),
                         updatedAt: serverTimestamp(),
@@ -114,12 +118,13 @@ export function GenerationCenter() {
                     await updateDoc(task.ref, {
                         status: 'completed',
                         result_url: url,
-                        generation_id: task.id,
+                        generation_id: record.id,
                         updatedAt: serverTimestamp(),
                     });
                     return;
                 }
                 if (status === 'failed' || status === 'error') {
+                    providerFailed = true;
                     throw new Error(
                         data.error
                         || data.output?.error
@@ -131,7 +136,14 @@ export function GenerationCenter() {
             }
             throw new Error('La generación sigue procesándose. Actualiza la página más tarde para recuperarla.');
         } catch (e) {
-            await updateDoc(task.ref, { status: 'failed', error: e.message, updatedAt: serverTimestamp() });
+            if (!stillCurrent()) return;
+            if (providerFailed) {
+                await updateDoc(task.ref, { status: 'failed', error: e.message, updatedAt: serverTimestamp() });
+            } else {
+                // Network errors and long renders must not destroy a recoverable job.
+                console.warn('[GenerationCenter] Recuperación pendiente:', e.message);
+                setTimeout(() => { if (stillCurrent()) startPolling(task); }, 5000);
+            }
         } finally {
             polling.delete(task.id);
         }
@@ -243,7 +255,7 @@ export function GenerationCenter() {
             await new Promise(r => setTimeout(r, 300));
             card.remove();
             cards.delete(task.id);
-            try { await deleteDoc(task.ref); } catch {}
+            if (task.status !== 'running') { try { await deleteDoc(task.ref); } catch {} }
         });
 
         root.appendChild(card);
@@ -252,6 +264,7 @@ export function GenerationCenter() {
     };
 
     onAuthStateChanged(auth, (user) => {
+        session += 1;
         if (unsub) { unsub(); unsub = null; }
         // Limpiar cards de usuario anterior
         cards.forEach(card => card.remove());
