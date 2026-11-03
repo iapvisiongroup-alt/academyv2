@@ -1,5 +1,6 @@
 // /functions/api/v1/[[path]].js
 // Rutas opacas — el frontend nunca ve los nombres reales de modelos
+import { normalizeVideo25, video25Credits, mp4Duration } from '../../../src/lib/kreateVideo25.mjs';
 
 // ─── Mapeo interno de rutas ───────────────────────────────────────────────────
 // Frontend envía: /api/v1/generate/image/create
@@ -11,6 +12,9 @@ const MAIN_ADMIN_EMAILS = new Set([
 ]);
 
 const ROUTE_MAP = {
+    'generate/video/v25-text': { endpoint: 'seedance-2.5-text-to-video', costType: 'video25' },
+    'generate/video/v25-image': { endpoint: 'seedance-2.5-image-to-video', costType: 'video25' },
+    'generate/video/v25-reference': { endpoint: 'seedance-2.5-omni-reference', costType: 'video25' },
     // IMAGEN
     'generate/image/create':       { endpoint: 'nano-banana-2',                    cost: 16 },
     'generate/image/edit':         { endpoint: 'nano-banana-2-edit',               cost:  8 },
@@ -64,6 +68,7 @@ const ALLOWED_VIDEO_UPLOAD_TYPES = new Set([
     'video/webm',
     'video/quicktime',
 ]);
+const ALLOWED_AUDIO_UPLOAD_TYPES = new Set(['audio/mpeg', 'audio/wav', 'audio/x-wav', 'audio/mp4', 'audio/x-m4a', 'audio/ogg']);
 
 function resolveFirebaseEnv(env) {
     let serviceAccount = {};
@@ -104,6 +109,9 @@ function calculateCost(route, body) {
     if (!mapped) return null;
 
     let cost = mapped.cost ?? 0;
+    if (mapped.costType === 'video25') {
+        cost = video25Credits(body.duration, body.verifiedReferenceSeconds || 0, Boolean(body.videos_list?.length));
+    }
 
     if (mapped.costType === 'gptImage2') {
         const resolution = String(body?.resolution || '1K').toLowerCase();
@@ -142,6 +150,35 @@ function calculateCost(route, body) {
     }
 
     return { cost: normalizedCost, muapiEndpoint: mapped.endpoint };
+}
+
+async function verifyVideo25References(body, uid, env) {
+    let seconds = 0;
+    if (!body.videos_list?.length) return seconds;
+    const bucket = getFirebaseStorageBucket(env);
+    const accessToken = await getServiceAccountToken(env);
+    for (const value of body.videos_list) {
+        const url = new URL(value);
+        const prefix = `/v0/b/${encodeURIComponent(bucket)}/o/`;
+        if (url.hostname !== 'firebasestorage.googleapis.com' || !url.pathname.startsWith(prefix)) {
+            throw new Error('Sube los vídeos desde tu cuenta para verificar su duración.');
+        }
+        const objectName = decodeURIComponent(url.pathname.slice(prefix.length));
+        if (!objectName.startsWith(`users/${safeStorageNamePart(uid)}/generated/`)) {
+            throw new Error('La referencia de vídeo no pertenece a tu cuenta.');
+        }
+        const response = await fetch(`https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(bucket)}/o/${encodeURIComponent(objectName)}`, {
+            headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (!response.ok) throw new Error('No se pudo comprobar la referencia de vídeo.');
+        const metadata = await response.json();
+        const duration = Number(metadata.metadata?.durationSeconds);
+        if (!metadata.contentType?.startsWith('video/') || !Number.isFinite(duration) || duration <= 0 || duration > 30) {
+            throw new Error('Usa referencias MP4 o MOV de hasta 30 segundos con duración verificable.');
+        }
+        seconds += duration;
+    }
+    return seconds;
 }
 
 function normalizeGptImage2Request(route, body) {
@@ -657,7 +694,9 @@ function extensionFromContentType(contentType) {
     if (type.includes('video/webm')) return 'webm';
     if (type.includes('video/quicktime')) return 'mov';
     if (type.includes('audio/mpeg')) return 'mp3';
-    if (type.includes('audio/wav')) return 'wav';
+    if (type.includes('audio/wav') || type.includes('audio/x-wav')) return 'wav';
+    if (type.includes('audio/mp4') || type.includes('audio/x-m4a')) return 'm4a';
+    if (type.includes('audio/ogg')) return 'ogg';
     return 'bin';
 }
 
@@ -684,6 +723,10 @@ function uploadBytesMatchContentType(bytes, contentType) {
     if (contentType === 'video/mp4' || contentType === 'video/quicktime') {
         return hasAscii(bytes, 4, 'ftyp');
     }
+    if (contentType === 'audio/mp4' || contentType === 'audio/x-m4a') return hasAscii(bytes, 4, 'ftyp');
+    if (contentType === 'audio/wav' || contentType === 'audio/x-wav') return hasAscii(bytes, 0, 'RIFF') && hasAscii(bytes, 8, 'WAVE');
+    if (contentType === 'audio/ogg') return hasAscii(bytes, 0, 'OggS');
+    if (contentType === 'audio/mpeg') return hasAscii(bytes, 0, 'ID3') || (bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0);
 
     return false;
 }
@@ -692,6 +735,7 @@ function isSafeProxiedMediaType(contentType) {
     const type = String(contentType || '').split(';')[0].trim().toLowerCase();
     return ALLOWED_IMAGE_UPLOAD_TYPES.has(type)
         || ALLOWED_VIDEO_UPLOAD_TYPES.has(type)
+        || ALLOWED_AUDIO_UPLOAD_TYPES.has(type)
         || type === 'audio/mpeg'
         || type === 'audio/mp4'
         || type === 'audio/wav'
@@ -764,6 +808,7 @@ async function uploadImageBytesToFirebaseStorage({
     env,
     accessToken,
     source = 'kreateia-generated-media',
+    durationSeconds = null,
 }) {
     const bucket = getFirebaseStorageBucket(env);
     if (!bucket || !env.FIREBASE_PROJECT_ID || !accessToken) {
@@ -786,6 +831,7 @@ async function uploadImageBytesToFirebaseStorage({
         metadata: {
             firebaseStorageDownloadTokens: downloadToken,
             source,
+            ...(durationSeconds ? { durationSeconds: String(durationSeconds) } : {}),
         },
     };
 
@@ -1660,7 +1706,8 @@ export async function onRequest(context) {
             const fileType = String(file.type || 'application/octet-stream').toLowerCase();
             const isImage = ALLOWED_IMAGE_UPLOAD_TYPES.has(fileType);
             const isVideo = ALLOWED_VIDEO_UPLOAD_TYPES.has(fileType);
-            if (!isImage && !isVideo) {
+            const isAudio = ALLOWED_AUDIO_UPLOAD_TYPES.has(fileType);
+            if (!isImage && !isVideo && !isAudio) {
                 return jsonError('Formato de archivo no permitido.', 400);
             }
 
@@ -1686,6 +1733,7 @@ export async function onRequest(context) {
                 env,
                 accessToken,
                 source: 'kreateia-user-upload',
+                durationSeconds: isVideo ? mp4Duration(bytes) : null,
             });
             const publicUrl = await wrapMediaUrls(url, env, request);
 
@@ -1693,6 +1741,7 @@ export async function onRequest(context) {
                 url: publicUrl,
                 file_url: publicUrl,
                 status: 'completed',
+                duration_seconds: isVideo ? mp4Duration(bytes) : null,
             }), {
                 status: 200,
                 headers: {
@@ -1725,10 +1774,19 @@ export async function onRequest(context) {
 
             body = await unwrapIncomingMediaUrls(body, env, request);
             body = normalizeGptImage2Request(route, body);
+            if (ROUTE_MAP[route]?.costType === 'video25') {
+                try {
+                    body = normalizeVideo25(route, body);
+                    body.verifiedReferenceSeconds = await verifyVideo25References(body, authenticatedUser.uid, env);
+                } catch (error) {
+                    return jsonError(error.message, 400);
+                }
+            }
             if (route === 'generate/image/t2-edit' && !body.images_list?.length) {
                 return jsonError('Añade al menos una imagen para editar.', 400);
             }
-            rawBody = JSON.stringify(body);
+            const { verifiedReferenceSeconds, ...providerBody } = body;
+            rawBody = JSON.stringify(providerBody);
         } else {
             rawBody = await request.arrayBuffer();
         }

@@ -1,4 +1,5 @@
 import { AuthModal } from './AuthModal.js';
+import { video25Credits } from '../lib/kreateVideo25.mjs';
 import { createUploadPicker } from './UploadPicker.js';
 import { createControlBtn, createDropdownSystem } from './dropdowns.js';
 import { auth, db, APP_ID } from '../lib/firebase.js';
@@ -30,6 +31,7 @@ async function saveGenerationTask({ type, endpoint, requestId, prompt, userId })
 import { onAuthStateChanged } from 'firebase/auth';
 
 const V_MODELS = [
+    { uiId: 'kreate-25', name: 'Kreate Video 2.5', desc: '480p · Texto, foto, vídeo y audio' },
     { uiId: 'kreate-2',        name: 'KreateVideo 2',         desc: 'Texto, imagen y vídeo a vídeo' },
     { uiId: 'kreate-2-extend', name: 'KreateVideo 2 Extend',  desc: 'Alarga el último vídeo generado' },
     { uiId: 'veo-fast',        name: 'KreateVideo Fast',       desc: 'Generación ultrarrápida' },
@@ -38,6 +40,11 @@ const V_MODELS = [
 ];
 
 const getApiId = (uiId, mode) => {
+    if (uiId === 'kreate-25') {
+        if (mode === 'omni') return 'seedance-2.5-omni-reference';
+        if (mode === 'i2v') return 'seedance-2.5-image-to-video';
+        return 'seedance-2.5-text-to-video';
+    }
     if (uiId === 'kreate-2-extend') return 'sd-2-vip-extend';
     if (uiId === 'veo-fast')        return 'veo3.1-fast-text-to-video';
     if (uiId === 'veo-i2v')         return 'veo3.1-lite-image-to-video';
@@ -52,6 +59,9 @@ const getApiId = (uiId, mode) => {
 
 // Mapa de apiId a ruta opaca del backend
 const API_TO_ROUTE = {
+    'seedance-2.5-text-to-video': 'generate/video/v25-text',
+    'seedance-2.5-image-to-video': 'generate/video/v25-image',
+    'seedance-2.5-omni-reference': 'generate/video/v25-reference',
     'seedance-v2.0-t2v':                  'generate/video/standard',
     'seedance-2-vip-image-to-video-fast': 'generate/video/i2v',
     'seedance-2.0-omni-reference-480p':   'generate/video/v2v',
@@ -61,7 +71,11 @@ const API_TO_ROUTE = {
     'kling-v3.0-std-motion-control':      'generate/video/motion',
 };
 
-const getVideoCost = (apiId, duration, quality = 'basic') => {
+const getVideoCost = (apiId, duration, quality = 'basic', refs = []) => {
+    if (apiId.startsWith('seedance-2.5-')) {
+        const videos = refs.filter(ref => ref.kind === 'video');
+        return video25Credits(Number(duration), videos.reduce((sum, ref) => sum + ref.duration, 0), videos.length > 0);
+    }
     const costPer5s = {
         'seedance-v2.0-t2v':                     0.75,
         'seedance-2-vip-image-to-video-fast':     1.05,
@@ -115,9 +129,14 @@ const resolveImageReferencePrompt = (promptText, imageReferences) => {
     return prompt;
 };
 
-const buildVideoParams = ({ finalApiId, promptText, selectedAr, selectedDuration, selectedQuality, uploadedImageUrl, imageReferences, uploadedVideoUrl, lastGenerationId }) => {
+const buildVideoParams = ({ finalApiId, promptText, selectedAr, selectedDuration, selectedQuality, uploadedImageUrl, imageReferences, uploadedVideoUrl, lastGenerationId, references25 = [] }) => {
     const duration = parseInt(selectedDuration) || 5;
     const quality  = selectedQuality || 'basic';
+    if (finalApiId.startsWith('seedance-2.5-')) {
+        const refs = kind => references25.filter(ref => ref.kind === kind).map(ref => ref.url);
+        return { prompt: promptText, duration, aspect_ratio: selectedAr, resolution: '480p',
+            images_list: refs('image'), videos_list: refs('video'), audios_list: refs('audio') };
+    }
     if (['seedance-v2.0-t2v','veo3.1-fast-text-to-video','kling-v3.0-std-motion-control'].includes(finalApiId))
         return { prompt: promptText, aspect_ratio: selectedAr, duration, quality };
     if (finalApiId === 'seedance-2-vip-image-to-video-fast') {
@@ -171,10 +190,16 @@ export function VideoStudio() {
     let imageReferences   = [];
     let uploadedVideoUrl  = null;
     let lastGenerationId  = null;
+    let references25 = [];
+    let uploading25 = false;
 
     const dd = createDropdownSystem();
 
     const getCurrentMode = () => {
+        if (selectedUiId === 'kreate-25') {
+            if (references25.some(ref => ref.kind !== 'image') || references25.length > 1) return 'omni';
+            return references25.length ? 'i2v' : 't2v';
+        }
         if (selectedUiId === 'kreate-2-extend') return 'extend';
         if (uploadedVideoUrl) return 'v2v';
         if (uploadedImageUrl || imageReferences.length) return 'i2v';
@@ -436,9 +461,79 @@ export function VideoStudio() {
     };
 
     topRow.appendChild(videoPickerBtn);
+    const reference25Input = document.createElement('input');
+    reference25Input.type = 'file';
+    reference25Input.multiple = true;
+    reference25Input.accept = 'image/jpeg,image/png,image/webp,video/mp4,video/quicktime,audio/mpeg,audio/wav,audio/x-wav,audio/mp4,audio/x-m4a,audio/ogg';
+    reference25Input.hidden = true;
+    const reference25Btn = document.createElement('button');
+    reference25Btn.type = 'button';
+    reference25Btn.title = 'Añadir referencias de foto, vídeo o audio';
+    reference25Btn.setAttribute('aria-label', reference25Btn.title);
+    reference25Btn.textContent = '+';
+    reference25Btn.style.cssText = 'width:40px;height:40px;flex-shrink:0;border:1px solid #444;border-radius:8px;background:#191919;color:#fff;font-size:24px';
+    reference25Btn.onclick = () => reference25Input.click();
+    topRow.append(reference25Btn, reference25Input);
     topRow.appendChild(textarea);
     bar.appendChild(topRow);
     bar.appendChild(referencesPanel);
+    const references25Panel = document.createElement('div');
+    references25Panel.style.cssText = 'display:none;gap:8px;flex-direction:column';
+    bar.appendChild(references25Panel);
+
+    function renderReferences25() {
+        references25Panel.replaceChildren();
+        references25Panel.style.display = selectedUiId === 'kreate-25' && references25.length ? 'flex' : 'none';
+        const counts = { image: 0, video: 0, audio: 0 };
+        references25.forEach((ref, index) => {
+            const row = document.createElement('div');
+            row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:8px;border:1px solid #333;border-radius:8px;color:#ddd;min-width:0';
+            const label = document.createElement('span');
+            label.textContent = `@${ref.kind}${++counts[ref.kind]} · ${ref.name}${ref.kind === 'video' ? ' · ' + ref.duration.toFixed(1) + ' s' : ''}`;
+            label.style.cssText = 'flex:1;overflow-wrap:anywhere;font-size:12px';
+            const remove = document.createElement('button');
+            remove.type = 'button'; remove.textContent = '×'; remove.title = 'Eliminar referencia';
+            remove.style.cssText = 'color:#fff;padding:4px 10px;background:#333;border:0;border-radius:4px';
+            remove.onclick = () => { references25.splice(index, 1); renderReferences25(); updateControlsForModel(); };
+            row.append(label, remove); references25Panel.appendChild(row);
+        });
+    }
+
+    async function addReferences25(fileList) {
+        if (uploading25) return;
+        if (!auth.currentUser) return alert('Inicia sesión para subir referencias.');
+        uploading25 = true;
+        reference25Btn.disabled = true;
+        updateControlsForModel();
+        try {
+            for (const file of Array.from(fileList || [])) {
+                const kind = file.type.split('/')[0];
+                const maximum = kind === 'image' ? 30 : 10;
+                if (!['image', 'video', 'audio'].includes(kind)) throw new Error('Formato de referencia no admitido.');
+                if (references25.filter(ref => ref.kind === kind).length >= maximum) throw new Error(`Máximo ${maximum} referencias de ${kind}.`);
+                reference25Btn.textContent = '…';
+                reference25Btn.title = 'Subiendo ' + file.name;
+                const token = await auth.currentUser.getIdToken();
+                const form = new FormData(); form.append('file', file);
+                const response = await fetch('/api/v1/upload_file', {
+                    method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: form,
+                    signal: AbortSignal.timeout(60000),
+                });
+                const data = await response.json().catch(() => ({}));
+                if (!response.ok || !data.url) throw new Error(data.error || 'No se pudo subir la referencia.');
+                const duration = Number(data.duration_seconds);
+                if (kind === 'video' && (!Number.isFinite(duration) || duration <= 0 || duration > 30)) throw new Error('Usa vídeos MP4 o MOV de hasta 30 segundos.');
+                references25.push({ kind, url: data.url, name: file.name, duration });
+                renderReferences25();
+            }
+        } catch (error) { alert(error.message || 'No se pudo subir la referencia.'); }
+        finally {
+            uploading25 = false; reference25Btn.disabled = false; reference25Btn.textContent = '+';
+            reference25Input.value = ''; reference25Btn.title = 'Añadir referencias de foto, vídeo o audio';
+            updateControlsForModel();
+        }
+    }
+    reference25Input.onchange = () => addReferences25(reference25Input.files);
 
     async function uploadVideoReferenceImage(file) {
         if (!auth.currentUser) {
@@ -547,6 +642,11 @@ export function VideoStudio() {
             e.preventDefault();
             e.stopPropagation();
             if (eventName === 'drop') {
+                if (selectedUiId === 'kreate-25') {
+                    bar.style.border = '1px solid #2a2a2a'; bar.style.background = '#111';
+                    addReferences25(e.dataTransfer?.files);
+                    return;
+                }
                 handleDroppedVideoImages(e.dataTransfer?.files);
                 return;
             }
@@ -604,12 +704,21 @@ export function VideoStudio() {
     function updateControlsForModel() {
         const mode       = getCurrentMode();
         const finalApiId = getApiId(selectedUiId, mode);
-        const cost       = getVideoCost(finalApiId, selectedDuration, selectedQuality);
+        const cost       = getVideoCost(finalApiId, selectedDuration, selectedQuality, references25);
+        const is25 = selectedUiId === 'kreate-25';
+        reference25Btn.style.display = is25 ? 'block' : 'none';
+        picker.trigger.style.display = is25 ? 'none' : '';
+        videoPickerBtn.style.display = is25 ? 'none' : 'flex';
+        qualityBtn.disabled = is25;
+        generateBtn.disabled = uploading25;
+        generateBtn.style.opacity = uploading25 ? '.5' : '1';
+        if (is25) referencesPanel.style.display = 'none';
+        renderReferences25();
 
         updateLabel('v-model-btn-label',    selectedModelName);
         updateLabel('v-ar-btn-label',       selectedAr);
         updateLabel('v-duration-btn-label', `${selectedDuration}s`);
-        updateLabel('v-quality-btn-label',  selectedQuality === 'high' ? 'Alta' : 'Básica');
+        updateLabel('v-quality-btn-label', is25 ? '480p' : selectedQuality === 'high' ? 'Alta' : 'Básica');
 
         extendBanner.style.display = selectedUiId === 'kreate-2-extend' ? 'flex' : 'none';
 
@@ -631,7 +740,9 @@ export function VideoStudio() {
             const m = V_MODELS.find(x => x.uiId === id);
             if (!m) return;
             selectedUiId = m.uiId; selectedModelName = m.name;
+            if (m.uiId !== 'kreate-25' && selectedDuration > 15) selectedDuration = 15;
             if (m.uiId !== 'kreate-2-extend') lastGenerationId = null;
+            if (m.uiId !== 'kreate-25') renderImageReferences();
             updateControlsForModel();
         });
     });
@@ -639,7 +750,7 @@ export function VideoStudio() {
     arBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         const finalApiId = getApiId(selectedUiId, getCurrentMode());
-        const items = ['sd-2-vip-extend','seedance-2.0-omni-reference-480p'].includes(finalApiId) ? AR_ITEMS_EXTENDED : AR_ITEMS_BASIC;
+        const items = selectedUiId === 'kreate-25' || ['sd-2-vip-extend','seedance-2.0-omni-reference-480p'].includes(finalApiId) ? AR_ITEMS_EXTENDED : AR_ITEMS_BASIC;
         dd.openList('Relación de aspecto', items, selectedAr, arBtn, (val) => {
             selectedAr = val; updateControlsForModel();
         });
@@ -647,12 +758,14 @@ export function VideoStudio() {
 
     durationBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        dd.openList('Duración', DURATION_ITEMS, String(selectedDuration), durationBtn, (val) => {
+        const items = selectedUiId === 'kreate-25' ? [5,10,15,20,25,30].map(v => ({ id: String(v), name: `${v} segundos` })) : DURATION_ITEMS;
+        dd.openList('Duración', items, String(selectedDuration), durationBtn, (val) => {
             selectedDuration = parseInt(val); updateControlsForModel();
         });
     });
 
     qualityBtn.addEventListener('click', (e) => {
+        if (selectedUiId === 'kreate-25') return;
         e.stopPropagation();
         dd.openList('Calidad', QUALITY_ITEMS, selectedQuality, qualityBtn, (val) => {
             selectedQuality = val; updateControlsForModel();
@@ -786,17 +899,25 @@ export function VideoStudio() {
 
     // GENERACIÓN
     async function handleGenerate() {
+        if (uploading25) return;
         let generationTaskRef = null;
         let initialRequestId  = null;
         const promptText  = textarea.value.trim();
         const currentMode = getCurrentMode();
         const finalApiId  = getApiId(selectedUiId, currentMode);
-        const cost        = getVideoCost(finalApiId, selectedDuration, selectedQuality);
+        const cost        = getVideoCost(finalApiId, selectedDuration, selectedQuality, references25);
+        const generationSettings = {
+            duration: selectedDuration,
+            quality: selectedUiId === 'kreate-25' ? '480p' : selectedQuality,
+            aspect_ratio: selectedAr,
+            model: selectedModelName,
+        };
 
         if (!auth?.currentUser) {
             if (typeof AuthModal === 'function') return AuthModal(() => handleGenerate());
             return alert('Debes iniciar sesión.');
         }
+        if (selectedUiId === 'kreate-25' && !promptText) return alert('Escribe un prompt para generar el vídeo.');
         if (['seedance-v2.0-t2v','veo3.1-fast-text-to-video','kling-v3.0-std-motion-control'].includes(finalApiId) && !promptText)
             return alert('Escribe un prompt para generar el vídeo.');
         if (finalApiId === 'seedance-2-vip-image-to-video-fast' && !imageReferences.length && !uploadedImageUrl)
@@ -811,7 +932,7 @@ export function VideoStudio() {
         // Saldo verificado por el backend
 
         galleryHeader.classList.remove('hidden');
-        const params      = buildVideoParams({ finalApiId, promptText, selectedAr, selectedDuration, selectedQuality, uploadedImageUrl, imageReferences, uploadedVideoUrl, lastGenerationId });
+        const params      = buildVideoParams({ finalApiId, promptText, selectedAr, selectedDuration, selectedQuality, uploadedImageUrl, imageReferences, uploadedVideoUrl, lastGenerationId, references25 });
         const cleanPrompt = String(params.prompt || promptText || '').replace(/@image\d/g,'').replace(/@video\d/g,'').trim();
 
         const loadingCard = document.createElement('div');
@@ -883,7 +1004,7 @@ export function VideoStudio() {
             // Créditos descontados por el backend
 
             const rid = initialRequestId || res.request_id || res.output?.id || res.id || null;
-            const entryData = { url: finalUrl, prompt: cleanPrompt || 'Vídeo generado', model: finalApiId, duration: selectedDuration, quality: selectedQuality, aspect_ratio: selectedAr, type: 'video', request_id: rid, muapi_request_id: rid, createdAt: serverTimestamp() };
+            const entryData = { url: finalUrl, prompt: cleanPrompt || 'Vídeo generado', ...generationSettings, type: 'video', request_id: rid, muapi_request_id: rid, createdAt: serverTimestamp() };
             let realId = rid || Date.now().toString();
             try { const ref = await addDoc(collection(db,'artifacts',APP_ID,'public','data','users',auth.currentUser.uid,'video_generations'), entryData); realId = ref.id; } catch {}
 
